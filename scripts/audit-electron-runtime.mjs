@@ -35,8 +35,10 @@ const scenarios = Object.freeze([
 let activeScenario = null;
 let auditProject = null;
 let terminalResizeObserved = false;
+let terminalResizeCount = 0;
 let terminalInputObserved = false;
 let activeFileObserved = false;
+let rightSidebarTerminalResizeObserved = false;
 const auditIpcChannels = Object.freeze([
   "wikiwise:getAppSettings",
   "wikiwise:setAppearanceMode",
@@ -201,6 +203,9 @@ function registerAuditIpcHandlers() {
   });
   ipcMain.handle("wikiwise:resizeTerminal", (_event, payload) => {
     terminalResizeObserved = Number(payload?.cols) > 0 && Number(payload?.rows) > 0;
+    if (terminalResizeObserved) {
+      terminalResizeCount += 1;
+    }
     return { ok: true, cols: payload?.cols, rows: payload?.rows };
   });
   ipcMain.handle("wikiwise:stopTerminal", () => ({ ok: true }));
@@ -287,8 +292,10 @@ function createAuditWindow() {
 async function runScenario(window, scenario) {
   activeScenario = scenario;
   terminalResizeObserved = false;
+  terminalResizeCount = 0;
   terminalInputObserved = false;
   activeFileObserved = false;
+  rightSidebarTerminalResizeObserved = false;
   nativeTheme.themeSource = scenario.appearanceMode.toLowerCase();
   console.log(`Running runtime audit scenario: ${scenario.name}`);
 
@@ -330,6 +337,11 @@ async function runScenario(window, scenario) {
       `Boolean(document.querySelector("#terminal-surface .xterm") && window.__wikiwiseTerminal)`,
       `scenario ${scenario.name} xterm terminal to render`
     );
+    await delay(80);
+    const terminalResizeCountBeforeSidebarResize = terminalResizeCount;
+    await simulateRightSidebarResize(window);
+    await delay(160);
+    rightSidebarTerminalResizeObserved = terminalResizeCount > terminalResizeCountBeforeSidebarResize;
     await window.webContents.executeJavaScript(`window.__wikiwiseTerminal?.input("echo runtime audit\\r")`, true);
   }
   await delay(120);
@@ -340,6 +352,7 @@ async function runScenario(window, scenario) {
 
   const dom = await readDomEvidence(window);
   dom.terminalResizeObserved = terminalResizeObserved;
+  dom.rightSidebarTerminalResizeObserved = rightSidebarTerminalResizeObserved;
   dom.terminalInputObserved = terminalInputObserved;
   dom.activeFileObserved = activeFileObserved;
   const screenshot = screenshotStats(image);
@@ -356,6 +369,73 @@ async function runScenario(window, scenario) {
     dom,
     screenshot
   };
+}
+
+async function simulateRightSidebarResize(window) {
+  return window.webContents.executeJavaScript(`(() => {
+    const rightSidebar = document.querySelector("#right-sidebar");
+    const handle = document.querySelector("#right-sidebar-resize-handle");
+    const project = document.querySelector("#project");
+    const projectRect = project?.getBoundingClientRect();
+    const maxWidth = projectRect ? Math.floor(projectRect.width / 2) : null;
+
+    if (!rightSidebar || !handle) {
+      const missingEvidence = {
+        rightSidebarResizeHandlePresent: Boolean(handle),
+        rightSidebarInitialWidth: null,
+        rightSidebarResizedWidth: null,
+        rightSidebarMaxWidth: maxWidth,
+        rightSidebarResizeObserved: false
+      };
+      window.__wikiwiseRightSidebarResizeEvidence = missingEvidence;
+      return missingEvidence;
+    }
+
+    const before = Math.round(rightSidebar.getBoundingClientRect().width);
+    const handleRect = handle.getBoundingClientRect();
+    const startX = Math.round(handleRect.left + Math.max(1, handleRect.width / 2));
+    const clientY = Math.round(handleRect.top + Math.max(1, handleRect.height / 2));
+    const pointer = {
+      bubbles: true,
+      cancelable: true,
+      pointerId: 17,
+      pointerType: "mouse",
+      isPrimary: true,
+      button: 0,
+      buttons: 1,
+      clientX: startX,
+      clientY
+    };
+
+    handle.dispatchEvent(new PointerEvent("pointerdown", pointer));
+    handle.dispatchEvent(new PointerEvent("pointermove", {
+      ...pointer,
+      clientX: startX - 80
+    }));
+    handle.dispatchEvent(new PointerEvent("pointerup", {
+      ...pointer,
+      buttons: 0,
+      clientX: startX - 80
+    }));
+
+    const after = Math.round(rightSidebar.getBoundingClientRect().width);
+    const evidence = {
+      rightSidebarResizeHandlePresent: true,
+      rightSidebarInitialWidth: before,
+      rightSidebarResizedWidth: after,
+      rightSidebarMaxWidth: maxWidth,
+      rightSidebarResizeObserved: before !== after
+    };
+    window.__wikiwiseRightSidebarResizeEvidence = evidence;
+    return evidence;
+  })()`, true).catch((error) => ({
+    rightSidebarResizeHandlePresent: false,
+    rightSidebarInitialWidth: null,
+    rightSidebarResizedWidth: null,
+    rightSidebarMaxWidth: null,
+    rightSidebarResizeObserved: false,
+    error: error instanceof Error ? error.message : String(error)
+  }));
 }
 
 async function waitForScenario(window, scenario) {
@@ -414,7 +494,8 @@ async function readDomEvidence(window) {
 	          window.__wikiwiseTerminal.buffer.active.getLine(index)?.translateToString(true) ?? ""
 	        ).join("\\n").trim()
 	      : "";
-	    const treeButtons = [...document.querySelectorAll(".tree-row")];
+		    const rightSidebarResizeEvidence = window.__wikiwiseRightSidebarResizeEvidence ?? {};
+		    const treeButtons = [...document.querySelectorAll(".tree-row")];
 	    const detailHeader = document.querySelector(".detail-header");
 	    const detailHeaderRect = detailHeader?.getBoundingClientRect();
 	    const detailHeaderVisible = Boolean(
@@ -464,9 +545,14 @@ async function readDomEvidence(window) {
       codeMirrorEditorPresent: Boolean(sourceEditorDocument?.querySelector(".cm-editor")),
       expandedTreeEvidence,
       nestedSelectionEvidence,
-      previewFrameHidden: Boolean(document.querySelector("#preview-frame")?.hidden),
-	      rightSidebarHidden: Boolean(document.querySelector("#right-sidebar")?.hidden),
-	      xtermTerminalPresent: Boolean(terminalSurface?.querySelector(".xterm")),
+	      previewFrameHidden: Boolean(document.querySelector("#preview-frame")?.hidden),
+		      rightSidebarHidden: Boolean(document.querySelector("#right-sidebar")?.hidden),
+		      rightSidebarResizeHandlePresent: Boolean(document.querySelector("#right-sidebar-resize-handle")),
+		      rightSidebarInitialWidth: rightSidebarResizeEvidence.rightSidebarInitialWidth ?? null,
+		      rightSidebarResizedWidth: rightSidebarResizeEvidence.rightSidebarResizedWidth ?? null,
+		      rightSidebarMaxWidth: rightSidebarResizeEvidence.rightSidebarMaxWidth ?? null,
+		      rightSidebarResizeObserved: Boolean(rightSidebarResizeEvidence.rightSidebarResizeObserved),
+		      xtermTerminalPresent: Boolean(terminalSurface?.querySelector(".xterm")),
 	      terminalText: window.__wikiwiseTerminalText || terminalLineText || textFor("#terminal-surface"),
 	      errorText: textFor("#error-message")
 	    };
@@ -576,12 +662,33 @@ function assertScenario(scenario, dom, screenshot) {
 	    if (dom.rightSidebarHidden) {
 	      failures.push("Right sidebar is hidden.");
 	    }
+		    if (!dom.rightSidebarResizeHandlePresent) {
+		      failures.push("Right sidebar resize handle is missing.");
+		    }
+		    if (!dom.rightSidebarResizeObserved) {
+		      failures.push("Right sidebar width did not change after drag.");
+		    }
+		    if (Number.isFinite(dom.rightSidebarResizedWidth) && dom.rightSidebarResizedWidth < 200) {
+		      failures.push(`Right sidebar width is below native minimum: ${dom.rightSidebarResizedWidth}`);
+		    }
+		    if (
+		      Number.isFinite(dom.rightSidebarResizedWidth) &&
+		      Number.isFinite(dom.rightSidebarMaxWidth) &&
+		      dom.rightSidebarResizedWidth > dom.rightSidebarMaxWidth + 1
+		    ) {
+		      failures.push(
+		        `Right sidebar width exceeds native maximum: ${dom.rightSidebarResizedWidth}/${dom.rightSidebarMaxWidth}`
+		      );
+		    }
 	    if (!dom.xtermTerminalPresent) {
 	      failures.push("Terminal panel did not render an xterm terminal surface.");
 	    }
 	    if (!dom.terminalResizeObserved) {
 	      failures.push("Terminal resize was not sent through the preload bridge.");
 	    }
+		    if (!dom.rightSidebarTerminalResizeObserved) {
+		      failures.push("Terminal resize was not sent after right sidebar drag.");
+		    }
 	    if (!dom.terminalInputObserved) {
 	      failures.push("Terminal input was not sent through the preload bridge.");
 	    }

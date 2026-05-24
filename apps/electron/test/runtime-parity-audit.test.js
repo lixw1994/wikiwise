@@ -71,12 +71,18 @@ test("runtime audit script covers native shell scenarios and assertions", () => 
     /expandedTreeEvidence/,
     /nestedSelectionEvidence/,
     /xtermTerminalPresent/,
+    /rightSidebarResizeHandlePresent/,
+    /rightSidebarInitialWidth/,
+    /rightSidebarResizedWidth/,
+    /rightSidebarResizeObserved/,
     /terminalResizeObserved/,
     /terminalInputObserved/,
     /rightSidebarHidden/,
     /previewFrameHidden/,
     /Project shell exceeds viewport/,
     /Non-native detail save chrome is visible/,
+    /Right sidebar resize handle is missing/,
+    /Right sidebar width did not change after drag/,
     /differentFromFirstPixelCount/
   ]);
 });

@@ -53,6 +53,14 @@ test("renderer contains right sidebar info and terminal state", () => {
   const rendererSource = read("src/renderer/renderer.js");
 
   assert.match(rendererSource, /rightSidebarTab:\s*"terminal"/);
+  assert.match(rendererSource, /rightSidebarWidth:\s*360/);
+  assert.match(rendererSource, /rightSidebarResizeDrag/);
+  assert.match(rendererSource, /RIGHT_SIDEBAR_MIN_WIDTH/);
+  assert.match(rendererSource, /clampRightSidebarWidth/);
+  assert.match(rendererSource, /startRightSidebarResize/);
+  assert.match(rendererSource, /updateRightSidebarResize/);
+  assert.match(rendererSource, /endRightSidebarResize/);
+  assert.match(rendererSource, /applyRightSidebarWidth/);
   assert.match(rendererSource, /documentInfo/);
   assert.match(rendererSource, /terminalInstance/);
   assert.match(rendererSource, /terminalFitAddon/);
@@ -82,6 +90,7 @@ test("renderer markup and styles include native right sidebar tabs and terminal 
 
   for (const id of [
     "right-sidebar",
+    "right-sidebar-resize-handle",
     "right-tab-info",
     "right-tab-terminal",
     "info-path",
@@ -98,6 +107,10 @@ test("renderer markup and styles include native right sidebar tabs and terminal 
   assert.doesNotMatch(htmlSource, /id="terminal-send"/);
 
   assert.match(cssSource, /\.right-sidebar/);
+  assert.match(cssSource, /--right-sidebar-width:\s*360px/);
+  assert.match(cssSource, /var\(--right-sidebar-width\)/);
+  assert.match(cssSource, /\.right-sidebar-resize-handle/);
+  assert.match(cssSource, /cursor:\s*col-resize/);
   assert.match(cssSource, /\.right-tab/);
   assert.match(cssSource, /\.terminal-surface/);
   assert.match(cssSource, /\.xterm/);

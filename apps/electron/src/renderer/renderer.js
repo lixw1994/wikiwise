@@ -18,6 +18,7 @@ const openMapButton = document.querySelector("#open-map");
 const toggleRightSidebarButton = document.querySelector("#toggle-right-sidebar");
 const toolbarProjectName = document.querySelector("#toolbar-project-name");
 const rightSidebar = document.querySelector("#right-sidebar");
+const rightSidebarResizeHandle = document.querySelector("#right-sidebar-resize-handle");
 const rightTabInfoButton = document.querySelector("#right-tab-info");
 const rightTabTerminalButton = document.querySelector("#right-tab-terminal");
 const infoPanel = document.querySelector("#info-panel");
@@ -53,6 +54,8 @@ const guideCursorCommand = document.querySelector("#guide-cursor-command");
 const dismissPostCreateGuideButton = document.querySelector("#dismiss-post-create-guide");
 const errorMessage = document.querySelector("#error-message");
 const scriptLoadPromises = new Map();
+const RIGHT_SIDEBAR_DEFAULT_WIDTH = 360;
+const RIGHT_SIDEBAR_MIN_WIDTH = 200;
 
 const state = {
   currentProject: null,
@@ -61,6 +64,8 @@ const state = {
   detailMode: "file",
   appearanceMode: "Auto",
   rightSidebarTab: "terminal",
+  rightSidebarWidth: 360,
+  rightSidebarResizeDrag: null,
   isRightSidebarVisible: true,
   backHistory: [],
   forwardHistory: [],
@@ -544,6 +549,87 @@ function renderProjectToolbar() {
   openMapButton.disabled = !state.currentProject;
   toggleRightSidebarButton.classList.toggle("selected", state.isRightSidebarVisible);
   project.classList.toggle("right-sidebar-hidden", !state.isRightSidebarVisible);
+  if (state.currentProject && state.isRightSidebarVisible) {
+    applyRightSidebarWidth();
+  }
+}
+
+function maxRightSidebarWidth() {
+  const projectWidth = Math.round(project.getBoundingClientRect().width);
+  const viewportWidth = projectWidth > 0 ? projectWidth : window.innerWidth;
+  return Math.max(RIGHT_SIDEBAR_MIN_WIDTH, Math.floor(viewportWidth / 2));
+}
+
+function clampRightSidebarWidth(width) {
+  const numericWidth = Number(width);
+  const targetWidth = Number.isFinite(numericWidth) ? numericWidth : RIGHT_SIDEBAR_DEFAULT_WIDTH;
+  return Math.min(
+    Math.max(Math.round(targetWidth), RIGHT_SIDEBAR_MIN_WIDTH),
+    maxRightSidebarWidth()
+  );
+}
+
+function applyRightSidebarWidth(width = state.rightSidebarWidth) {
+  if (!state.currentProject) {
+    project.style.setProperty("--right-sidebar-width", `${state.rightSidebarWidth}px`);
+    window.__wikiwiseRightSidebarWidth = state.rightSidebarWidth;
+    return state.rightSidebarWidth;
+  }
+
+  state.rightSidebarWidth = clampRightSidebarWidth(width);
+  project.style.setProperty("--right-sidebar-width", `${state.rightSidebarWidth}px`);
+  window.__wikiwiseRightSidebarWidth = state.rightSidebarWidth;
+
+  if (state.isRightSidebarVisible) {
+    window.requestAnimationFrame(() => fitTerminal());
+  }
+
+  return state.rightSidebarWidth;
+}
+
+function startRightSidebarResize(event) {
+  if (!state.currentProject || !state.isRightSidebarVisible) return;
+  if (event.button !== undefined && event.button !== 0) return;
+
+  event.preventDefault();
+  applyRightSidebarWidth();
+  state.rightSidebarResizeDrag = {
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startWidth: state.rightSidebarWidth
+  };
+  document.body.classList.add("resizing-right-sidebar");
+
+  try {
+    rightSidebarResizeHandle.setPointerCapture?.(event.pointerId);
+  } catch {
+    // Synthetic audit events do not create an active pointer capture target.
+  }
+}
+
+function updateRightSidebarResize(event) {
+  const drag = state.rightSidebarResizeDrag;
+  if (!drag || event.pointerId !== drag.pointerId) return;
+
+  event.preventDefault();
+  applyRightSidebarWidth(drag.startWidth - (event.clientX - drag.startX));
+}
+
+function endRightSidebarResize(event) {
+  const drag = state.rightSidebarResizeDrag;
+  if (!drag || event.pointerId !== drag.pointerId) return;
+
+  event.preventDefault();
+  state.rightSidebarResizeDrag = null;
+  document.body.classList.remove("resizing-right-sidebar");
+
+  try {
+    rightSidebarResizeHandle.releasePointerCapture?.(event.pointerId);
+  } catch {
+    // Pointer capture may already be gone after cancellation.
+  }
+
+  fitTerminal();
 }
 
 function setRightSidebarTab(tab) {
@@ -1626,6 +1712,10 @@ bootApp();
 openExistingButton.addEventListener("click", openExisting);
 window.addEventListener("message", handleEditorMessage);
 window.addEventListener("beforeunload", disposeTerminalView);
+window.addEventListener("resize", () => {
+  applyRightSidebarWidth();
+  fitTerminal();
+});
 saveButton.addEventListener("click", () => saveSelectedFile({ reason: "button" }));
 document.addEventListener("keydown", (event) => {
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
@@ -1643,6 +1733,10 @@ goForwardButton.addEventListener("click", navigateForward);
 appearanceModeButton.addEventListener("click", cycleAppearanceMode);
 openMapButton.addEventListener("click", openMap);
 toggleRightSidebarButton.addEventListener("click", toggleRightSidebar);
+rightSidebarResizeHandle.addEventListener("pointerdown", startRightSidebarResize);
+rightSidebarResizeHandle.addEventListener("pointermove", updateRightSidebarResize);
+rightSidebarResizeHandle.addEventListener("pointerup", endRightSidebarResize);
+rightSidebarResizeHandle.addEventListener("pointercancel", endRightSidebarResize);
 rightTabInfoButton.addEventListener("click", () => setRightSidebarTab("info"));
 rightTabTerminalButton.addEventListener("click", () => setRightSidebarTab("terminal"));
 createNewButton.addEventListener("click", openNewWikiDialog);
