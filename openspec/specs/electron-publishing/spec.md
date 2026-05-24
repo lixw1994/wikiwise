@@ -42,7 +42,7 @@ The Electron app SHALL let users choose or edit the wiki subdomain before publis
 
 ### Requirement: Availability Feedback
 
-The Electron app SHALL show subdomain availability feedback matching the native states.
+The Electron app SHALL show subdomain availability feedback matching the native states and hint copy.
 
 #### Scenario: Subdomain changes
 
@@ -50,6 +50,10 @@ The Electron app SHALL show subdomain availability feedback matching the native 
 - **THEN** invalid characters are removed
 - **AND** availability is checked through preload
 - **AND** the UI distinguishes available, owned, taken, invalid, checking, and unknown states
+- **AND** `taken` displays `This name is already taken. Try another.`
+- **AND** `invalid` displays `3–48 characters, letters, numbers, and hyphens only.`
+- **AND** `owned` displays `You already own this name.`
+- **AND** `available`, `checking`, `unknown`, and fallback states display `Anyone with this link can view your wiki.`
 
 ### Requirement: Publish Result
 The Electron app SHALL surface publish success and failure to the user using native-like modal feedback.

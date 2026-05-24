@@ -156,3 +156,42 @@ test("renderer mirrors native publish dialog copy", () => {
   assert.doesNotMatch(htmlSource, /Unpublish\.\.\./);
   assert.doesNotMatch(rendererSource, /Unpublish\.\.\./);
 });
+
+test("renderer mirrors native publish availability hint copy", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+
+  assert.match(
+    nativeSource,
+    /case \.taken:\s*Text\("This name is already taken\. Try another\."\)/
+  );
+  assert.match(
+    nativeSource,
+    /case \.invalid:\s*Text\("3\\u\{2013\}48 characters, letters, numbers, and hyphens only\."\)/
+  );
+  assert.match(nativeSource, /case \.owned:\s*Text\("You already own this name\."\)/);
+  assert.match(
+    nativeSource,
+    /default:\s*Text\("Anyone with this link can view your wiki\."\)/
+  );
+
+  assert.match(rendererSource, /case "taken":\s*return "This name is already taken\. Try another\."/);
+  assert.match(
+    rendererSource,
+    /case "invalid":\s*return "3–48 characters, letters, numbers, and hyphens only\."/
+  );
+  assert.match(rendererSource, /case "owned":\s*return "You already own this name\."/);
+  assert.match(
+    rendererSource,
+    /case "available":\s*return "Anyone with this link can view your wiki\."/
+  );
+  assert.match(
+    rendererSource,
+    /case "checking":\s*return "Anyone with this link can view your wiki\."/
+  );
+  assert.match(rendererSource, /default:\s*return "Anyone with this link can view your wiki\."/);
+  assert.doesNotMatch(rendererSource, /return "Available"/);
+  assert.doesNotMatch(rendererSource, /return "Checking\.\.\."/);
+  assert.doesNotMatch(rendererSource, /return "3-48 characters, letters, numbers, and hyphens only\."/);
+  assert.match(rendererSource, /\["available", "owned"\]\.includes\(state\.publishAvailability\)/);
+});

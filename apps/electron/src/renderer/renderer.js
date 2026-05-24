@@ -1475,15 +1475,15 @@ function renderPublishDialog() {
 function availabilityMessage(availability) {
   switch (availability) {
   case "available":
-    return "Available";
+    return "Anyone with this link can view your wiki.";
   case "owned":
     return "You already own this name.";
   case "taken":
     return "This name is already taken. Try another.";
   case "invalid":
-    return "3-48 characters, letters, numbers, and hyphens only.";
+    return "3–48 characters, letters, numbers, and hyphens only.";
   case "checking":
-    return "Checking...";
+    return "Anyone with this link can view your wiki.";
   default:
     return "Anyone with this link can view your wiki.";
   }
