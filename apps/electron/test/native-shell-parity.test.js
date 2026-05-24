@@ -86,3 +86,7 @@ test("uses full-window shell layout instead of outer debug cards", () => {
   assert.match(projectShellBlock, /min-height:\s*100vh/);
   assert.doesNotMatch(projectShellBlock, /border-radius/);
 });
+
+test("keeps hidden dialogs and inactive panels out of the visual shell", () => {
+  assert.match(styleSource, /\[hidden\]\s*\{[^}]*display:\s*none\s*!important/);
+});

@@ -34,6 +34,7 @@ const defaultAppSettings = Object.freeze({
   lastFolderPath: ""
 });
 const generatedPageNames = new Set(["map-3d.html", "map.html", "graph.html", "index.html", "catalog.html"]);
+const isRuntimeAudit = process.argv.includes("--audit-runtime");
 
 function getCompiler(projectRoot) {
   const resolvedRoot = path.resolve(projectRoot);
@@ -840,7 +841,16 @@ ipcMain.handle("wikiwise:stopTerminal", (event) => {
   };
 });
 
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
+  if (isRuntimeAudit) {
+    const auditModule = await import(
+      pathToFileURL(path.join(repositoryRoot, "scripts", "audit-electron-runtime.mjs")).href
+    );
+    await auditModule.runElectronRuntimeAudit();
+    app.exit(0);
+    return;
+  }
+
   applyAppearanceMode(readAppSettings().appearanceMode);
   Menu.setApplicationMenu(createApplicationMenu());
   createMainWindow();
@@ -850,6 +860,9 @@ app.whenReady().then(() => {
       createMainWindow();
     }
   });
+}).catch((error) => {
+  console.error(error instanceof Error ? error.stack : String(error));
+  app.exit(1);
 });
 
 app.on("window-all-closed", () => {
