@@ -302,3 +302,14 @@ The Electron workspace SHALL expose safe external URL opening through the main p
 - **WHEN** the renderer sends an external URL to preload
 - **THEN** preload sends an IPC request to the main process
 - **AND** the main process opens only `http` and `https` URLs in the system browser
+
+### Requirement: Electron Packaging Scripts
+
+The Electron workspace SHALL expose package scripts for local macOS app assembly.
+
+#### Scenario: Package scripts are inspected
+
+- **WHEN** package manifests are inspected
+- **THEN** the root manifest exposes an Electron package command
+- **AND** the Electron workspace manifest exposes a macOS package command
+- **AND** both commands delegate to the checked-in packaging script

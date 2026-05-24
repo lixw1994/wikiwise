@@ -6,6 +6,7 @@
   "main": "src/main/main.js",
   "scripts": {
     "dev": "electron .",
+    "package:mac": "node ../../scripts/package-electron-macos.mjs",
     "test": "node --test"
   },
   "dependencies": {

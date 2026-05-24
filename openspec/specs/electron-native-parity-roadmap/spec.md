@@ -70,3 +70,13 @@ The migration roadmap SHALL record Electron preview navigation and map/graph pol
 - **WHEN** the Electron preview navigation and map/graph change is archived
 - **THEN** retained verification records local preview navigation, external link handling, generated page routing, graph page support, and generated page refresh evidence
 - **AND** remaining phases still include packaging/release and final parity audit
+
+### Requirement: Packaging Release Phase Completion Tracking
+
+The migration roadmap SHALL record Electron packaging/release as a phase that advances native parity while preserving the final audit.
+
+#### Scenario: Packaging release phase is archived
+
+- **WHEN** the Electron packaging/release change is archived
+- **THEN** retained verification records package command, app bundle metadata, embedded app layout, generated app artifact, and release guardrail evidence
+- **AND** remaining phases still include final parity audit

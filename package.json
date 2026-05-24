@@ -7,6 +7,7 @@
   ],
   "scripts": {
     "test": "npm --workspaces --if-present test",
-    "electron:dev": "npm --workspace @wikiwise/electron-app run dev"
+    "electron:dev": "npm --workspace @wikiwise/electron-app run dev",
+    "electron:package:mac": "npm --workspace @wikiwise/electron-app run package:mac"
   }
 }
