@@ -342,6 +342,8 @@ async function runScenario(window, scenario) {
     await simulateRightSidebarResize(window);
     await delay(160);
     rightSidebarTerminalResizeObserved = terminalResizeCount > terminalResizeCountBeforeSidebarResize;
+    await simulateLeftSidebarToggle(window);
+    await delay(80);
     await window.webContents.executeJavaScript(`window.__wikiwiseTerminal?.input("echo runtime audit\\r")`, true);
   }
   await delay(120);
@@ -438,6 +440,84 @@ async function simulateRightSidebarResize(window) {
   }));
 }
 
+async function simulateLeftSidebarToggle(window) {
+  return window.webContents.executeJavaScript(`(() => {
+    const leftSidebar = document.querySelector("#left-sidebar");
+    const toggle = document.querySelector("#toggle-left-sidebar");
+    const detail = document.querySelector(".detail");
+    const selectedTreeText = () => document.querySelector(".tree-file-button.selected")?.textContent?.trim() ?? "";
+    const expandedFolderNames = () => [...document.querySelectorAll(".tree-folder-button")]
+      .filter((button) => button.getAttribute("aria-expanded") === "true")
+      .map((button) => button.textContent.trim());
+    const isVisible = (element) => Boolean(
+      element &&
+      !element.hidden &&
+      element.getBoundingClientRect().width > 0 &&
+      element.getBoundingClientRect().height > 0
+    );
+    const detailWidth = () => Math.round(detail?.getBoundingClientRect().width ?? 0);
+
+    const before = {
+      visible: isVisible(leftSidebar),
+      detailWidth: detailWidth(),
+      selectedTreeText: selectedTreeText(),
+      expandedFolderNames: expandedFolderNames()
+    };
+
+    if (!leftSidebar || !toggle || !detail) {
+      const missingEvidence = {
+        leftSidebarTogglePresent: Boolean(toggle),
+        leftSidebarInitiallyVisible: before.visible,
+        leftSidebarHiddenAfterToggle: false,
+        leftSidebarRestoredVisible: false,
+        leftSidebarInitialDetailWidth: before.detailWidth,
+        leftSidebarHiddenDetailWidth: null,
+        leftSidebarDetailExpanded: false,
+        leftSidebarSelectionPreserved: false,
+        leftSidebarExpansionPreserved: false
+      };
+      window.__wikiwiseLeftSidebarVisibilityEvidence = missingEvidence;
+      return missingEvidence;
+    }
+
+    toggle.click();
+    const hidden = {
+      visible: isVisible(leftSidebar),
+      detailWidth: detailWidth()
+    };
+    toggle.click();
+    const restored = {
+      visible: isVisible(leftSidebar),
+      selectedTreeText: selectedTreeText(),
+      expandedFolderNames: expandedFolderNames()
+    };
+    const evidence = {
+      leftSidebarTogglePresent: true,
+      leftSidebarInitiallyVisible: before.visible,
+      leftSidebarHiddenAfterToggle: !hidden.visible,
+      leftSidebarRestoredVisible: restored.visible,
+      leftSidebarInitialDetailWidth: before.detailWidth,
+      leftSidebarHiddenDetailWidth: hidden.detailWidth,
+      leftSidebarDetailExpanded: hidden.detailWidth > before.detailWidth,
+      leftSidebarSelectionPreserved: before.selectedTreeText === restored.selectedTreeText,
+      leftSidebarExpansionPreserved: before.expandedFolderNames.join("\\n") === restored.expandedFolderNames.join("\\n")
+    };
+    window.__wikiwiseLeftSidebarVisibilityEvidence = evidence;
+    return evidence;
+  })()`, true).catch((error) => ({
+    leftSidebarTogglePresent: false,
+    leftSidebarInitiallyVisible: false,
+    leftSidebarHiddenAfterToggle: false,
+    leftSidebarRestoredVisible: false,
+    leftSidebarInitialDetailWidth: null,
+    leftSidebarHiddenDetailWidth: null,
+    leftSidebarDetailExpanded: false,
+    leftSidebarSelectionPreserved: false,
+    leftSidebarExpansionPreserved: false,
+    error: error instanceof Error ? error.message : String(error)
+  }));
+}
+
 async function waitForScenario(window, scenario) {
   const expression = scenario.kind === "project"
     ? `Boolean(
@@ -494,8 +574,9 @@ async function readDomEvidence(window) {
 	          window.__wikiwiseTerminal.buffer.active.getLine(index)?.translateToString(true) ?? ""
 	        ).join("\\n").trim()
 	      : "";
-		    const rightSidebarResizeEvidence = window.__wikiwiseRightSidebarResizeEvidence ?? {};
-		    const treeButtons = [...document.querySelectorAll(".tree-row")];
+	    const rightSidebarResizeEvidence = window.__wikiwiseRightSidebarResizeEvidence ?? {};
+	    const leftSidebarVisibilityEvidence = window.__wikiwiseLeftSidebarVisibilityEvidence ?? {};
+	    const treeButtons = [...document.querySelectorAll(".tree-row")];
 	    const detailHeader = document.querySelector(".detail-header");
 	    const detailHeaderRect = detailHeader?.getBoundingClientRect();
 	    const detailHeaderVisible = Boolean(
@@ -545,7 +626,16 @@ async function readDomEvidence(window) {
       codeMirrorEditorPresent: Boolean(sourceEditorDocument?.querySelector(".cm-editor")),
       expandedTreeEvidence,
       nestedSelectionEvidence,
-	      previewFrameHidden: Boolean(document.querySelector("#preview-frame")?.hidden),
+	      leftSidebarTogglePresent: Boolean(document.querySelector("#toggle-left-sidebar")),
+	      leftSidebarInitiallyVisible: Boolean(leftSidebarVisibilityEvidence.leftSidebarInitiallyVisible),
+	      leftSidebarHiddenAfterToggle: Boolean(leftSidebarVisibilityEvidence.leftSidebarHiddenAfterToggle),
+	      leftSidebarRestoredVisible: Boolean(leftSidebarVisibilityEvidence.leftSidebarRestoredVisible),
+	      leftSidebarInitialDetailWidth: leftSidebarVisibilityEvidence.leftSidebarInitialDetailWidth ?? null,
+	      leftSidebarHiddenDetailWidth: leftSidebarVisibilityEvidence.leftSidebarHiddenDetailWidth ?? null,
+	      leftSidebarDetailExpanded: Boolean(leftSidebarVisibilityEvidence.leftSidebarDetailExpanded),
+	      leftSidebarSelectionPreserved: Boolean(leftSidebarVisibilityEvidence.leftSidebarSelectionPreserved),
+	      leftSidebarExpansionPreserved: Boolean(leftSidebarVisibilityEvidence.leftSidebarExpansionPreserved),
+      previewFrameHidden: Boolean(document.querySelector("#preview-frame")?.hidden),
 		      rightSidebarHidden: Boolean(document.querySelector("#right-sidebar")?.hidden),
 		      rightSidebarResizeHandlePresent: Boolean(document.querySelector("#right-sidebar-resize-handle")),
 		      rightSidebarInitialWidth: rightSidebarResizeEvidence.rightSidebarInitialWidth ?? null,
@@ -650,12 +740,30 @@ function assertScenario(scenario, dom, screenshot) {
     if (!dom.expandedTreeEvidence) {
       failures.push("File tree did not show native default expansion for the wiki folder.");
     }
-    if (!dom.nestedSelectionEvidence || !dom.activeFileObserved) {
-      failures.push("Nested file selection did not update selected tree state and active-file IPC evidence.");
-    }
-    if (dom.sourceEditorFrameHidden) {
-      failures.push("Source editor frame is hidden.");
-    }
+	    if (!dom.nestedSelectionEvidence || !dom.activeFileObserved) {
+	      failures.push("Nested file selection did not update selected tree state and active-file IPC evidence.");
+	    }
+	    if (!dom.leftSidebarTogglePresent) {
+	      failures.push("Left sidebar toggle control is missing.");
+	    }
+	    if (!dom.leftSidebarInitiallyVisible) {
+	      failures.push("Left sidebar is not initially visible.");
+	    }
+	    if (!dom.leftSidebarHiddenAfterToggle) {
+	      failures.push("Left sidebar did not hide after toggle.");
+	    }
+	    if (!dom.leftSidebarRestoredVisible) {
+	      failures.push("Left sidebar did not restore after toggle.");
+	    }
+	    if (!dom.leftSidebarDetailExpanded) {
+	      failures.push("Detail area did not expand after hiding left sidebar.");
+	    }
+	    if (!dom.leftSidebarSelectionPreserved || !dom.leftSidebarExpansionPreserved) {
+	      failures.push("Left sidebar tree state was not preserved after restore.");
+	    }
+	    if (dom.sourceEditorFrameHidden) {
+	      failures.push("Source editor frame is hidden.");
+	    }
     if (!dom.previewFrameHidden) {
       failures.push("Compiled preview frame is visible during editor audit mode.");
     }

@@ -53,6 +53,7 @@ test("renderer contains startup restore, appearance, toolbar, history, map, refr
   assert.match(rendererSource, /generatedPage/);
   assert.match(rendererSource, /backHistory/);
   assert.match(rendererSource, /forwardHistory/);
+  assert.match(rendererSource, /isLeftSidebarVisible/);
   assert.match(rendererSource, /isRightSidebarVisible/);
   assert.match(rendererSource, /restoreLastProject/);
   assert.match(rendererSource, /loadAppSettings/);
@@ -63,6 +64,7 @@ test("renderer contains startup restore, appearance, toolbar, history, map, refr
   assert.match(rendererSource, /navigateForward/);
   assert.match(rendererSource, /openMap/);
   assert.match(rendererSource, /refreshCurrentView/);
+  assert.match(rendererSource, /toggleLeftSidebar/);
   assert.match(rendererSource, /toggleRightSidebar/);
   assert.match(rendererSource, /handleAppCommand/);
   assert.match(rendererSource, /wikiwise\.getAppSettings/);
@@ -80,6 +82,7 @@ test("renderer markup and styles include native-like project toolbar controls", 
     "project-toolbar",
     "go-back",
     "go-forward",
+    "toggle-left-sidebar",
     "appearance-mode",
     "open-map",
     "toggle-right-sidebar",
@@ -90,6 +93,7 @@ test("renderer markup and styles include native-like project toolbar controls", 
   }
 
   assert.match(cssSource, /\.project-toolbar/);
+  assert.match(cssSource, /left-sidebar-hidden/);
   assert.match(cssSource, /\.toolbar-icon-button/);
   assert.match(cssSource, /\.toolbar-project-title/);
   assert.match(cssSource, /\.generated-preview-frame/);

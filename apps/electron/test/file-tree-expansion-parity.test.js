@@ -64,3 +64,17 @@ test("renderer auto-expands native default folders and preserves expansion on re
   assert.match(rendererSource, /expandedTreePaths\.has/);
   assert.match(rendererSource, /scanProject/);
 });
+
+test("renderer preserves file tree state across left sidebar visibility changes", () => {
+  const rendererSource = read("src/renderer/renderer.js");
+  const htmlSource = read("src/renderer/index.html");
+  const styleSource = read("src/renderer/styles.css");
+
+  assert.match(htmlSource, /id="toggle-left-sidebar"/);
+  assert.match(rendererSource, /isLeftSidebarVisible:\s*true/);
+  assert.match(rendererSource, /toggleLeftSidebar/);
+  assert.match(rendererSource, /left-sidebar-hidden/);
+  assert.match(rendererSource, /leftSidebar\.hidden\s*=\s*!state\.isLeftSidebarVisible/);
+  assert.match(styleSource, /\.project-shell\.left-sidebar-hidden/);
+  assert.match(styleSource, /\.project-shell\.left-sidebar-hidden\s+\.detail/);
+});

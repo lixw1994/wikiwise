@@ -110,6 +110,14 @@ button:disabled {
   grid-template-columns: 260px minmax(0, 1fr);
 }
 
+.project-shell.left-sidebar-hidden {
+  grid-template-columns: minmax(0, 1fr) var(--right-sidebar-width);
+}
+
+.project-shell.left-sidebar-hidden.right-sidebar-hidden {
+  grid-template-columns: minmax(0, 1fr);
+}
+
 .project-toolbar {
   grid-column: 1 / -1;
   display: grid;
@@ -250,6 +258,10 @@ button:disabled {
   min-width: 0;
   overflow: hidden;
   background: #fbfaf5;
+}
+
+.project-shell.left-sidebar-hidden .detail {
+  grid-column: 1;
 }
 
 .detail-header {
@@ -393,6 +405,10 @@ button:disabled {
   overflow: hidden;
   border-left: 1px solid rgba(80, 72, 54, 0.18);
   background: #f6f3ea;
+}
+
+.project-shell.left-sidebar-hidden .right-sidebar {
+  grid-column: 2;
 }
 
 .right-sidebar-resize-handle {

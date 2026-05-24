@@ -57,3 +57,12 @@ The Electron app SHALL preserve compatible expanded folders across project tree 
 - **THEN** the Electron app rescans the top-level project tree
 - **AND** re-expands folders that still exist and were expanded before the refresh
 - **AND** removes expansion state for folders that no longer exist
+
+### Requirement: File Tree State Across Sidebar Visibility
+The Electron file tree SHALL preserve selection and expansion state when the left sidebar is hidden and restored.
+
+#### Scenario: Expanded tree survives sidebar hide and restore
+- **WHEN** the project tree has expanded folders and a selected nested file
+- **AND** the user hides and restores the left sidebar
+- **THEN** previously expanded folders that still exist remain expanded
+- **AND** the selected file row remains selected after the sidebar is restored

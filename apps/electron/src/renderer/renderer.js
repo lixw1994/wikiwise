@@ -13,10 +13,12 @@ const modeFileButton = document.querySelector("#mode-file");
 const modeWikiButton = document.querySelector("#mode-wiki");
 const goBackButton = document.querySelector("#go-back");
 const goForwardButton = document.querySelector("#go-forward");
+const toggleLeftSidebarButton = document.querySelector("#toggle-left-sidebar");
 const appearanceModeButton = document.querySelector("#appearance-mode");
 const openMapButton = document.querySelector("#open-map");
 const toggleRightSidebarButton = document.querySelector("#toggle-right-sidebar");
 const toolbarProjectName = document.querySelector("#toolbar-project-name");
+const leftSidebar = document.querySelector("#left-sidebar");
 const rightSidebar = document.querySelector("#right-sidebar");
 const rightSidebarResizeHandle = document.querySelector("#right-sidebar-resize-handle");
 const rightTabInfoButton = document.querySelector("#right-tab-info");
@@ -66,6 +68,7 @@ const state = {
   rightSidebarTab: "terminal",
   rightSidebarWidth: 360,
   rightSidebarResizeDrag: null,
+  isLeftSidebarVisible: true,
   isRightSidebarVisible: true,
   backHistory: [],
   forwardHistory: [],
@@ -547,7 +550,11 @@ function renderProjectToolbar() {
   goForwardButton.disabled = state.forwardHistory.length === 0;
   appearanceModeButton.textContent = state.appearanceMode;
   openMapButton.disabled = !state.currentProject;
+  toggleLeftSidebarButton.classList.toggle("selected", state.isLeftSidebarVisible);
+  toggleLeftSidebarButton.setAttribute("aria-pressed", String(state.isLeftSidebarVisible));
   toggleRightSidebarButton.classList.toggle("selected", state.isRightSidebarVisible);
+  leftSidebar.hidden = !state.isLeftSidebarVisible;
+  project.classList.toggle("left-sidebar-hidden", !state.isLeftSidebarVisible);
   project.classList.toggle("right-sidebar-hidden", !state.isRightSidebarVisible);
   if (state.currentProject && state.isRightSidebarVisible) {
     applyRightSidebarWidth();
@@ -1162,6 +1169,12 @@ function toggleRightSidebar() {
   renderProjectToolbar();
 }
 
+function toggleLeftSidebar() {
+  state.isLeftSidebarVisible = !state.isLeftSidebarVisible;
+  renderProjectToolbar();
+  window.requestAnimationFrame(() => fitTerminal());
+}
+
 function handleAppCommand(payload) {
   const command = typeof payload === "string" ? payload : payload?.command;
   if (command === "openExisting") {
@@ -1730,6 +1743,7 @@ generatedPreviewFrame.addEventListener("load", () => attachPreviewNavigation(gen
 publishButton.addEventListener("click", openPublishDialog);
 goBackButton.addEventListener("click", navigateBack);
 goForwardButton.addEventListener("click", navigateForward);
+toggleLeftSidebarButton.addEventListener("click", toggleLeftSidebar);
 appearanceModeButton.addEventListener("click", cycleAppearanceMode);
 openMapButton.addEventListener("click", openMap);
 toggleRightSidebarButton.addEventListener("click", toggleRightSidebar);
