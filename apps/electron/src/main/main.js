@@ -36,6 +36,8 @@ const backgroundCompilationBatchSize = 3;
 const backgroundCompilationIntervalMs = 100;
 const wikiHomeRelativePath = "wiki/home.md";
 const nativeResourcesRoot = path.join(repositoryRoot, "Sources", "Wikiwise", "Resources");
+const nativeWindowDefaultSize = Object.freeze({ width: 1500, height: 1000 });
+const nativeWindowMinimumSize = Object.freeze({ width: 800, height: 500 });
 const terminalRuntimeDependencies = Object.freeze(["node-pty", "@xterm/xterm", "@xterm/addon-fit"]);
 const defaultAppSettings = Object.freeze({
   appearanceMode: "Auto",
@@ -921,10 +923,10 @@ async function openExistingProject(browserWindow) {
 
 function createMainWindow() {
   const mainWindow = new BrowserWindow({
-    width: 1180,
-    height: 780,
-    minWidth: 860,
-    minHeight: 560,
+    width: nativeWindowDefaultSize.width,
+    height: nativeWindowDefaultSize.height,
+    minWidth: nativeWindowMinimumSize.width,
+    minHeight: nativeWindowMinimumSize.height,
     title: "Wikiwise",
     webPreferences: {
       preload: path.join(packageRoot, "src", "preload", "preload.cjs"),

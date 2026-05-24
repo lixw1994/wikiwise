@@ -5,9 +5,18 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const repositoryRoot = path.resolve(packageRoot, "..", "..");
 const mainSource = fs.readFileSync(path.join(packageRoot, "src/main/main.js"), "utf8");
 const preloadSource = fs.readFileSync(
   path.join(packageRoot, "src/preload/preload.cjs"),
+  "utf8"
+);
+const nativeAppSource = fs.readFileSync(
+  path.join(repositoryRoot, "Sources/Wikiwise/WikiwiseApp.swift"),
+  "utf8"
+);
+const nativeContentViewSource = fs.readFileSync(
+  path.join(repositoryRoot, "Sources/Wikiwise/ContentView.swift"),
   "utf8"
 );
 const htmlSource = fs.readFileSync(
@@ -51,6 +60,23 @@ test("uses product-facing shell title and native welcome copy", () => {
     normalizedHtml,
     /Don't have a wiki yet\? Create one above and use Claude Code, Codex, or Cursor to build it out\./
   );
+});
+
+test("matches native macOS default and minimum window geometry", () => {
+  assert.match(nativeAppSource, /\.defaultSize\(width:\s*1500,\s*height:\s*1000\)/);
+  assert.match(nativeContentViewSource, /\.frame\(minWidth:\s*800,\s*minHeight:\s*500\)/);
+  assert.match(
+    mainSource,
+    /const nativeWindowDefaultSize = Object\.freeze\(\{\s*width:\s*1500,\s*height:\s*1000\s*\}\);/
+  );
+  assert.match(
+    mainSource,
+    /const nativeWindowMinimumSize = Object\.freeze\(\{\s*width:\s*800,\s*height:\s*500\s*\}\);/
+  );
+  assert.match(mainSource, /width:\s*nativeWindowDefaultSize\.width/);
+  assert.match(mainSource, /height:\s*nativeWindowDefaultSize\.height/);
+  assert.match(mainSource, /minWidth:\s*nativeWindowMinimumSize\.width/);
+  assert.match(mainSource, /minHeight:\s*nativeWindowMinimumSize\.height/);
 });
 
 test("removes shared resource debug UI from renderer shell", () => {

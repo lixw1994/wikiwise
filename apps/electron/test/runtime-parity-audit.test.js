@@ -48,6 +48,22 @@ test("runtime audit script loads real renderer through Electron BrowserWindow", 
   ]);
 });
 
+test("runtime audit captures native default window viewport evidence", () => {
+  const swiftAppSource = read("Sources/Wikiwise/WikiwiseApp.swift");
+  const script = read("scripts/audit-electron-runtime.mjs");
+
+  assert.match(swiftAppSource, /\.defaultSize\(width:\s*1500,\s*height:\s*1000\)/);
+  assertSourceContains(script, [
+    /const nativeDefaultWindowViewport = Object\.freeze\(\{\s*width:\s*1500,\s*height:\s*1000\s*\}\);/,
+    /const viewport = nativeDefaultWindowViewport;/,
+    /width:\s*viewport\.width/,
+    /height:\s*viewport\.height/,
+    /viewport,/,
+    /screenshot\.width < viewport\.width/,
+    /screenshot\.height < viewport\.height/
+  ]);
+});
+
 test("runtime audit script covers native shell scenarios and assertions", () => {
   const script = read("scripts/audit-electron-runtime.mjs");
 

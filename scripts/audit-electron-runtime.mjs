@@ -24,7 +24,8 @@ const reportPath = path.join(runtimeAuditRoot, "report.json");
 const rendererHtmlPath = path.join(electronPackageRoot, "src", "renderer", "index.html");
 const preloadPath = path.join(electronPackageRoot, "src", "preload", "preload.cjs");
 const requireFromAudit = createRequire(import.meta.url);
-const viewport = Object.freeze({ width: 1180, height: 780 });
+const nativeDefaultWindowViewport = Object.freeze({ width: 1500, height: 1000 });
+const viewport = nativeDefaultWindowViewport;
 const scenarios = Object.freeze([
   { name: "welcome-light", kind: "welcome", appearanceMode: "Light" },
   { name: "welcome-dark", kind: "welcome", appearanceMode: "Dark" },
