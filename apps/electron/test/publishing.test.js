@@ -15,6 +15,10 @@ function readRepository(relativePath) {
   return fs.readFileSync(path.join(repositoryRoot, relativePath), "utf8");
 }
 
+function normalized(source) {
+  return source.replace(/\s+/g, " ").trim();
+}
+
 test("main process exposes publishing IPC through core helpers", () => {
   const mainSource = read("src/main/main.js");
 
@@ -125,4 +129,30 @@ test("renderer markup and styles include publish dialog, status, and unpublish c
   assert.match(cssSource, /\.publish-url-row/);
   assert.match(cssSource, /\.publish-availability/);
   assert.match(cssSource, /\.danger-action/);
+});
+
+test("renderer mirrors native publish dialog copy", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const htmlSource = read("src/renderer/index.html");
+  const normalizedHtml = normalized(htmlSource);
+  const rendererSource = read("src/renderer/renderer.js");
+
+  assert.match(
+    nativeSource,
+    /Text\("A publish\.json file will be saved in your project \\u\{2014\} it contains your publish token\. Treat it like a password: if you lose it, you won\\u\{2019\}t be able to update this site\."\)/
+  );
+  assert.match(
+    normalizedHtml,
+    /A publish\.json file will be saved in your project — it contains your publish token\. Treat it like a password: if you lose it, you won’t be able to update this site\./
+  );
+  assert.doesNotMatch(
+    normalizedHtml,
+    /A publish\.json file will be saved in your project\. It contains your publish token\./
+  );
+
+  assert.match(nativeSource, /Button\("Unpublish\\u\{2026\}"\)/);
+  assert.match(htmlSource, />\s*Unpublish…\s*<\/button>/);
+  assert.match(rendererSource, /state\.isUnpublishing \? "Unpublishing" : "Unpublish…"/);
+  assert.doesNotMatch(htmlSource, /Unpublish\.\.\./);
+  assert.doesNotMatch(rendererSource, /Unpublish\.\.\./);
 });

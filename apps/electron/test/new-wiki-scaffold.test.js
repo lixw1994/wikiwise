@@ -5,9 +5,18 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const repositoryRoot = path.resolve(packageRoot, "..", "..");
 
 function read(relativePath) {
   return fs.readFileSync(path.join(packageRoot, relativePath), "utf8");
+}
+
+function readRepository(relativePath) {
+  return fs.readFileSync(path.join(repositoryRoot, relativePath), "utf8");
+}
+
+function normalized(source) {
+  return source.replace(/\s+/g, " ").trim();
 }
 
 test("main process exposes new-wiki scaffold IPC through main-owned filesystem work", () => {
@@ -63,4 +72,38 @@ test("renderer contains new-wiki dialog state, create flow, and post-create guid
   assert.match(htmlSource, /id="confirm-create-new"/);
   assert.match(htmlSource, /id="post-create-guide"/);
   assert.doesNotMatch(htmlSource, /later OpenSpec phase/);
+});
+
+test("renderer mirrors native new-wiki and post-create guide copy", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const htmlSource = read("src/renderer/index.html");
+  const normalizedHtml = normalized(htmlSource);
+
+  assert.match(nativeSource, /Button\("Choose…"\)/);
+  assert.match(htmlSource, /id="choose-new-wiki-location"[\s\S]*?>\s*Choose…\s*<\/button>/);
+  assert.doesNotMatch(htmlSource, />\s*Choose\s*<\/button>/);
+
+  assert.match(
+    nativeSource,
+    /Text\("WikiWise created the folder structure, build tools, and agent skills\. Now seed it with sources\."\)/
+  );
+  assert.match(
+    normalizedHtml,
+    /WikiWise created the folder structure, build tools, and agent skills\. Now seed it with sources\./
+  );
+  assert.doesNotMatch(normalizedHtml, /Wikiwise created the folder structure/);
+
+  assert.match(
+    nativeSource,
+    /Text\("This is your project\. You can change anything about it with your agent — the styles, the structure of your wiki pages, the build pipeline\. Make it your own\."\)/
+  );
+  assert.match(
+    normalizedHtml,
+    /This is your project\. You can change anything about it with your agent — the styles, the structure of your wiki pages, the build pipeline\. Make it your own\./
+  );
+  assert.doesNotMatch(normalizedHtml, /You can change the styles, page structure, and build pipeline with your agent\./);
+
+  assert.match(nativeSource, /Button\("Got it — start reading"\)/);
+  assert.match(normalizedHtml, /Got it — start reading/);
+  assert.doesNotMatch(normalizedHtml, /Got it - start reading/);
 });
