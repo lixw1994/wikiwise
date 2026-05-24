@@ -349,6 +349,16 @@ async function runScenario(window, scenario) {
       () => activeFileObserved,
       `scenario ${scenario.name} nested file selection to reach active-file IPC`
     );
+    await waitForCondition(
+      window,
+      `Boolean(
+        document.querySelector("#mode-wiki")?.classList.contains("selected") &&
+        !document.querySelector("#preview-frame")?.hidden &&
+        document.querySelector("#source-editor-frame")?.hidden
+      )`,
+      `scenario ${scenario.name} default WIKI preview to render`
+    );
+    await captureDefaultWikiPreviewEvidence(window);
     await window.webContents.executeJavaScript(`document.querySelector("#mode-file")?.click()`, true);
     await waitForCondition(
       window,
@@ -732,6 +742,42 @@ async function captureInfoOptionalSectionEvidence(window) {
   }));
 }
 
+async function captureDefaultWikiPreviewEvidence(window) {
+  return window.webContents.executeJavaScript(`(() => {
+    const modeFile = document.querySelector("#mode-file");
+    const modeWiki = document.querySelector("#mode-wiki");
+    const previewFrame = document.querySelector("#preview-frame");
+    const sourceEditorFrame = document.querySelector("#source-editor-frame");
+    const selectedFileLabel = document.querySelector("#selected-file")?.textContent?.trim() ?? "";
+    const isVisible = (element) => Boolean(
+      element &&
+      !element.hidden &&
+      element.getBoundingClientRect().width > 0 &&
+      element.getBoundingClientRect().height > 0
+    );
+    const evidence = {
+      defaultWikiPreviewEvidence: true,
+      defaultWikiModeSelected: Boolean(modeWiki?.classList.contains("selected")),
+      defaultFileModeSelected: Boolean(modeFile?.classList.contains("selected")),
+      defaultWikiPreviewVisible: isVisible(previewFrame),
+      defaultWikiEditorHidden: Boolean(sourceEditorFrame?.hidden),
+      defaultWikiPreviewSrc: previewFrame?.getAttribute("src") ?? "",
+      defaultWikiSelectedFileLabel: selectedFileLabel
+    };
+    window.__wikiwiseDefaultWikiPreviewEvidence = evidence;
+    return evidence;
+  })()`, true).catch((error) => ({
+    defaultWikiPreviewEvidence: false,
+    defaultWikiModeSelected: false,
+    defaultFileModeSelected: false,
+    defaultWikiPreviewVisible: false,
+    defaultWikiEditorHidden: false,
+    defaultWikiPreviewSrc: "",
+    defaultWikiSelectedFileLabel: "",
+    error: error instanceof Error ? error.message : String(error)
+  }));
+}
+
 async function waitForScenario(window, scenario) {
   const expression = scenario.kind === "project"
     ? `Boolean(
@@ -842,6 +888,7 @@ async function readDomEvidence(window) {
 	    const leftSidebarResizeEvidence = window.__wikiwiseLeftSidebarResizeEvidence ?? {};
 	    const leftSidebarVisibilityEvidence = window.__wikiwiseLeftSidebarVisibilityEvidence ?? {};
 	    const infoOptionalEvidence = window.__wikiwiseInfoOptionalSectionEvidence ?? {};
+	    const defaultWikiPreviewEvidence = window.__wikiwiseDefaultWikiPreviewEvidence ?? {};
 	    const treeButtons = [...document.querySelectorAll(".tree-row")];
 	    const detailHeader = document.querySelector(".detail-header");
 	    const detailHeaderRect = detailHeader?.getBoundingClientRect();
@@ -940,6 +987,13 @@ async function readDomEvidence(window) {
       sourceEditorFrameReady: Boolean(sourceEditorFrame?.contentWindow?.getContent),
       sourceEditorFrameHidden: Boolean(sourceEditorFrame?.hidden),
       codeMirrorEditorPresent: Boolean(sourceEditorDocument?.querySelector(".cm-editor")),
+      defaultWikiPreviewEvidence: Boolean(defaultWikiPreviewEvidence.defaultWikiPreviewEvidence),
+      defaultWikiModeSelected: Boolean(defaultWikiPreviewEvidence.defaultWikiModeSelected),
+      defaultFileModeSelected: Boolean(defaultWikiPreviewEvidence.defaultFileModeSelected),
+      defaultWikiPreviewVisible: Boolean(defaultWikiPreviewEvidence.defaultWikiPreviewVisible),
+      defaultWikiEditorHidden: Boolean(defaultWikiPreviewEvidence.defaultWikiEditorHidden),
+      defaultWikiPreviewSrc: defaultWikiPreviewEvidence.defaultWikiPreviewSrc ?? "",
+      defaultWikiSelectedFileLabel: defaultWikiPreviewEvidence.defaultWikiSelectedFileLabel ?? "",
       expandedTreeEvidence,
       nestedSelectionEvidence,
 	      fileTreeFolderIconPresent: Boolean(folderIcon),
@@ -1096,6 +1150,18 @@ function assertScenario(scenario, dom, screenshot) {
     }
     if (dom.detailHeaderVisible || dom.detailSaveChromeTextVisible) {
       failures.push("Non-native detail save chrome is visible.");
+    }
+    if (!dom.defaultWikiPreviewEvidence) {
+      failures.push("Default WIKI preview evidence is missing.");
+    }
+    if (!dom.defaultWikiModeSelected || dom.defaultFileModeSelected) {
+      failures.push("Markdown detail did not default to WIKI mode.");
+    }
+    if (!dom.defaultWikiPreviewVisible || !dom.defaultWikiPreviewSrc) {
+      failures.push("Compiled preview frame is not visible before switching to editor mode.");
+    }
+    if (!dom.defaultWikiEditorHidden) {
+      failures.push("Source editor is visible before switching to editor mode.");
     }
     if (!dom.sourceEditorFramePresent || !dom.sourceEditorFrameReady || !dom.codeMirrorEditorPresent) {
       failures.push("CodeMirror source editor did not render through the shared editor resource.");
