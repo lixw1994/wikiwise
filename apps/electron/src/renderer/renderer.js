@@ -207,6 +207,7 @@ function renderNode(node, depth) {
     const isExpanded = state.expandedTreePaths.has(node.path);
     const isLoading = state.treeLoadingPaths.has(node.path);
     const disclosure = document.createElement("span");
+    const folderIcon = document.createElement("span");
     const label = document.createElement("span");
 
     button.className = "tree-row tree-folder-button";
@@ -215,6 +216,8 @@ function renderNode(node, depth) {
     button.disabled = isLoading;
     disclosure.className = "tree-disclosure";
     disclosure.textContent = isLoading ? "..." : (isExpanded ? "▾" : "▸");
+    folderIcon.className = "tree-folder-icon";
+    folderIcon.setAttribute("aria-hidden", "true");
     label.className = "tree-label";
     label.textContent = node.name;
 
@@ -222,7 +225,7 @@ function renderNode(node, depth) {
       item.classList.add("special-folder");
     }
 
-    button.append(disclosure, label);
+    button.append(disclosure, folderIcon, label);
     button.addEventListener("click", () => {
       toggleTreeFolder(node).catch(setError);
     });
@@ -239,13 +242,23 @@ function renderNode(node, depth) {
   }
 
   button.className = "tree-row tree-file-button";
-  button.textContent = node.name;
   if (state.selectedFile?.path === node.path) {
     button.classList.add("selected");
+    button.setAttribute("data-selected", "true");
   }
   if (["home.md", "index.md", "log.md"].includes(node.name)) {
     button.classList.add("special-file");
   }
+  if (button.classList.contains("selected")) {
+    const selectedAccent = document.createElement("span");
+    selectedAccent.className = "tree-selected-accent";
+    selectedAccent.setAttribute("aria-hidden", "true");
+    button.append(selectedAccent);
+  }
+  const label = document.createElement("span");
+  label.className = "tree-label";
+  label.textContent = node.name;
+  button.append(label);
   if (!node.isDirectory) {
     button.addEventListener("click", () => selectFile(node));
   }

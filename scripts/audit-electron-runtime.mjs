@@ -599,6 +599,14 @@ async function readDomEvidence(window) {
 	      button.classList.contains("selected") &&
 	      button.textContent.trim() === "home.md"
 	    );
+	    const folderIcon = document.querySelector(".tree-folder-button .tree-folder-icon");
+	    const specialFolderIcon = document.querySelector(".tree-folder.special-folder .tree-folder-icon");
+	    const selectedAccent = document.querySelector(".tree-file-button.selected .tree-selected-accent");
+	    const selectedAccentRect = selectedAccent?.getBoundingClientRect();
+	    const selectedAccentWidth = Math.round(selectedAccentRect?.width ?? 0);
+	    const specialFolderDotContent = specialFolderIcon
+	      ? window.getComputedStyle(specialFolderIcon, "::after").content
+	      : "none";
 	    return {
       documentTitle: document.title,
       bodyText: document.body.innerText,
@@ -626,7 +634,10 @@ async function readDomEvidence(window) {
       codeMirrorEditorPresent: Boolean(sourceEditorDocument?.querySelector(".cm-editor")),
       expandedTreeEvidence,
       nestedSelectionEvidence,
-	      leftSidebarTogglePresent: Boolean(document.querySelector("#toggle-left-sidebar")),
+	      fileTreeFolderIconPresent: Boolean(folderIcon),
+	      fileTreeSpecialFolderMarkerPresent: Boolean(specialFolderIcon && specialFolderDotContent !== "none"),
+	      fileTreeSelectedAccentPresent: Boolean(selectedAccent && selectedAccentWidth === 2),
+      leftSidebarTogglePresent: Boolean(document.querySelector("#toggle-left-sidebar")),
 	      leftSidebarInitiallyVisible: Boolean(leftSidebarVisibilityEvidence.leftSidebarInitiallyVisible),
 	      leftSidebarHiddenAfterToggle: Boolean(leftSidebarVisibilityEvidence.leftSidebarHiddenAfterToggle),
 	      leftSidebarRestoredVisible: Boolean(leftSidebarVisibilityEvidence.leftSidebarRestoredVisible),
@@ -742,6 +753,15 @@ function assertScenario(scenario, dom, screenshot) {
     }
 	    if (!dom.nestedSelectionEvidence || !dom.activeFileObserved) {
 	      failures.push("Nested file selection did not update selected tree state and active-file IPC evidence.");
+	    }
+	    if (!dom.fileTreeFolderIconPresent) {
+	      failures.push("File tree folder icons are missing.");
+	    }
+	    if (!dom.fileTreeSpecialFolderMarkerPresent) {
+	      failures.push("File tree special folder marker is missing.");
+	    }
+	    if (!dom.fileTreeSelectedAccentPresent) {
+	      failures.push("File tree selected accent is missing.");
 	    }
 	    if (!dom.leftSidebarTogglePresent) {
 	      failures.push("Left sidebar toggle control is missing.");

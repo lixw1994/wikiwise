@@ -219,6 +219,52 @@ button:disabled {
   font-family: Georgia, serif;
 }
 
+.tree-folder-icon {
+  position: relative;
+  display: inline-block;
+  width: 13px;
+  height: 11px;
+  flex: 0 0 13px;
+  border: 1px solid #9a8c6e;
+  border-radius: 2px;
+  background: rgba(154, 140, 110, 0.25);
+}
+
+.tree-folder-icon::before {
+  position: absolute;
+  top: -4px;
+  left: 1px;
+  width: 5px;
+  height: 4px;
+  border: 1px solid #9a8c6e;
+  border-bottom: 0;
+  border-radius: 2px 2px 0 0;
+  background: rgba(154, 140, 110, 0.25);
+  content: "";
+}
+
+.tree-folder.special-folder .tree-folder-icon {
+  border-color: #8a5c30;
+  background: rgba(138, 92, 48, 0.3);
+}
+
+.tree-folder.special-folder .tree-folder-icon::before {
+  border-color: #8a5c30;
+  background: rgba(138, 92, 48, 0.3);
+}
+
+.tree-folder.special-folder .tree-folder-icon::after {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 3px;
+  height: 3px;
+  border-radius: 50%;
+  background: rgba(138, 92, 48, 0.5);
+  content: "";
+  transform: translate(-50%, -35%);
+}
+
 .tree-disclosure {
   display: inline-grid;
   width: 10px;
@@ -236,6 +282,7 @@ button:disabled {
 }
 
 .tree-file-button {
+  position: relative;
   padding-left: calc(33px + (var(--tree-depth, 0) * 16px));
   font-family: Georgia, serif;
 }
@@ -248,6 +295,16 @@ button:disabled {
   background: rgba(194, 169, 107, 0.16);
   color: #1a1714;
   font-style: italic;
+}
+
+.tree-selected-accent {
+  position: absolute;
+  top: 5px;
+  bottom: 5px;
+  left: calc(22px + (var(--tree-depth, 0) * 16px));
+  width: 2px;
+  background: #1a1714;
+  pointer-events: none;
 }
 
 .detail {

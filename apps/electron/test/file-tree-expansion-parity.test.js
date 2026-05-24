@@ -51,8 +51,26 @@ test("renderer renders expandable nested file tree rows", () => {
   assert.match(rendererSource, /aria-expanded/);
   assert.match(rendererSource, /data-path/);
   assert.match(rendererSource, /--tree-depth/);
+  assert.match(rendererSource, /tree-folder-icon/);
+  assert.match(rendererSource, /tree-selected-accent/);
   assert.match(styleSource, /tree-disclosure/);
+  assert.match(styleSource, /tree-folder-icon/);
   assert.match(styleSource, /padding-left:\s*calc\(/);
+});
+
+test("renderer includes native file tree visual affordances", () => {
+  const rendererSource = read("src/renderer/renderer.js");
+  const styleSource = read("src/renderer/styles.css");
+
+  assert.match(rendererSource, /special-folder/);
+  assert.match(rendererSource, /tree-folder-icon/);
+  assert.match(rendererSource, /tree-selected-accent/);
+  assert.match(rendererSource, /data-selected/);
+  assert.match(styleSource, /\.tree-folder-icon/);
+  assert.match(styleSource, /\.tree-folder\.special-folder\s+\.tree-folder-icon/);
+  assert.match(styleSource, /\.tree-folder\.special-folder\s+\.tree-folder-icon::after/);
+  assert.match(styleSource, /\.tree-selected-accent/);
+  assert.match(styleSource, /width:\s*2px/);
 });
 
 test("renderer auto-expands native default folders and preserves expansion on refresh", () => {

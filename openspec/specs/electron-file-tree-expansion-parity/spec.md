@@ -66,3 +66,12 @@ The Electron file tree SHALL preserve selection and expansion state when the lef
 - **AND** the user hides and restores the left sidebar
 - **THEN** previously expanded folders that still exist remain expanded
 - **AND** the selected file row remains selected after the sidebar is restored
+
+### Requirement: File Tree Visual Affordances
+The Electron expandable file tree SHALL include native visual affordances for directory and selected file rows.
+
+#### Scenario: Expanded tree renders visual row affordances
+- **WHEN** the Electron project tree renders expanded folders and a selected file
+- **THEN** directory rows include native-like folder icons
+- **AND** special folders include special marker styling
+- **AND** the selected file row includes the native leading accent while preserving selection state
