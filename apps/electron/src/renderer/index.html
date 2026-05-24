@@ -7,16 +7,16 @@
       content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: file:; frame-src 'self' file:;"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Wikiwise Electron</title>
+    <title>Wikiwise</title>
     <link rel="stylesheet" href="./styles.css" />
   </head>
   <body>
     <main class="shell">
-      <section id="welcome" class="panel welcome-panel">
-        <p class="eyebrow">Cross-platform workspace</p>
-        <h1>Wikiwise Electron</h1>
+      <section id="welcome" class="welcome-panel">
+        <div class="welcome-mark" aria-hidden="true">W</div>
         <p class="summary">
-          Wikiwise helps you turn any folder of markdown files into a browsable,
+          WikiWise helps you turn any folder
+          of markdown files into a browsable,
           publishable wiki.
         </p>
         <div class="actions">
@@ -27,6 +27,10 @@
             Open Existing Folder
           </button>
         </div>
+        <p class="welcome-hint">
+          Don't have a wiki yet? Create one above and
+          use Claude Code, Codex, or Cursor to build it out.
+        </p>
       </section>
 
       <section id="new-wiki-dialog" class="modal-backdrop" hidden>
@@ -248,14 +252,6 @@
             </div>
           </section>
         </aside>
-      </section>
-
-      <section class="panel resources-panel">
-        <div class="panel-header">
-          <h2>Shared resources</h2>
-          <span id="resource-count">Loading</span>
-        </div>
-        <ul id="resource-list" class="resource-list"></ul>
       </section>
 
       <p id="publish-result" class="publish-result" hidden>

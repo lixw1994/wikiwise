@@ -1,7 +1,6 @@
 const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("wikiwise", {
-  resources: () => ipcRenderer.invoke("wikiwise:listResources"),
   getAppSettings: () => ipcRenderer.invoke("wikiwise:getAppSettings"),
   setAppearanceMode: (mode) => ipcRenderer.invoke("wikiwise:setAppearanceMode", mode),
   restoreLastProject: () => ipcRenderer.invoke("wikiwise:restoreLastProject"),

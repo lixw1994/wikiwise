@@ -24,36 +24,42 @@
 body {
   margin: 0;
   min-width: 320px;
+  min-height: 100vh;
+  background: #f9f6f0;
 }
 
 .shell {
-  display: grid;
-  grid-template-columns: minmax(260px, 0.8fr) minmax(360px, 1.2fr);
-  gap: 16px;
+  display: block;
   min-height: 100vh;
-  padding: 24px;
-}
-
-.shell:has(.project-shell:not([hidden])) {
-  grid-template-columns: minmax(560px, 1.4fr) minmax(320px, 0.6fr);
-}
-
-.panel {
-  border: 1px solid rgba(80, 72, 54, 0.18);
-  border-radius: 8px;
-  background: rgba(255, 252, 244, 0.82);
-  padding: 20px;
+  padding: 0;
+  background: #f9f6f0;
 }
 
 .welcome-panel {
+  display: grid;
   align-content: center;
+  justify-items: center;
+  gap: 32px;
+  min-height: 100vh;
+  padding: 32px 20px;
+  background: #f9f6f0;
+  text-align: center;
+}
+
+.welcome-mark {
+  color: #1a1714;
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 48px;
+  font-style: italic;
+  font-weight: 300;
+  line-height: 1;
 }
 
 .actions {
   display: grid;
-  gap: 10px;
-  max-width: 240px;
-  margin-top: 24px;
+  gap: 12px;
+  width: 220px;
+  max-width: 100%;
 }
 
 button {
@@ -84,10 +90,8 @@ button:disabled {
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr) 360px;
   grid-template-rows: auto 1fr;
-  min-height: calc(100vh - 48px);
+  min-height: 100vh;
   overflow: hidden;
-  border: 1px solid rgba(80, 72, 54, 0.18);
-  border-radius: 8px;
   background: rgba(255, 252, 244, 0.82);
 }
 
@@ -670,55 +674,25 @@ h2 {
   line-height: 1.6;
 }
 
-.panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 16px;
-}
-
-#resource-count {
-  color: #756b59;
-  font-size: 13px;
-}
-
-.resource-list {
-  display: grid;
-  gap: 10px;
+.welcome-panel .summary {
   margin: 0;
-  padding: 0;
-  list-style: none;
+  color: #7a6e54;
+  font-size: 15px;
+  line-height: 1.55;
+  white-space: pre-line;
 }
 
-.resource-list li {
-  display: grid;
-  gap: 4px;
-  border: 1px solid rgba(80, 72, 54, 0.14);
-  border-radius: 6px;
-  padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.42);
-}
-
-.resource-list span {
-  overflow-wrap: anywhere;
-  color: #6b6356;
-  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+.welcome-hint {
+  margin: 0;
+  color: #a89a7c;
   font-size: 12px;
-}
-
-.resource-list .error {
-  color: #8f2727;
+  line-height: 1.45;
+  white-space: pre-line;
 }
 
 @media (max-width: 780px) {
   .shell {
-    grid-template-columns: 1fr;
-    padding: 16px;
-  }
-
-  .shell:has(.project-shell:not([hidden])) {
-    grid-template-columns: 1fr;
+    padding: 0;
   }
 
   .project-shell {

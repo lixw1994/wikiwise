@@ -7,12 +7,10 @@ import {
   WikiCompiler,
   checkPublishAvailability,
   createWikiScaffold,
-  getBundledResourceNames,
   loadPublishConfig,
   publishSite,
   randomPublishSubdomain,
   readTextFile,
-  resolveRepositoryResourcePath,
   scanOneLevel,
   slugForPath,
   summarizeDocumentInfo,
@@ -36,13 +34,6 @@ const defaultAppSettings = Object.freeze({
   lastFolderPath: ""
 });
 const generatedPageNames = new Set(["map-3d.html", "map.html", "graph.html", "index.html", "catalog.html"]);
-
-function getResourceManifest() {
-  return getBundledResourceNames().map((name) => ({
-    name,
-    path: resolveRepositoryResourcePath(repositoryRoot, name)
-  }));
-}
 
 function getCompiler(projectRoot) {
   const resolvedRoot = path.resolve(projectRoot);
@@ -752,7 +743,7 @@ function createMainWindow() {
     height: 780,
     minWidth: 860,
     minHeight: 560,
-    title: "Wikiwise Electron",
+    title: "Wikiwise",
     webPreferences: {
       preload: path.join(packageRoot, "src", "preload", "preload.cjs"),
       contextIsolation: true,
@@ -765,7 +756,6 @@ function createMainWindow() {
   return mainWindow;
 }
 
-ipcMain.handle("wikiwise:listResources", () => getResourceManifest());
 ipcMain.handle("wikiwise:getAppSettings", () => {
   return readAppSettings();
 });
@@ -884,7 +874,6 @@ export {
   getDefaultWikiLocation,
   getDocumentInfo,
   getPublishConfig,
-  getResourceManifest,
   findMarkdownFileForSlug,
   generatedPageResult,
   markdownSlugForPath,

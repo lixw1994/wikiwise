@@ -41,7 +41,8 @@ test("uses a narrow preload bridge instead of renderer Node integration", () => 
   assert.match(mainSource, /nodeIntegration:\s*false/);
   assert.match(mainSource, /contextIsolation:\s*true/);
   assert.match(preloadSource, /exposeInMainWorld\("wikiwise"/);
-  assert.match(preloadSource, /resources:\s*\(\)\s*=>\s*ipcRenderer\.invoke/);
+  assert.match(preloadSource, /openExisting:\s*\(\)\s*=>\s*ipcRenderer\.invoke\("wikiwise:openExisting"\)/);
+  assert.equal(preloadSource.includes("resources:"), false);
 });
 
 test("keeps verification dependency-light", () => {
