@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, shell } from "electron";
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -35,7 +35,7 @@ const defaultAppSettings = Object.freeze({
   appearanceMode: "Auto",
   lastFolderPath: ""
 });
-const generatedPageNames = new Set(["map-3d.html", "map.html", "index.html", "catalog.html"]);
+const generatedPageNames = new Set(["map-3d.html", "map.html", "graph.html", "index.html", "catalog.html"]);
 
 function getResourceManifest() {
   return getBundledResourceNames().map((name) => ({
@@ -160,9 +160,105 @@ function openGeneratedPage(payload) {
   if (!fs.existsSync(pagePath)) return null;
 
   return {
+    kind: "generated",
     name: payload.pageName,
     path: pagePath,
     fileUrl: pathToFileURL(pagePath).href
+  };
+}
+
+function resolvePreviewNavigation(payload) {
+  if (!payload?.projectRoot || !payload?.url) {
+    throw new Error("resolvePreviewNavigation requires projectRoot and url");
+  }
+
+  const projectRoot = assertProjectRoot(payload.projectRoot);
+  const targetUrl = new URL(payload.url);
+
+  if (targetUrl.protocol === "http:" || targetUrl.protocol === "https:") {
+    return {
+      kind: "external",
+      url: targetUrl.href
+    };
+  }
+
+  if (targetUrl.protocol !== "file:") {
+    return null;
+  }
+
+  const targetPath = fileURLToPath(targetUrl);
+  const pageSlug = path.basename(targetPath, path.extname(targetPath)).toLowerCase();
+  if (!pageSlug) return null;
+
+  const markdownFile = findMarkdownFileForSlug(projectRoot, pageSlug);
+  if (markdownFile) {
+    return {
+      kind: "file",
+      path: markdownFile,
+      name: path.basename(markdownFile)
+    };
+  }
+
+  const compiler = getCompiler(projectRoot);
+  compiler.compileAll();
+  const pageName = `${pageSlug}.html`;
+  const generatedPath = path.join(compiler.outputDir, pageName);
+  if (!fs.existsSync(generatedPath)) return null;
+
+  return generatedPageResult(generatedPath);
+}
+
+function findMarkdownFileForSlug(projectRoot, slug) {
+  const searchDirs = [
+    path.join(projectRoot, "wiki"),
+    path.join(projectRoot, "raw"),
+    projectRoot
+  ];
+
+  for (const searchDir of searchDirs) {
+    let entries = [];
+    try {
+      entries = fs.readdirSync(searchDir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+
+    for (const entry of entries) {
+      if (!entry.isFile() || !isMarkdownFile(entry.name)) continue;
+
+      const filePath = path.join(searchDir, entry.name);
+      if (markdownSlugForPath(filePath) === slug || slugForPath(filePath) === slug) {
+        return filePath;
+      }
+    }
+  }
+
+  return null;
+}
+
+function markdownSlugForPath(filePath) {
+  return path.basename(filePath, path.extname(filePath)).toLowerCase().replace(/ /g, "-");
+}
+
+function generatedPageResult(pagePath) {
+  return {
+    kind: "generated",
+    name: path.basename(pagePath),
+    path: pagePath,
+    fileUrl: pathToFileURL(pagePath).href
+  };
+}
+
+async function openExternalUrl(url) {
+  const targetUrl = new URL(url);
+  if (targetUrl.protocol !== "http:" && targetUrl.protocol !== "https:") {
+    throw new Error("Only http and https URLs can be opened externally");
+  }
+
+  await shell.openExternal(targetUrl.href);
+  return {
+    opened: true,
+    url: targetUrl.href
   };
 }
 
@@ -682,6 +778,12 @@ ipcMain.handle("wikiwise:restoreLastProject", () => {
 ipcMain.handle("wikiwise:openGeneratedPage", (_event, payload) => {
   return openGeneratedPage(payload);
 });
+ipcMain.handle("wikiwise:resolvePreviewNavigation", (_event, payload) => {
+  return resolvePreviewNavigation(payload);
+});
+ipcMain.handle("wikiwise:openExternalUrl", (_event, url) => {
+  return openExternalUrl(url);
+});
 ipcMain.handle("wikiwise:openExisting", (event) => {
   return openExistingProject(BrowserWindow.fromWebContents(event.sender));
 });
@@ -783,11 +885,16 @@ export {
   getDocumentInfo,
   getPublishConfig,
   getResourceManifest,
+  findMarkdownFileForSlug,
+  generatedPageResult,
+  markdownSlugForPath,
+  openExternalUrl,
   openGeneratedPage,
   openExistingProject,
   publishProject,
   readAppSettings,
   rememberProjectRoot,
+  resolvePreviewNavigation,
   restoreLastProject,
   saveFile,
   sendTerminalInput,

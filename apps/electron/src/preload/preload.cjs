@@ -6,6 +6,8 @@ contextBridge.exposeInMainWorld("wikiwise", {
   setAppearanceMode: (mode) => ipcRenderer.invoke("wikiwise:setAppearanceMode", mode),
   restoreLastProject: () => ipcRenderer.invoke("wikiwise:restoreLastProject"),
   openGeneratedPage: (payload) => ipcRenderer.invoke("wikiwise:openGeneratedPage", payload),
+  resolvePreviewNavigation: (payload) => ipcRenderer.invoke("wikiwise:resolvePreviewNavigation", payload),
+  openExternalUrl: (url) => ipcRenderer.invoke("wikiwise:openExternalUrl", url),
   openExisting: () => ipcRenderer.invoke("wikiwise:openExisting"),
   scanProject: (projectPath) => ipcRenderer.invoke("wikiwise:scanProject", projectPath),
   readFile: (filePath) => ipcRenderer.invoke("wikiwise:readFile", filePath),

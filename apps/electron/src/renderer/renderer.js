@@ -519,18 +519,29 @@ function pushHistoryEntry(entry) {
 async function restoreHistoryEntry(entry) {
   if (!entry) return;
   if (entry.kind === "generated") {
-    clearAutosave();
-    state.selectedFile = null;
-    state.documentInfo = null;
-    state.generatedPage = entry;
-    state.detailMode = "wiki";
-    renderTree(state.tree);
-    renderDetail();
-    renderInfoTab();
+    showGeneratedPage(entry, { pushHistory: false });
     return;
   }
 
   await selectFile({ path: entry.path, name: entry.name }, { pushHistory: false });
+}
+
+function showGeneratedPage(generatedPage, options = {}) {
+  if (!generatedPage) return;
+  if (options.pushHistory !== false) {
+    pushHistoryEntry(currentHistoryEntry());
+    state.forwardHistory = [];
+  }
+
+  clearAutosave();
+  state.showPostCreateGuide = false;
+  state.selectedFile = null;
+  state.documentInfo = null;
+  state.generatedPage = generatedPage;
+  state.detailMode = "wiki";
+  renderTree(state.tree);
+  renderDetail();
+  renderInfoTab();
 }
 
 async function navigateBack() {
@@ -562,35 +573,114 @@ async function openMap() {
     });
     if (!generatedPage) return;
 
-    pushHistoryEntry(currentHistoryEntry());
-    state.forwardHistory = [];
-    clearAutosave();
-    state.selectedFile = null;
-    state.documentInfo = null;
-    state.generatedPage = generatedPage;
-    state.detailMode = "wiki";
-    renderTree(state.tree);
-    renderDetail();
+    showGeneratedPage(generatedPage);
   } catch (error) {
     setError(error);
   }
 }
 
+async function refreshGeneratedPage() {
+  if (!state.currentProject || !state.generatedPage?.name) return null;
+
+  const refreshed = await window.wikiwise.openGeneratedPage({
+    projectRoot: state.currentProject.projectRoot,
+    pageName: state.generatedPage.name
+  });
+  if (refreshed) {
+    state.generatedPage = refreshed;
+    renderDetail();
+  }
+  return refreshed;
+}
+
 async function refreshCurrentView() {
   if (state.generatedPage?.name) {
-    const refreshed = await window.wikiwise.openGeneratedPage({
-      projectRoot: state.currentProject.projectRoot,
-      pageName: state.generatedPage.name
-    });
-    if (refreshed) {
-      state.generatedPage = refreshed;
-      renderDetail();
-    }
+    await refreshGeneratedPage();
     return;
   }
 
   if (state.selectedFile?.path && isMarkdownFile(state.selectedFile.path)) {
     await refreshSelectedMarkdown({ invalidate: true });
+  }
+}
+
+function attachPreviewNavigation(frame) {
+  let frameDocument;
+  try {
+    frameDocument = frame.contentDocument;
+  } catch {
+    return;
+  }
+  if (!frameDocument) return;
+
+  frameDocument.addEventListener("click", (event) => {
+    handlePreviewFrameClick(event, frame);
+  }, true);
+}
+
+async function handlePreviewFrameClick(event, frame) {
+  try {
+    const anchor = event.target?.closest?.("a[href]");
+    if (!anchor || !state.currentProject) return;
+
+    const rawHref = anchor.getAttribute("href") ?? "";
+    if (!rawHref || rawHref.startsWith("#") || rawHref.startsWith("javascript:")) {
+      return;
+    }
+
+    const frameUrl = frame.contentWindow?.location?.href || frame.src;
+    const targetUrl = new URL(anchor.href || rawHref, frameUrl);
+    if (isSamePageAnchorNavigation(frameUrl, targetUrl.href)) {
+      return;
+    }
+
+    if (targetUrl.protocol === "http:" || targetUrl.protocol === "https:") {
+      event.preventDefault();
+      await window.wikiwise.openExternalUrl(targetUrl.href);
+      return;
+    }
+
+    if (targetUrl.protocol !== "file:") return;
+
+    event.preventDefault();
+    const result = await window.wikiwise.resolvePreviewNavigation({
+      projectRoot: state.currentProject.projectRoot,
+      url: targetUrl.href
+    });
+    await navigateFromPreviewResult(result);
+  } catch (error) {
+    setError(error);
+  }
+}
+
+function isSamePageAnchorNavigation(currentUrl, targetUrl) {
+  try {
+    const current = new URL(currentUrl);
+    const target = new URL(targetUrl, current);
+    const hasAnchor = target.hash.length > 0;
+    current.hash = "";
+    target.hash = "";
+    return hasAnchor && current.href === target.href;
+  } catch {
+    return false;
+  }
+}
+
+async function navigateFromPreviewResult(result) {
+  if (!result) return;
+
+  if (result.kind === "external" && result.url) {
+    await window.wikiwise.openExternalUrl(result.url);
+    return;
+  }
+
+  if (result.kind === "generated") {
+    showGeneratedPage(result);
+    return;
+  }
+
+  if (result.kind === "file") {
+    await selectFile({ path: result.path, name: result.name });
   }
 }
 
@@ -927,11 +1017,19 @@ async function handleProjectChanged(change) {
   const changedMarkdownPaths = change.changedMarkdownPaths ?? [];
   const selectedMarkdownChanged =
     currentMarkdownSelected && changedMarkdownPaths.includes(currentPath);
+  const generatedPageActive = Boolean(state.generatedPage?.name);
+  const generatedOutputChanged =
+    generatedPageActive &&
+    (change.kind === "rebuild" || change.cssChanged || changedMarkdownPaths.length > 0);
 
   try {
     if (change.kind === "structure" || change.kind === "rebuild") {
       state.tree = await window.wikiwise.scanProject(state.currentProject.projectRoot);
       renderTree(state.tree);
+    }
+
+    if (generatedOutputChanged) {
+      await refreshGeneratedPage();
     }
 
     if (selectedMarkdownChanged && state.selectedFile && !state.selectedFile.isDirty) {
@@ -1144,6 +1242,8 @@ document.addEventListener("keydown", (event) => {
 });
 modeFileButton.addEventListener("click", () => setDetailMode("file"));
 modeWikiButton.addEventListener("click", () => setDetailMode("wiki"));
+previewFrame.addEventListener("load", () => attachPreviewNavigation(previewFrame));
+generatedPreviewFrame.addEventListener("load", () => attachPreviewNavigation(generatedPreviewFrame));
 publishButton.addEventListener("click", openPublishDialog);
 goBackButton.addEventListener("click", navigateBack);
 goForwardButton.addEventListener("click", navigateForward);
