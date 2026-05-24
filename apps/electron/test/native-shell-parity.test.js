@@ -117,6 +117,21 @@ test("uses full-window shell layout instead of outer debug cards", () => {
   assert.doesNotMatch(projectShellBlock, /border-radius/);
 });
 
+test("offsets toolbar project title like native left-sidebar compensation", () => {
+  const toolbarTitleBlock = cssBlock(".toolbar-project-title");
+
+  assert.match(
+    nativeContentViewSource,
+    /\.offset\(x:\s*sidebarVisibility == \.all \? -\(leftSidebarWidth \/ 2\) : 0\)/
+  );
+  assert.match(styleSource, /--toolbar-title-offset:\s*0px/);
+  assert.match(toolbarTitleBlock, /transform:\s*translateX\(var\(--toolbar-title-offset\)\)/);
+  assert.match(rendererSource, /function updateToolbarTitleOffset/);
+  assert.match(rendererSource, /leftSidebar\.getBoundingClientRect\(\)\.width/);
+  assert.match(rendererSource, /-Math\.round\(leftSidebarWidth \/ 2\)/);
+  assert.match(rendererSource, /project\.style\.setProperty\("--toolbar-title-offset",\s*`\$\{toolbarTitleOffset\}px`\)/);
+});
+
 test("hides non-native detail save chrome while preserving save wiring", () => {
   const detailBlock = cssBlock(".detail");
   const sourceFrameBlock = cssBlock(".source-editor-frame");

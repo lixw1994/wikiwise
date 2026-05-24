@@ -639,6 +639,7 @@ function renderProjectToolbar() {
   leftSidebar.hidden = !state.isLeftSidebarVisible;
   project.classList.toggle("left-sidebar-hidden", !state.isLeftSidebarVisible);
   project.classList.toggle("right-sidebar-hidden", !state.isRightSidebarVisible);
+  updateToolbarTitleOffset();
   if (state.currentProject && state.isRightSidebarVisible) {
     applyRightSidebarWidth();
   }
@@ -659,6 +660,16 @@ function setToolbarButtonSymbol(button, symbol) {
   icon.textContent = symbol.glyph;
   button.title = symbol.label;
   button.setAttribute("aria-label", symbol.label);
+}
+
+function updateToolbarTitleOffset() {
+  const leftSidebarWidth = state.isLeftSidebarVisible
+    ? Math.round(leftSidebar.getBoundingClientRect().width)
+    : 0;
+  const toolbarTitleOffset = state.isLeftSidebarVisible
+    ? -Math.round(leftSidebarWidth / 2)
+    : 0;
+  project.style.setProperty("--toolbar-title-offset", `${toolbarTitleOffset}px`);
 }
 
 function maxRightSidebarWidth() {

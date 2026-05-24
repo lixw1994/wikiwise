@@ -53,6 +53,7 @@ The Electron renderer SHALL expose native-like toolbar controls for opened proje
 - **AND** back and forward disabled states reflect renderer history
 - **AND** appearance, 3D map, and sidebar toolbar actions use icon-only native symbol semantics rather than visible text labels
 - **AND** icon-only toolbar actions keep accessible labels through `title` and `aria-label`
+- **AND** the project title is offset like the native toolbar when the left sidebar is visible
 
 ### Requirement: Renderer History
 

@@ -478,6 +478,7 @@ async function simulateLeftSidebarToggle(window) {
     const leftSidebar = document.querySelector("#left-sidebar");
     const toggle = document.querySelector("#toggle-left-sidebar");
     const detail = document.querySelector(".detail");
+    const toolbarTitle = document.querySelector("#toolbar-project-name");
     const selectedTreeText = () => document.querySelector(".tree-file-button.selected")?.textContent?.trim() ?? "";
     const expandedFolderNames = () => [...document.querySelectorAll(".tree-folder-button")]
       .filter((button) => button.getAttribute("aria-expanded") === "true")
@@ -489,10 +490,31 @@ async function simulateLeftSidebarToggle(window) {
       element.getBoundingClientRect().height > 0
     );
     const detailWidth = () => Math.round(detail?.getBoundingClientRect().width ?? 0);
+    const leftSidebarWidth = () => Math.round(leftSidebar?.getBoundingClientRect().width ?? 0);
+    const titleOffset = () => {
+      const transform = toolbarTitle ? window.getComputedStyle(toolbarTitle).transform : "";
+      if (!transform || transform === "none") return 0;
+
+      const matrix3d = transform.match(/^matrix3d\\(([^)]+)\\)$/);
+      if (matrix3d) {
+        const values = matrix3d[1].split(",").map((value) => Number.parseFloat(value.trim()));
+        return Math.round(Number.isFinite(values[12]) ? values[12] : 0);
+      }
+
+      const matrix = transform.match(/^matrix\\(([^)]+)\\)$/);
+      if (matrix) {
+        const values = matrix[1].split(",").map((value) => Number.parseFloat(value.trim()));
+        return Math.round(Number.isFinite(values[4]) ? values[4] : 0);
+      }
+
+      return 0;
+    };
 
     const before = {
       visible: isVisible(leftSidebar),
       detailWidth: detailWidth(),
+      leftSidebarWidth: leftSidebarWidth(),
+      titleOffset: titleOffset(),
       selectedTreeText: selectedTreeText(),
       expandedFolderNames: expandedFolderNames()
     };
@@ -507,7 +529,13 @@ async function simulateLeftSidebarToggle(window) {
         leftSidebarHiddenDetailWidth: null,
         leftSidebarDetailExpanded: false,
         leftSidebarSelectionPreserved: false,
-        leftSidebarExpansionPreserved: false
+        leftSidebarExpansionPreserved: false,
+        toolbarTitleOffsetEvidence: Boolean(toolbarTitle),
+        leftSidebarTitleOffsetWidth: before.leftSidebarWidth,
+        toolbarTitleExpectedVisibleOffset: before.leftSidebarWidth ? -Math.round(before.leftSidebarWidth / 2) : 0,
+        toolbarTitleInitialOffset: before.titleOffset,
+        toolbarTitleHiddenOffset: null,
+        toolbarTitleRestoredOffset: null
       };
       window.__wikiwiseLeftSidebarVisibilityEvidence = missingEvidence;
       return missingEvidence;
@@ -516,14 +544,18 @@ async function simulateLeftSidebarToggle(window) {
     toggle.click();
     const hidden = {
       visible: isVisible(leftSidebar),
-      detailWidth: detailWidth()
+      detailWidth: detailWidth(),
+      titleOffset: titleOffset()
     };
     toggle.click();
     const restored = {
       visible: isVisible(leftSidebar),
+      leftSidebarWidth: leftSidebarWidth(),
+      titleOffset: titleOffset(),
       selectedTreeText: selectedTreeText(),
       expandedFolderNames: expandedFolderNames()
     };
+    const expectedVisibleOffset = -Math.round(restored.leftSidebarWidth / 2);
     const evidence = {
       leftSidebarTogglePresent: true,
       leftSidebarInitiallyVisible: before.visible,
@@ -533,7 +565,13 @@ async function simulateLeftSidebarToggle(window) {
       leftSidebarHiddenDetailWidth: hidden.detailWidth,
       leftSidebarDetailExpanded: hidden.detailWidth > before.detailWidth,
       leftSidebarSelectionPreserved: before.selectedTreeText === restored.selectedTreeText,
-      leftSidebarExpansionPreserved: before.expandedFolderNames.join("\\n") === restored.expandedFolderNames.join("\\n")
+      leftSidebarExpansionPreserved: before.expandedFolderNames.join("\\n") === restored.expandedFolderNames.join("\\n"),
+      toolbarTitleOffsetEvidence: true,
+      leftSidebarTitleOffsetWidth: restored.leftSidebarWidth,
+      toolbarTitleExpectedVisibleOffset: expectedVisibleOffset,
+      toolbarTitleInitialOffset: before.titleOffset,
+      toolbarTitleHiddenOffset: hidden.titleOffset,
+      toolbarTitleRestoredOffset: restored.titleOffset
     };
     window.__wikiwiseLeftSidebarVisibilityEvidence = evidence;
     return evidence;
@@ -547,6 +585,12 @@ async function simulateLeftSidebarToggle(window) {
     leftSidebarDetailExpanded: false,
     leftSidebarSelectionPreserved: false,
     leftSidebarExpansionPreserved: false,
+    toolbarTitleOffsetEvidence: false,
+    leftSidebarTitleOffsetWidth: null,
+    toolbarTitleExpectedVisibleOffset: null,
+    toolbarTitleInitialOffset: null,
+    toolbarTitleHiddenOffset: null,
+    toolbarTitleRestoredOffset: null,
     error: error instanceof Error ? error.message : String(error)
   }));
 }
@@ -810,6 +854,12 @@ async function readDomEvidence(window) {
 	      leftSidebarDetailExpanded: Boolean(leftSidebarVisibilityEvidence.leftSidebarDetailExpanded),
 	      leftSidebarSelectionPreserved: Boolean(leftSidebarVisibilityEvidence.leftSidebarSelectionPreserved),
 	      leftSidebarExpansionPreserved: Boolean(leftSidebarVisibilityEvidence.leftSidebarExpansionPreserved),
+	      toolbarTitleOffsetEvidence: Boolean(leftSidebarVisibilityEvidence.toolbarTitleOffsetEvidence),
+	      leftSidebarTitleOffsetWidth: leftSidebarVisibilityEvidence.leftSidebarTitleOffsetWidth ?? null,
+	      toolbarTitleExpectedVisibleOffset: leftSidebarVisibilityEvidence.toolbarTitleExpectedVisibleOffset ?? null,
+	      toolbarTitleInitialOffset: leftSidebarVisibilityEvidence.toolbarTitleInitialOffset ?? null,
+	      toolbarTitleHiddenOffset: leftSidebarVisibilityEvidence.toolbarTitleHiddenOffset ?? null,
+	      toolbarTitleRestoredOffset: leftSidebarVisibilityEvidence.toolbarTitleRestoredOffset ?? null,
 	      infoOptionalSectionEvidence: Boolean(infoOptionalEvidence.infoOptionalSectionEvidence),
 	      infoTabActivated: Boolean(infoOptionalEvidence.infoTabActivated),
 	      infoDirectionsSectionVisible: Boolean(infoOptionalEvidence.infoDirectionsSectionVisible),
@@ -974,6 +1024,23 @@ function assertScenario(scenario, dom, screenshot) {
 	    }
 	    if (!dom.leftSidebarSelectionPreserved || !dom.leftSidebarExpansionPreserved) {
 	      failures.push("Left sidebar tree state was not preserved after restore.");
+	    }
+	    const titleOffsetMatches = (actual, expected) =>
+	      Number.isFinite(actual) &&
+	      Number.isFinite(expected) &&
+	      Math.abs(actual - expected) <= 1;
+	    if (!dom.toolbarTitleOffsetEvidence) {
+	      failures.push("Toolbar title offset evidence is missing.");
+	    } else {
+	      if (
+	        !titleOffsetMatches(dom.toolbarTitleInitialOffset, dom.toolbarTitleExpectedVisibleOffset) ||
+	        !titleOffsetMatches(dom.toolbarTitleRestoredOffset, dom.toolbarTitleExpectedVisibleOffset)
+	      ) {
+	        failures.push("Toolbar title offset does not match native left-sidebar compensation.");
+	      }
+	      if (!titleOffsetMatches(dom.toolbarTitleHiddenOffset, 0)) {
+	        failures.push("Toolbar title offset did not reset while left sidebar was hidden.");
+	      }
 	    }
 	    if (!dom.infoOptionalSectionEvidence || !dom.infoTabActivated) {
 	      failures.push("Info optional section evidence is missing.");
