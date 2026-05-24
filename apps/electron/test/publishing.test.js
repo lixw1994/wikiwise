@@ -92,6 +92,23 @@ test("renderer mirrors native publish toolbar help text", () => {
   assert.match(rendererSource, /publishButton\.setAttribute\("aria-label",\s*publishHelpText\)/);
 });
 
+test("renderer mirrors native publish action labels", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+
+  assert.match(nativeSource, /Text\("PUBLISHING\\u\{2026\}"\)/);
+  assert.match(nativeSource, /Text\("PUBLISH \\u\{2191\}"\)/);
+  assert.match(nativeSource, /Button\("Publish"\)/);
+
+  assert.match(rendererSource, /publishButton\.textContent = state\.isPublishing \? "PUBLISHING…" : "PUBLISH ↑"/);
+  assert.match(
+    rendererSource,
+    /confirmPublishButton\.textContent = state\.isPublishing\s*\?\s*"Publishing"\s*:\s*"Publish"/
+  );
+  assert.doesNotMatch(rendererSource, /PUBLISHING\.\.\./);
+  assert.doesNotMatch(rendererSource, /state\.publishConfig\?\.published\s*\?\s*"Update"\s*:\s*"Publish"/);
+});
+
 test("renderer markup and styles include publish dialog, status, and unpublish controls", () => {
   const htmlSource = read("src/renderer/index.html");
   const cssSource = read("src/renderer/styles.css");

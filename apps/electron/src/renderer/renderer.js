@@ -612,7 +612,7 @@ function publishButtonHelpText() {
 function renderPublishStatus() {
   const publishHelpText = publishButtonHelpText();
   publishButton.disabled = !state.currentProject || state.isPublishing;
-  publishButton.textContent = state.isPublishing ? "PUBLISHING..." : "PUBLISH ↑";
+  publishButton.textContent = state.isPublishing ? "PUBLISHING…" : "PUBLISH ↑";
   publishButton.title = publishHelpText;
   publishButton.setAttribute("aria-label", publishHelpText);
   renderPublishFeedback();
@@ -1464,9 +1464,7 @@ function renderPublishDialog() {
   confirmPublishButton.disabled = !canPublish();
   confirmPublishButton.textContent = state.isPublishing
     ? "Publishing"
-    : state.publishConfig?.published
-      ? "Update"
-      : "Publish";
+    : "Publish";
   unpublishButton.hidden = !state.publishConfig?.published;
   unpublishButton.disabled = state.isPublishing || state.isUnpublishing;
   unpublishButton.textContent = state.isUnpublishing ? "Unpublishing" : "Unpublish…";

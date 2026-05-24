@@ -5,13 +5,15 @@ Define Electron parity for publishing, availability feedback, publish result ale
 ## Requirements
 ### Requirement: Publish Control
 
-The Electron app SHALL expose a publishing control for opened projects with native-equivalent contextual help.
+The Electron app SHALL expose a publishing control for opened projects with native-equivalent contextual help and visible labels.
 
 #### Scenario: Project toolbar displays publish action
 
 - **WHEN** a project is opened in Electron
 - **THEN** the renderer displays a publish action
+- **AND** the normal publish action label is `PUBLISH ↑`
 - **AND** the action is disabled while publishing is already in progress
+- **AND** the busy publish action label is `PUBLISHING…`
 - **AND** the action exposes the native unpublished help text `Publish wiki to wiki-wise.com` when no published config exists
 
 #### Scenario: Published project toolbar shows publish status help
@@ -39,6 +41,7 @@ The Electron app SHALL let users choose or edit the wiki subdomain before publis
 - **THEN** the dialog displays the saved subdomain
 - **AND** the subdomain state is treated as owned unless an availability check says otherwise
 - **AND** the dialog shows the native `Unpublish…` action
+- **AND** the confirmation action remains labeled `Publish`
 
 ### Requirement: Availability Feedback
 
