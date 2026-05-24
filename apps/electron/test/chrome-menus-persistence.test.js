@@ -39,6 +39,21 @@ test("main process owns app settings, appearance, restore, generated pages, and 
   assert.match(mainSource, /accelerator:\s*"CommandOrControl\+R"/);
 });
 
+test("app menu navigation commands match the native File command group", () => {
+  const mainSource = read("src/main/main.js");
+  const swiftSource = readRepository("Sources/Wikiwise/WikiwiseApp.swift");
+
+  assert.match(
+    swiftSource,
+    /CommandGroup\(after:\s*\.newItem\)\s*\{[\s\S]*Button\("Go Back"\)[\s\S]*Button\("Go Forward"\)[\s\S]*Button\("Refresh Page"\)/
+  );
+  assert.match(
+    mainSource,
+    /label:\s*"File"[\s\S]*submenu:\s*\[[\s\S]*label:\s*"Open Existing Folder"[\s\S]*label:\s*"Go Back"[\s\S]*accelerator:\s*"CommandOrControl\+\["[\s\S]*label:\s*"Go Forward"[\s\S]*accelerator:\s*"CommandOrControl\+\]"[\s\S]*label:\s*"Refresh Page"[\s\S]*accelerator:\s*"CommandOrControl\+R"/
+  );
+  assert.doesNotMatch(mainSource, /label:\s*"Navigate"/);
+});
+
 test("preload exposes settings, restore, generated page, and app command APIs", () => {
   const preloadSource = read("src/preload/preload.cjs");
 

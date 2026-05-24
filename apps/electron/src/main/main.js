@@ -395,12 +395,6 @@ function createApplicationMenu() {
           click: () => sendAppCommand("openExisting")
         },
         { type: "separator" },
-        { role: "close" }
-      ]
-    },
-    {
-      label: "Navigate",
-      submenu: [
         {
           label: "Go Back",
           accelerator: "CommandOrControl+[",
@@ -416,7 +410,9 @@ function createApplicationMenu() {
           label: "Refresh Page",
           accelerator: "CommandOrControl+R",
           click: () => sendAppCommand("refreshWiki")
-        }
+        },
+        { type: "separator" },
+        { role: "close" }
       ]
     },
     {
