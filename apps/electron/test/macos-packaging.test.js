@@ -20,6 +20,7 @@ test("package manifests expose Electron macOS packaging commands", () => {
   const electronPackage = readJson("apps/electron/package.json");
 
   assert.equal(rootPackage.scripts["electron:package:mac"], "npm --workspace @wikiwise/electron-app run package:mac");
+  assert.equal(rootPackage.scripts["electron:release:preflight"], "bash scripts/build-release.sh --preflight");
   assert.equal(electronPackage.scripts["package:mac"], "node ../../scripts/package-electron-macos.mjs");
 });
 
@@ -85,6 +86,22 @@ test("canonical release script builds a signed notarized Electron DMG", () => {
   assert.doesNotMatch(script, /lipo -create/);
 });
 
+test("canonical release script exposes a no-artifact preflight mode", () => {
+  const script = read("scripts/build-release.sh");
+
+  assert.match(script, /PREFLIGHT_ONLY/);
+  assert.match(script, /--preflight/);
+  assert.match(script, /check_notary_profile/);
+  assert.match(script, /xcrun notarytool history --keychain-profile "\$NOTARY_PROFILE"/);
+  assert.match(script, /Release preflight passed/);
+  assert.match(script, /No release artifacts were produced/);
+
+  const preflightSuccessIndex = script.indexOf("Release preflight passed");
+  const auditStepIndex = script.indexOf("[1/7] Running Electron runtime parity audit");
+  assert.ok(preflightSuccessIndex >= 0);
+  assert.ok(auditStepIndex > preflightSuccessIndex);
+});
+
 test("Electron release script uses checked-in hardened runtime entitlements", () => {
   const entitlementsPath = path.join(repositoryRoot, "apps", "electron", "build", "entitlements.mac.plist");
 
@@ -103,6 +120,7 @@ test("release documentation describes the Electron signed DMG path", () => {
 
   for (const document of [claude, project, electronReadme]) {
     assert.match(document, /bash scripts\/build-release\.sh <version>/);
+    assert.match(document, /bash scripts\/build-release\.sh --preflight <version>/);
     assert.match(document, /Electron/i);
     assert.match(document, /Wikiwise-macOS\.dmg/);
     assert.match(document, /Developer ID/i);

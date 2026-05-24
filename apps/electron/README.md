@@ -11,6 +11,7 @@ npm --prefix apps/electron test
 npm run electron:dev
 npm run electron:package:mac
 npm run electron:audit:runtime
+npm run electron:release:preflight
 ```
 
 `npm run electron:dev` requires dependencies to be installed first:
@@ -33,6 +34,9 @@ Production release distribution uses `bash scripts/build-release.sh <version>`,
 which runs the Electron runtime audit, signs the Electron app with a Developer ID
 identity, creates `Wikiwise-macOS.dmg`, submits Apple notarization, staples the
 ticket, assesses the final DMG, and only then reports a notarized release.
+`bash scripts/build-release.sh --preflight <version>` checks release tooling,
+Developer ID signing identity, and Apple notarization profile availability
+without producing app, DMG, signed, or notarized release artifacts.
 
 ## Runtime parity audit
 

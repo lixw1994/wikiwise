@@ -9,6 +9,7 @@
     "test": "npm --workspaces --if-present test",
     "electron:dev": "npm --workspace @wikiwise/electron-app run dev",
     "electron:package:mac": "npm --workspace @wikiwise/electron-app run package:mac",
-    "electron:audit:runtime": "npm --workspace @wikiwise/electron-app run audit:runtime"
+    "electron:audit:runtime": "npm --workspace @wikiwise/electron-app run audit:runtime",
+    "electron:release:preflight": "bash scripts/build-release.sh --preflight"
   }
 }

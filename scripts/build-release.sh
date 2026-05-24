@@ -1,6 +1,12 @@
 #!/bin/bash
 set -euo pipefail
 
+PREFLIGHT_ONLY=0
+if [[ "${1:-}" == "--preflight" ]]; then
+  PREFLIGHT_ONLY=1
+  shift
+fi
+
 VERSION="${1:-0.1.0}"
 PRODUCT_NAME="Wikiwise"
 SIGNING_IDENTITY="${WIKIWISE_RELEASE_SIGNING_IDENTITY:-Developer ID Application: Readwise, Inc (QV36BMA4LN)}"
@@ -32,6 +38,11 @@ check_signing_identity() {
     || fail "missing Developer ID signing identity '$SIGNING_IDENTITY'"
 }
 
+check_notary_profile() {
+  xcrun notarytool history --keychain-profile "$NOTARY_PROFILE" >/dev/null 2>&1 \
+    || fail "missing or unusable Apple notarization keychain profile '$NOTARY_PROFILE'"
+}
+
 preflight() {
   [[ "$(uname -s)" == "Darwin" ]] || fail "Electron macOS releases must run on macOS"
 
@@ -43,11 +54,18 @@ preflight() {
   require_command spctl
   require_file "$ENTITLEMENTS"
   check_signing_identity
+  check_notary_profile
 }
 
 echo "=== Building Electron Wikiwise v${VERSION} ==="
 
 preflight
+
+if [[ "$PREFLIGHT_ONLY" == "1" ]]; then
+  echo "Release preflight passed for Electron Wikiwise v${VERSION}."
+  echo "No release artifacts were produced."
+  exit 0
+fi
 
 echo "[1/7] Running Electron runtime parity audit..."
 npm run electron:audit:runtime

@@ -7,6 +7,7 @@ A native macOS wiki reader — SwiftUI app with sidebar file browser and rendere
 - Build: `swift build`
 - Run: `.build/arm64-apple-macosx/debug/Wikiwise`
 - Release: `bash scripts/build-release.sh <version>` — **always use this for releases.** It runs the Electron runtime audit, packages the Electron app, signs with the Readwise Developer ID, creates `Wikiwise-macOS.dmg`, notarizes with Apple, staples the ticket, and assesses the final DMG. Never build releases manually or skip this script.
+- Release preflight: `bash scripts/build-release.sh --preflight <version>` checks release tooling, Developer ID signing identity, and Apple notarization profile before any audit, packaging, signing, or DMG artifact work. Preflight evidence is useful when credentials are unavailable, but it is not a signed or notarized release.
 
 ## Architecture
 

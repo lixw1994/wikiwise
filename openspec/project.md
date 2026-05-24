@@ -25,8 +25,10 @@ Wikiwise is a native macOS app that turns folders of Markdown files into a brows
 - Build: `swift build`
 - Run: `.build/arm64-apple-macosx/debug/Wikiwise`
 - Release: `bash scripts/build-release.sh <version>`
+- Release preflight: `bash scripts/build-release.sh --preflight <version>`
 
 Release builds must use `scripts/build-release.sh`; do not manually build, sign, notarize, or package release artifacts. The canonical release path packages the Electron app, signs with a Developer ID identity, creates `Wikiwise-macOS.dmg`, submits Apple notarization, staples the ticket, and assesses the final DMG.
+Release preflight checks tooling, Developer ID signing identity, and the Apple notarization keychain profile without producing release artifacts. It can retain blocker evidence, but final migration completion still requires an actual signed and notarized release run or an explicitly accepted OpenSpec deviation.
 
 ## OpenSpec Schema Selection
 
