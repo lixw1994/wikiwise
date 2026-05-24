@@ -10,3 +10,8 @@ Wikiwise.app/
 Wikiwise-*.zip
 *.dmg
 .claude/worktrees/
+node_modules/
+apps/*/dist/
+apps/*/out/
+packages/*/dist/
+npm-debug.log*

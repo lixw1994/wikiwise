@@ -28,12 +28,28 @@ swift build
 .build/arm64-apple-macosx/debug/Wikiwise
 ```
 
+## Cross-platform workspace
+
+The SwiftUI macOS app remains the current production app. Cross-platform desktop
+work is developed in parallel under `apps/electron/` and driven by OpenSpec
+changes in `openspec/changes/`.
+
+```
+npm test
+npm run electron:dev
+```
+
+`npm test` runs dependency-light workspace checks. `npm run electron:dev`
+requires `npm install` first so Electron can be downloaded.
+
 ## Architecture
 
 - **SwiftUI** macOS app built with SwiftPM (no Xcode project)
 - **JavaScriptCore** compiler turns markdown into styled HTML pages
 - **SwiftTerm** embedded terminal for running coding agents
 - **FSEvents** file watcher for live recompilation
+- **Electron workspace** under `apps/electron/` for cross-platform exploration
+- **Shared JavaScript core** under `packages/wikiwise-core/` for reusable wiki helpers
 - Wiki scaffold includes Claude Code skills for ingest, lint, and Readwise import
 
 ## Wiki structure

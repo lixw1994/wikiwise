@@ -1,0 +1,12 @@
+{
+  "name": "wikiwise-workspace",
+  "private": true,
+  "workspaces": [
+    "apps/*",
+    "packages/*"
+  ],
+  "scripts": {
+    "test": "npm --workspaces --if-present test",
+    "electron:dev": "npm --workspace @wikiwise/electron-app run dev"
+  }
+}

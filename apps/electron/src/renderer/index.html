@@ -1,0 +1,36 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:;"
+    />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Wikiwise Electron</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <section class="panel">
+        <p class="eyebrow">Cross-platform workspace</p>
+        <h1>Wikiwise Electron</h1>
+        <p class="summary">
+          This shell is intentionally small. It proves the Electron workspace,
+          preload bridge, and shared core package before migrating product
+          behavior.
+        </p>
+      </section>
+
+      <section class="panel">
+        <div class="panel-header">
+          <h2>Shared resources</h2>
+          <span id="resource-count">Loading</span>
+        </div>
+        <ul id="resource-list" class="resource-list"></ul>
+      </section>
+    </main>
+
+    <script type="module" src="./renderer.js"></script>
+  </body>
+</html>

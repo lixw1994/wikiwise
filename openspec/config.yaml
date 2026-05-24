@@ -1,0 +1,22 @@
+schema: spec-driven
+
+context: |
+  Wikiwise is a SwiftUI macOS app built with SwiftPM.
+  Keep the repository default workflow lightweight.
+  Use spec-driven-superpowers at change creation time for high-risk or cross-cutting work.
+  Build validation for app changes should include `swift build`.
+  Release changes must use `bash scripts/build-release.sh <version>` and must not bypass signing, notarization, or DMG packaging steps.
+
+rules:
+  proposal:
+    - Keep proposals focused on user-visible behavior and affected app surfaces.
+    - Call out affected Swift, bundled JavaScript, scaffold, or release surfaces when relevant.
+  specs:
+    - Describe required behavior and scenarios, not implementation tactics.
+    - Include file watching, rendering, scaffold, or release expectations when those surfaces are affected.
+  design:
+    - Mention affected files or subsystems such as SwiftUI views, WKWebView, SwiftTerm, bundled JS resources, FSEvents, or scaffold templates.
+    - Include rollback or compatibility notes for scaffold and release workflow changes.
+  tasks:
+    - Include `swift build` validation for app changes.
+    - Include targeted manual checks when UI, WebView rendering, terminal behavior, scaffold output, or release packaging is affected.
