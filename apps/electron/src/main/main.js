@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain } from "electron";
+import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
@@ -10,6 +11,7 @@ import {
   resolveRepositoryResourcePath,
   scanOneLevel,
   slugForPath,
+  summarizeDocumentInfo,
   summarizeWatchEvents,
   writeActiveFile,
   writeTextFile
@@ -21,6 +23,7 @@ const packageRoot = path.resolve(currentDir, "..", "..");
 const repositoryRoot = path.resolve(packageRoot, "..", "..");
 const compilersByProjectRoot = new Map();
 const watchersByWebContents = new Map();
+const terminalSessionsByWebContents = new Map();
 const projectWatcherDebounceMs = 200;
 const wikiHomeRelativePath = "wiki/home.md";
 
@@ -219,6 +222,98 @@ function saveFile(payload) {
   };
 }
 
+function getDocumentInfo(payload) {
+  if (!payload?.projectRoot || !payload?.filePath) {
+    throw new Error("getDocumentInfo requires projectRoot and filePath");
+  }
+
+  const projectRoot = path.resolve(payload.projectRoot);
+  const filePath = assertProjectPath(projectRoot, payload.filePath);
+  return summarizeDocumentInfo(filePath);
+}
+
+function startTerminal(webContents, payload) {
+  const projectRoot = typeof payload === "string" ? payload : payload?.projectRoot;
+  if (!projectRoot) {
+    throw new Error("startTerminal requires projectRoot");
+  }
+  if (!webContents || webContents.isDestroyed()) {
+    throw new Error("startTerminal requires live webContents");
+  }
+
+  const resolvedRoot = path.resolve(projectRoot);
+  const stat = fs.statSync(resolvedRoot);
+  if (!stat.isDirectory()) {
+    throw new Error("startTerminal requires a project directory");
+  }
+
+  const webContentsId = webContents.id;
+  closeTerminal(webContentsId);
+
+  const shell = process.env.SHELL || (process.platform === "win32" ? "cmd.exe" : "/bin/zsh");
+  const child = spawn(shell, [], {
+    cwd: resolvedRoot,
+    env: process.env
+  });
+
+  const session = {
+    projectRoot: resolvedRoot,
+    process: child
+  };
+  terminalSessionsByWebContents.set(webContentsId, session);
+
+  function sendOutput(stream, chunk) {
+    if (webContents.isDestroyed()) return;
+    webContents.send("wikiwise:terminalOutput", {
+      projectRoot: resolvedRoot,
+      stream,
+      data: String(chunk)
+    });
+  }
+
+  child.stdout?.on("data", (chunk) => sendOutput("stdout", chunk));
+  child.stderr?.on("data", (chunk) => sendOutput("stderr", chunk));
+  child.on("error", (error) => sendOutput("stderr", `${error.message}\n`));
+  child.on("exit", (code, signal) => {
+    const current = terminalSessionsByWebContents.get(webContentsId);
+    if (current?.process === child) {
+      terminalSessionsByWebContents.delete(webContentsId);
+    }
+    sendOutput("system", `\n[process exited ${signal ?? code ?? 0}]\n`);
+  });
+  webContents.once("destroyed", () => closeTerminal(webContentsId));
+
+  return {
+    started: true,
+    projectRoot: resolvedRoot,
+    shell: path.basename(shell)
+  };
+}
+
+function sendTerminalInput(webContents, payload) {
+  const session = terminalSessionsByWebContents.get(webContents.id);
+  if (!session) {
+    throw new Error("No terminal is running for this window");
+  }
+
+  const input = String(payload?.input ?? "");
+  if (!input) {
+    return { sent: false };
+  }
+
+  session.process.stdin.write(input);
+  return { sent: true };
+}
+
+function closeTerminal(webContentsId) {
+  const session = terminalSessionsByWebContents.get(webContentsId);
+  if (!session) return false;
+
+  terminalSessionsByWebContents.delete(webContentsId);
+  session.process.kill();
+  return true;
+}
+
 function getDefaultWikiLocation() {
   return path.join(app.getPath("home"), "wikis");
 }
@@ -357,6 +452,9 @@ ipcMain.handle("wikiwise:compilePage", (_event, payload) => {
 ipcMain.handle("wikiwise:saveFile", (_event, payload) => {
   return saveFile(payload);
 });
+ipcMain.handle("wikiwise:getDocumentInfo", (_event, payload) => {
+  return getDocumentInfo(payload);
+});
 ipcMain.handle("wikiwise:getDefaultWikiLocation", () => {
   return getDefaultWikiLocation();
 });
@@ -372,6 +470,17 @@ ipcMain.handle("wikiwise:startProjectWatcher", (event, payload) => {
 ipcMain.handle("wikiwise:stopProjectWatcher", (event) => {
   return {
     stopped: closeProjectWatcher(event.sender.id)
+  };
+});
+ipcMain.handle("wikiwise:startTerminal", (event, payload) => {
+  return startTerminal(event.sender, payload);
+});
+ipcMain.handle("wikiwise:sendTerminalInput", (event, payload) => {
+  return sendTerminalInput(event.sender, payload);
+});
+ipcMain.handle("wikiwise:stopTerminal", (event) => {
+  return {
+    stopped: closeTerminal(event.sender.id)
   };
 });
 
@@ -400,10 +509,14 @@ export {
   createMainWindow,
   createProjectResult,
   chooseNewWikiLocation,
+  closeTerminal,
   getDefaultWikiLocation,
+  getDocumentInfo,
   getResourceManifest,
   openExistingProject,
   saveFile,
+  sendTerminalInput,
+  startTerminal,
   startProjectWatcher
 };
 

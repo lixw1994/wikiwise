@@ -99,7 +99,7 @@
             </div>
             <div class="guide-block">
               <p class="eyebrow">Open your agent</p>
-              <p>Use the built-in terminal in a later phase, or open your own terminal:</p>
+              <p>Use the built-in terminal, or open your own terminal:</p>
               <pre><code id="guide-claude-command"></code></pre>
               <pre><code id="guide-codex-command"></code></pre>
               <pre><code id="guide-cursor-command"></code></pre>
@@ -122,6 +122,67 @@
             </button>
           </section>
         </section>
+        <aside id="right-sidebar" class="right-sidebar">
+          <div class="right-tabs" role="tablist" aria-label="Right sidebar">
+            <button
+              id="right-tab-info"
+              class="right-tab"
+              type="button"
+              role="tab"
+              aria-selected="false"
+            >
+              INFO
+            </button>
+            <button
+              id="right-tab-terminal"
+              class="right-tab selected"
+              type="button"
+              role="tab"
+              aria-selected="true"
+            >
+              TERMINAL
+            </button>
+          </div>
+
+          <section id="info-panel" class="right-panel info-panel" hidden>
+            <dl class="info-list">
+              <div>
+                <dt>PATH</dt>
+                <dd id="info-path">No document</dd>
+              </div>
+              <div>
+                <dt>EDITED</dt>
+                <dd id="info-edited"></dd>
+              </div>
+              <div>
+                <dt>WORDS</dt>
+                <dd id="info-words"></dd>
+              </div>
+            </dl>
+            <section class="info-section">
+              <h3>DIRECTIONS</h3>
+              <p id="info-directions">Select a markdown file</p>
+            </section>
+            <section class="info-section">
+              <h3>LINKED</h3>
+              <ul id="info-links" class="info-links"></ul>
+            </section>
+          </section>
+
+          <section id="terminal-panel" class="right-panel terminal-panel">
+            <pre id="terminal-output" class="terminal-output" aria-live="polite"></pre>
+            <div class="terminal-input-row">
+              <input
+                id="terminal-input"
+                class="terminal-input"
+                type="text"
+                autocomplete="off"
+                spellcheck="false"
+              />
+              <button id="terminal-send" class="terminal-send" type="button">Run</button>
+            </div>
+          </section>
+        </aside>
       </section>
 
       <section class="panel resources-panel">

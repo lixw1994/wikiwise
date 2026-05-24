@@ -68,6 +68,29 @@ export function writeActiveFile(projectRoot, filePath) {
   };
 }
 
+export function summarizeDocumentInfo(filePath) {
+  const resolvedPath = path.resolve(filePath);
+  if (!fs.existsSync(resolvedPath)) {
+    throw new Error(`Document not found: ${resolvedPath}`);
+  }
+
+  const stat = fs.statSync(resolvedPath);
+  if (!stat.isFile()) {
+    throw new Error(`Document not found: ${resolvedPath}`);
+  }
+
+  const content = readTextFile(resolvedPath);
+
+  return {
+    path: resolvedPath,
+    name: path.basename(resolvedPath),
+    modifiedAt: stat.mtime.toISOString(),
+    wordCount: countWords(content),
+    directions: extractDirections(content),
+    wikilinks: extractWikilinks(content)
+  };
+}
+
 export function slugForWikiName(name) {
   return String(name)
     .trim()
@@ -522,6 +545,42 @@ function scaffoldSettingsJson() {
 
 function currentISODate() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function countWords(content) {
+  return String(content).split(/\s+/).filter(Boolean).length;
+}
+
+function extractDirections(content) {
+  const lines = String(content).split(/\r?\n/);
+  if (lines[0]?.trim() !== "---") return null;
+
+  for (const line of lines.slice(1)) {
+    const trimmed = line.trim();
+    if (trimmed === "---") return null;
+    if (trimmed.startsWith("directions:")) {
+      const directions = trimmed.slice("directions:".length).trim();
+      return directions || null;
+    }
+  }
+
+  return null;
+}
+
+function extractWikilinks(content) {
+  const seen = new Set();
+  const links = [];
+  const pattern = /\[\[([^\]]+)\]\]/g;
+  let match;
+
+  while ((match = pattern.exec(String(content))) !== null) {
+    const target = match[1].trim();
+    if (!target || seen.has(target)) continue;
+    seen.add(target);
+    links.push(target);
+  }
+
+  return links;
 }
 
 function isPathInside(filePath, directoryPath) {

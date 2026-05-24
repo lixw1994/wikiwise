@@ -7,14 +7,23 @@ contextBridge.exposeInMainWorld("wikiwise", {
   readFile: (filePath) => ipcRenderer.invoke("wikiwise:readFile", filePath),
   compilePage: (payload) => ipcRenderer.invoke("wikiwise:compilePage", payload),
   saveFile: (payload) => ipcRenderer.invoke("wikiwise:saveFile", payload),
+  getDocumentInfo: (payload) => ipcRenderer.invoke("wikiwise:getDocumentInfo", payload),
   getDefaultWikiLocation: () => ipcRenderer.invoke("wikiwise:getDefaultWikiLocation"),
   chooseNewWikiLocation: () => ipcRenderer.invoke("wikiwise:chooseNewWikiLocation"),
   createNewWiki: (payload) => ipcRenderer.invoke("wikiwise:createNewWiki", payload),
   startProjectWatcher: (payload) => ipcRenderer.invoke("wikiwise:startProjectWatcher", payload),
   stopProjectWatcher: () => ipcRenderer.invoke("wikiwise:stopProjectWatcher"),
+  startTerminal: (payload) => ipcRenderer.invoke("wikiwise:startTerminal", payload),
+  sendTerminalInput: (payload) => ipcRenderer.invoke("wikiwise:sendTerminalInput", payload),
+  stopTerminal: () => ipcRenderer.invoke("wikiwise:stopTerminal"),
   onProjectChanged: (callback) => {
     const listener = (_event, payload) => callback(payload);
     ipcRenderer.on("wikiwise:projectChanged", listener);
     return () => ipcRenderer.removeListener("wikiwise:projectChanged", listener);
+  },
+  onTerminalOutput: (callback) => {
+    const listener = (_event, payload) => callback(payload);
+    ipcRenderer.on("wikiwise:terminalOutput", listener);
+    return () => ipcRenderer.removeListener("wikiwise:terminalOutput", listener);
   }
 });

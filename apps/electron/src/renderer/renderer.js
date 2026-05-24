@@ -9,6 +9,19 @@ const saveButton = document.querySelector("#save-file");
 const saveStatus = document.querySelector("#save-status");
 const modeFileButton = document.querySelector("#mode-file");
 const modeWikiButton = document.querySelector("#mode-wiki");
+const rightSidebar = document.querySelector("#right-sidebar");
+const rightTabInfoButton = document.querySelector("#right-tab-info");
+const rightTabTerminalButton = document.querySelector("#right-tab-terminal");
+const infoPanel = document.querySelector("#info-panel");
+const infoPath = document.querySelector("#info-path");
+const infoEdited = document.querySelector("#info-edited");
+const infoWords = document.querySelector("#info-words");
+const infoDirections = document.querySelector("#info-directions");
+const infoLinks = document.querySelector("#info-links");
+const terminalPanel = document.querySelector("#terminal-panel");
+const terminalOutput = document.querySelector("#terminal-output");
+const terminalInput = document.querySelector("#terminal-input");
+const terminalSendButton = document.querySelector("#terminal-send");
 const openExistingButton = document.querySelector("#open-existing");
 const createNewButton = document.querySelector("#create-new");
 const newWikiDialog = document.querySelector("#new-wiki-dialog");
@@ -30,8 +43,12 @@ const state = {
   currentProject: null,
   selectedFile: null,
   detailMode: "file",
+  rightSidebarTab: "terminal",
   autosaveTimer: null,
   projectWatcherCleanup: null,
+  terminalOutputCleanup: null,
+  documentInfo: null,
+  terminalTranscript: "",
   isNewWikiDialogOpen: false,
   newWikiName: "",
   newWikiLocation: "",
@@ -69,6 +86,9 @@ function renderApp() {
     projectName.textContent = state.currentProject.projectName;
     renderTree(state.tree);
     renderDetail();
+    renderRightSidebar();
+  } else {
+    renderRightSidebar();
   }
 }
 
@@ -135,6 +155,7 @@ async function selectFile(node) {
 
     setSelectedFile(nextFile);
     renderTree(state.tree);
+    await refreshDocumentInfo();
   } catch (error) {
     setError(error);
   }
@@ -142,6 +163,7 @@ async function selectFile(node) {
 
 function setSelectedFile(file) {
   clearAutosave();
+  state.documentInfo = null;
   state.selectedFile = file
     ? {
         ...file,
@@ -190,10 +212,67 @@ function renderDetail() {
   } else {
     previewFrame.removeAttribute("src");
   }
+
+  renderRightSidebar();
 }
 
 function renderPreview() {
   previewFrame.src = state.selectedFile.compiled.fileUrl;
+}
+
+function setRightSidebarTab(tab) {
+  state.rightSidebarTab = tab;
+  renderRightSidebar();
+}
+
+function renderRightSidebar() {
+  const hasProject = Boolean(state.currentProject);
+
+  rightSidebar.hidden = !hasProject;
+  if (!hasProject) return;
+
+  rightTabInfoButton.classList.toggle("selected", state.rightSidebarTab === "info");
+  rightTabTerminalButton.classList.toggle("selected", state.rightSidebarTab === "terminal");
+  rightTabInfoButton.setAttribute("aria-selected", String(state.rightSidebarTab === "info"));
+  rightTabTerminalButton.setAttribute("aria-selected", String(state.rightSidebarTab === "terminal"));
+
+  infoPanel.hidden = state.rightSidebarTab !== "info";
+  terminalPanel.hidden = state.rightSidebarTab !== "terminal";
+
+  renderInfoTab();
+  renderTerminalTab();
+}
+
+function renderInfoTab() {
+  const file = state.selectedFile;
+  const info = state.documentInfo;
+  const hasMarkdownFile = Boolean(file?.path && isMarkdownFile(file.path));
+
+  infoPath.textContent = info?.name ?? file?.name ?? "No document";
+  infoEdited.textContent = info?.modifiedAt ? formatEditedTime(info.modifiedAt) : "";
+  infoWords.textContent = info ? String(info.wordCount) : "";
+  infoDirections.textContent = info?.directions || (hasMarkdownFile ? "None" : "Select a markdown file");
+
+  const links = info?.wikilinks ?? [];
+  infoLinks.replaceChildren(...links.map(renderInfoLink));
+  if (links.length === 0) {
+    const item = document.createElement("li");
+    item.textContent = hasMarkdownFile ? "None" : "";
+    infoLinks.append(item);
+  }
+}
+
+function renderInfoLink(target) {
+  const item = document.createElement("li");
+  item.textContent = `-> ${target}`;
+  return item;
+}
+
+function renderTerminalTab() {
+  terminalOutput.textContent = state.terminalTranscript || "Starting shell...";
+  terminalInput.disabled = !state.currentProject;
+  terminalSendButton.disabled = !state.currentProject;
+  terminalOutput.scrollTop = terminalOutput.scrollHeight;
 }
 
 async function applyProjectResult(projectResult, options = {}) {
@@ -206,7 +285,7 @@ async function applyProjectResult(projectResult, options = {}) {
   setSelectedFile(projectResult.selectedFile);
 
   renderApp();
-  await startProjectWatcher();
+  await startProjectServices();
 }
 
 async function openNewWikiDialog() {
@@ -300,6 +379,12 @@ function dismissPostCreateGuide() {
   renderDetail();
 }
 
+async function startProjectServices() {
+  await startProjectWatcher();
+  await startTerminal();
+  await refreshDocumentInfo();
+}
+
 async function startProjectWatcher() {
   if (state.projectWatcherCleanup) {
     state.projectWatcherCleanup();
@@ -319,6 +404,94 @@ async function startProjectWatcher() {
   } catch (error) {
     cleanup();
     throw error;
+  }
+}
+
+async function startTerminal() {
+  if (state.terminalOutputCleanup) {
+    state.terminalOutputCleanup();
+    state.terminalOutputCleanup = null;
+  }
+  if (!state.currentProject) {
+    state.terminalTranscript = "";
+    await window.wikiwise.stopTerminal();
+    renderTerminalTab();
+    return;
+  }
+
+  state.terminalTranscript = "";
+  renderTerminalTab();
+
+  const cleanup = window.wikiwise.onTerminalOutput(handleTerminalOutput);
+  try {
+    await window.wikiwise.startTerminal({
+      projectRoot: state.currentProject.projectRoot
+    });
+    state.terminalOutputCleanup = cleanup;
+  } catch (error) {
+    cleanup();
+    throw error;
+  }
+}
+
+function handleTerminalOutput(output) {
+  if (!state.currentProject || output.projectRoot !== state.currentProject.projectRoot) {
+    return;
+  }
+
+  state.terminalTranscript = `${state.terminalTranscript}${output.data}`;
+  if (state.terminalTranscript.length > 24000) {
+    state.terminalTranscript = state.terminalTranscript.slice(-24000);
+  }
+  renderTerminalTab();
+}
+
+async function sendTerminalInput() {
+  if (!state.currentProject) return;
+
+  const command = terminalInput.value;
+  if (!command.trim()) return;
+
+  terminalInput.value = "";
+  state.terminalTranscript = `${state.terminalTranscript}$ ${command}\n`;
+  renderTerminalTab();
+
+  try {
+    await window.wikiwise.sendTerminalInput({
+      input: `${command}\n`
+    });
+  } catch (error) {
+    setError(error);
+  }
+}
+
+async function refreshDocumentInfo() {
+  const file = state.selectedFile;
+  if (!state.currentProject || !file?.path || !isMarkdownFile(file.path)) {
+    state.documentInfo = null;
+    renderInfoTab();
+    return null;
+  }
+
+  const selectedPath = file.path;
+  try {
+    const info = await window.wikiwise.getDocumentInfo({
+      projectRoot: state.currentProject.projectRoot,
+      filePath: selectedPath
+    });
+
+    if (state.selectedFile?.path === selectedPath) {
+      state.documentInfo = info;
+      renderInfoTab();
+    }
+    return info;
+  } catch (error) {
+    if (state.selectedFile?.path === selectedPath) {
+      state.documentInfo = null;
+      renderInfoTab();
+    }
+    setError(error);
+    return null;
   }
 }
 
@@ -360,6 +533,10 @@ async function handleProjectChanged(change) {
         reloadCSS: Boolean(change.cssChanged)
       });
     }
+
+    if (currentMarkdownSelected && (change.kind === "rebuild" || selectedMarkdownChanged)) {
+      await refreshDocumentInfo();
+    }
   } catch (error) {
     setError(error);
   }
@@ -388,6 +565,23 @@ function compileMarkdownPreview(filePath, options = {}) {
     invalidate: Boolean(options.invalidate),
     reloadCSS: Boolean(options.reloadCSS)
   });
+}
+
+function formatEditedTime(modifiedAt) {
+  const date = new Date(modifiedAt);
+  const deltaSeconds = Math.round((date.getTime() - Date.now()) / 1000);
+  const absoluteSeconds = Math.abs(deltaSeconds);
+  const relativeFormatter = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+
+  if (absoluteSeconds < 60) return relativeFormatter.format(deltaSeconds, "second");
+  if (absoluteSeconds < 3600) return relativeFormatter.format(Math.round(deltaSeconds / 60), "minute");
+  if (absoluteSeconds < 86400) return relativeFormatter.format(Math.round(deltaSeconds / 3600), "hour");
+  if (absoluteSeconds < 604800) return relativeFormatter.format(Math.round(deltaSeconds / 86400), "day");
+
+  return new Intl.DateTimeFormat(undefined, {
+    dateStyle: "medium",
+    timeStyle: "short"
+  }).format(date);
 }
 
 function renderSaveState() {
@@ -459,6 +653,9 @@ async function saveSelectedFile() {
     if (isMarkdownFile(savedPath) && result.compiled && state.detailMode === "wiki") {
       renderPreview();
     }
+    if (isMarkdownFile(savedPath)) {
+      await refreshDocumentInfo();
+    }
   } catch (error) {
     if (state.selectedFile?.path === savedPath) {
       state.selectedFile.isSaving = false;
@@ -519,6 +716,15 @@ document.addEventListener("keydown", (event) => {
 });
 modeFileButton.addEventListener("click", () => setDetailMode("file"));
 modeWikiButton.addEventListener("click", () => setDetailMode("wiki"));
+rightTabInfoButton.addEventListener("click", () => setRightSidebarTab("info"));
+rightTabTerminalButton.addEventListener("click", () => setRightSidebarTab("terminal"));
+terminalSendButton.addEventListener("click", sendTerminalInput);
+terminalInput.addEventListener("keydown", (event) => {
+  if (event.key === "Enter") {
+    event.preventDefault();
+    sendTerminalInput();
+  }
+});
 createNewButton.addEventListener("click", openNewWikiDialog);
 newWikiNameInput.addEventListener("input", () => {
   state.newWikiName = newWikiNameInput.value;
