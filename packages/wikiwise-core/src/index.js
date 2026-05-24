@@ -45,6 +45,29 @@ export function readTextFile(filePath) {
   return fs.readFileSync(filePath, "utf8");
 }
 
+export function writeTextFile(filePath, content) {
+  const text = String(content);
+  fs.mkdirSync(path.dirname(filePath), { recursive: true });
+  fs.writeFileSync(filePath, text, "utf8");
+
+  return {
+    path: filePath,
+    bytes: Buffer.byteLength(text, "utf8")
+  };
+}
+
+export function writeActiveFile(projectRoot, filePath) {
+  const activeFilePath = path.join(projectRoot, ".claude", "active-file");
+  const relativePath = path.relative(projectRoot, filePath).split(path.sep).join("/");
+
+  writeTextFile(activeFilePath, relativePath);
+
+  return {
+    path: activeFilePath,
+    relativePath
+  };
+}
+
 export function slugForPath(filePath) {
   const fileName = path.basename(filePath);
   let slug = fileName.replace(/\.md$/i, "").toLowerCase().replace(/ /g, "-");

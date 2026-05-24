@@ -3,8 +3,10 @@ const project = document.querySelector("#project");
 const projectName = document.querySelector("#project-name");
 const fileTree = document.querySelector("#file-tree");
 const selectedFileLabel = document.querySelector("#selected-file");
-const fileContent = document.querySelector("#file-content");
+const sourceEditor = document.querySelector("#source-editor");
 const previewFrame = document.querySelector("#preview-frame");
+const saveButton = document.querySelector("#save-file");
+const saveStatus = document.querySelector("#save-status");
 const modeFileButton = document.querySelector("#mode-file");
 const modeWikiButton = document.querySelector("#mode-wiki");
 const openExistingButton = document.querySelector("#open-existing");
@@ -17,6 +19,7 @@ const state = {
   currentProject: null,
   selectedFile: null,
   detailMode: "file",
+  autosaveTimer: null,
   tree: []
 };
 
@@ -29,6 +32,13 @@ function setError(error) {
 
   errorMessage.hidden = false;
   errorMessage.textContent = error instanceof Error ? error.message : String(error);
+}
+
+function clearAutosave() {
+  if (state.autosaveTimer) {
+    clearTimeout(state.autosaveTimer);
+    state.autosaveTimer = null;
+  }
 }
 
 function renderApp() {
@@ -122,7 +132,16 @@ async function selectFile(node) {
 }
 
 function setSelectedFile(file) {
-  state.selectedFile = file;
+  clearAutosave();
+  state.selectedFile = file
+    ? {
+        ...file,
+        draftContent: file.content ?? "",
+        lastSavedContent: file.content ?? "",
+        isDirty: false,
+        isSaving: false
+      }
+    : null;
   state.detailMode = hasCompiledPreview(file) ? "wiki" : "file";
   renderDetail();
 }
@@ -138,15 +157,19 @@ function renderDetail() {
   const wikiAvailable = hasCompiledPreview(file);
 
   selectedFileLabel.textContent = file?.name ?? "Select a file to read";
-  fileContent.textContent = file?.content ?? "";
+  sourceEditor.disabled = !hasFile;
+  if (document.activeElement !== sourceEditor && sourceEditor.value !== (file?.draftContent ?? "")) {
+    sourceEditor.value = file?.draftContent ?? "";
+  }
 
   modeFileButton.disabled = !hasFile;
   modeWikiButton.disabled = !wikiAvailable;
   modeFileButton.classList.toggle("selected", state.detailMode === "file");
   modeWikiButton.classList.toggle("selected", state.detailMode === "wiki" && wikiAvailable);
 
-  fileContent.hidden = state.detailMode !== "file";
+  sourceEditor.hidden = state.detailMode !== "file";
   previewFrame.hidden = state.detailMode !== "wiki" || !wikiAvailable;
+  renderSaveState();
 
   if (state.detailMode === "wiki" && wikiAvailable) {
     renderPreview();
@@ -157,6 +180,84 @@ function renderDetail() {
 
 function renderPreview() {
   previewFrame.src = state.selectedFile.compiled.fileUrl;
+}
+
+function renderSaveState() {
+  const file = state.selectedFile;
+
+  saveButton.disabled = !file || !file.isDirty || file.isSaving;
+  if (!file) {
+    saveStatus.textContent = "";
+  } else if (file.isSaving) {
+    saveStatus.textContent = "Saving";
+  } else if (file.isDirty) {
+    saveStatus.textContent = "Unsaved";
+  } else {
+    saveStatus.textContent = "Saved";
+  }
+}
+
+function handleEditorInput() {
+  const file = state.selectedFile;
+  if (!file) return;
+
+  file.draftContent = sourceEditor.value;
+  file.isDirty = file.draftContent !== file.lastSavedContent;
+  renderSaveState();
+  scheduleAutosave();
+}
+
+function scheduleAutosave() {
+  clearAutosave();
+  if (!state.selectedFile?.isDirty) return;
+
+  state.autosaveTimer = setTimeout(() => {
+    state.autosaveTimer = null;
+    saveSelectedFile({ reason: "debounce" });
+  }, 500);
+}
+
+async function saveSelectedFile() {
+  const file = state.selectedFile;
+  if (!file || !file.isDirty || file.isSaving) return;
+
+  clearAutosave();
+  const savedPath = file.path;
+  const savedContent = file.draftContent;
+
+  file.isSaving = true;
+  renderSaveState();
+  setError(null);
+
+  try {
+    const result = await window.wikiwise.saveFile({
+      projectRoot: state.currentProject.projectRoot,
+      filePath: savedPath,
+      content: savedContent
+    });
+
+    if (state.selectedFile?.path !== savedPath) return;
+
+    state.selectedFile.content = savedContent;
+    state.selectedFile.lastSavedContent = savedContent;
+    state.selectedFile.isDirty = state.selectedFile.draftContent !== savedContent;
+    state.selectedFile.compiled = result.compiled ?? state.selectedFile.compiled;
+    state.selectedFile.isSaving = false;
+
+    renderDetail();
+    if (state.selectedFile.isDirty) {
+      scheduleAutosave();
+    }
+    if (isMarkdownFile(savedPath) && result.compiled && state.detailMode === "wiki") {
+      renderPreview();
+    }
+  } catch (error) {
+    if (state.selectedFile?.path === savedPath) {
+      state.selectedFile.isSaving = false;
+      renderSaveState();
+    }
+    setError(error);
+  }
 }
 
 function hasCompiledPreview(file) {
@@ -200,6 +301,14 @@ loadResources();
 renderApp();
 
 openExistingButton.addEventListener("click", openExisting);
+sourceEditor.addEventListener("input", handleEditorInput);
+saveButton.addEventListener("click", () => saveSelectedFile({ reason: "button" }));
+document.addEventListener("keydown", (event) => {
+  if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
+    event.preventDefault();
+    saveSelectedFile({ reason: "keyboard" });
+  }
+});
 modeFileButton.addEventListener("click", () => setDetailMode("file"));
 modeWikiButton.addEventListener("click", () => setDetailMode("wiki"));
 createNewButton.addEventListener("click", () => {

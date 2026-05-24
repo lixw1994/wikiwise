@@ -5,5 +5,6 @@ contextBridge.exposeInMainWorld("wikiwise", {
   openExisting: () => ipcRenderer.invoke("wikiwise:openExisting"),
   scanProject: (projectPath) => ipcRenderer.invoke("wikiwise:scanProject", projectPath),
   readFile: (filePath) => ipcRenderer.invoke("wikiwise:readFile", filePath),
-  compilePage: (payload) => ipcRenderer.invoke("wikiwise:compilePage", payload)
+  compilePage: (payload) => ipcRenderer.invoke("wikiwise:compilePage", payload),
+  saveFile: (payload) => ipcRenderer.invoke("wikiwise:saveFile", payload)
 });

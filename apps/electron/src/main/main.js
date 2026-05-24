@@ -7,7 +7,10 @@ import {
   getBundledResourceNames,
   readTextFile,
   resolveRepositoryResourcePath,
-  scanOneLevel
+  scanOneLevel,
+  slugForPath,
+  writeActiveFile,
+  writeTextFile
 } from "@wikiwise/core";
 
 const currentFile = fileURLToPath(import.meta.url);
@@ -37,15 +40,57 @@ function getCompiler(projectRoot) {
   return compiler;
 }
 
-function compileMarkdownFile(projectRoot, filePath) {
+function compileMarkdownFile(projectRoot, filePath, options = {}) {
   const compiler = getCompiler(projectRoot);
 
   compiler.scanPages();
+  if (options.invalidate) {
+    compiler.invalidatePage(slugForPath(filePath));
+  }
   const result = compiler.compileMarkdownFile(filePath);
 
   return {
     ...result,
     fileUrl: result.outputPath ? pathToFileURL(result.outputPath).href : null
+  };
+}
+
+function assertProjectPath(projectRoot, filePath) {
+  const resolvedRoot = path.resolve(projectRoot);
+  const resolvedFilePath = path.resolve(filePath);
+  const relativePath = path.relative(resolvedRoot, resolvedFilePath);
+
+  if (
+    !relativePath ||
+    relativePath === ".." ||
+    relativePath.startsWith(`..${path.sep}`) ||
+    path.isAbsolute(relativePath)
+  ) {
+    throw new Error("Save target must be inside the current project");
+  }
+
+  return resolvedFilePath;
+}
+
+function saveFile(payload) {
+  if (!payload?.projectRoot || !payload?.filePath || typeof payload.content !== "string") {
+    throw new Error("saveFile requires projectRoot, filePath, and content");
+  }
+
+  const projectRoot = path.resolve(payload.projectRoot);
+  const filePath = assertProjectPath(projectRoot, payload.filePath);
+  const write = writeTextFile(filePath, payload.content);
+  const activeFile = writeActiveFile(projectRoot, filePath);
+  const compiled = isMarkdownFile(filePath)
+    ? compileMarkdownFile(projectRoot, filePath, { invalidate: true })
+    : null;
+
+  return {
+    saved: true,
+    path: filePath,
+    write,
+    activeFile,
+    compiled
   };
 }
 
@@ -141,6 +186,9 @@ ipcMain.handle("wikiwise:compilePage", (_event, payload) => {
 
   return compileMarkdownFile(payload.projectRoot, payload.filePath);
 });
+ipcMain.handle("wikiwise:saveFile", (_event, payload) => {
+  return saveFile(payload);
+});
 
 app.whenReady().then(() => {
   createMainWindow();
@@ -159,9 +207,15 @@ app.on("window-all-closed", () => {
 });
 
 export {
+  assertProjectPath,
   compileMarkdownFile,
   createMainWindow,
   createProjectResult,
   getResourceManifest,
-  openExistingProject
+  openExistingProject,
+  saveFile
 };
+
+function isMarkdownFile(filePath) {
+  return /\.md$/i.test(filePath);
+}

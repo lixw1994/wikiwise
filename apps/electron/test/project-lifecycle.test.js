@@ -41,6 +41,6 @@ test("renderer contains project lifecycle state and deferred feature messaging",
   assert.match(htmlSource, /id="open-existing"/);
   assert.match(htmlSource, /id="create-new"/);
   assert.match(htmlSource, /id="file-tree"/);
-  assert.match(htmlSource, /id="file-content"/);
+  assert.match(htmlSource, /id="source-editor"/);
   assert.match(htmlSource, /later OpenSpec phase/);
 });
