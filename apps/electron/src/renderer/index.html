@@ -4,7 +4,7 @@
     <meta charset="UTF-8" />
     <meta
       http-equiv="Content-Security-Policy"
-      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data:;"
+      content="default-src 'self'; script-src 'self'; style-src 'self'; img-src 'self' data: file:; frame-src 'self' file:;"
     />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Wikiwise Electron</title>
@@ -12,23 +12,65 @@
   </head>
   <body>
     <main class="shell">
-      <section class="panel">
+      <section id="welcome" class="panel welcome-panel">
         <p class="eyebrow">Cross-platform workspace</p>
         <h1>Wikiwise Electron</h1>
         <p class="summary">
-          This shell is intentionally small. It proves the Electron workspace,
-          preload bridge, and shared core package before migrating product
-          behavior.
+          Wikiwise helps you turn any folder of markdown files into a browsable,
+          publishable wiki.
+        </p>
+        <div class="actions">
+          <button id="create-new" class="primary-action" type="button">
+            Create a New Wiki
+          </button>
+          <button id="open-existing" class="secondary-action" type="button">
+            Open Existing Folder
+          </button>
+        </div>
+        <p class="phase-note">
+          New wiki creation lands in a later OpenSpec phase. Open an existing
+          folder or text file in this phase.
         </p>
       </section>
 
-      <section class="panel">
+      <section id="project" class="project-shell" hidden>
+        <aside class="sidebar">
+          <p class="eyebrow">Files</p>
+          <h2 id="project-name">Wikiwise</h2>
+          <ul id="file-tree" class="file-tree"></ul>
+        </aside>
+        <section class="detail">
+          <div class="detail-header">
+            <span id="selected-file">Select a file to read</span>
+            <div class="mode-switch" role="tablist" aria-label="Detail mode">
+              <button id="mode-file" class="mode-button selected" type="button">
+                File
+              </button>
+              <button id="mode-wiki" class="mode-button" type="button" disabled>
+                Wiki
+              </button>
+            </div>
+          </div>
+          <pre id="file-content" class="file-content"></pre>
+          <iframe
+            id="preview-frame"
+            class="preview-frame"
+            title="Wiki preview"
+            sandbox="allow-scripts allow-same-origin"
+            hidden
+          ></iframe>
+        </section>
+      </section>
+
+      <section class="panel resources-panel">
         <div class="panel-header">
           <h2>Shared resources</h2>
           <span id="resource-count">Loading</span>
         </div>
         <ul id="resource-list" class="resource-list"></ul>
       </section>
+
+      <p id="error-message" class="error-message" hidden></p>
     </main>
 
     <script type="module" src="./renderer.js"></script>
