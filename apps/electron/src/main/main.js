@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme } from "electron";
 import { spawn } from "node:child_process";
 import fs from "node:fs";
 import path from "node:path";
@@ -31,6 +31,11 @@ const watchersByWebContents = new Map();
 const terminalSessionsByWebContents = new Map();
 const projectWatcherDebounceMs = 200;
 const wikiHomeRelativePath = "wiki/home.md";
+const defaultAppSettings = Object.freeze({
+  appearanceMode: "Auto",
+  lastFolderPath: ""
+});
+const generatedPageNames = new Set(["map-3d.html", "map.html", "index.html", "catalog.html"]);
 
 function getResourceManifest() {
   return getBundledResourceNames().map((name) => ({
@@ -68,6 +73,155 @@ function compileMarkdownFile(projectRoot, filePath, options = {}) {
     ...result,
     fileUrl: result.outputPath ? pathToFileURL(result.outputPath).href : null
   };
+}
+
+function settingsPath() {
+  return path.join(app.getPath("userData"), "settings.json");
+}
+
+function readAppSettings() {
+  try {
+    const parsed = JSON.parse(readTextFile(settingsPath()));
+    return normalizeAppSettings(parsed);
+  } catch {
+    return { ...defaultAppSettings };
+  }
+}
+
+function writeAppSettings(nextSettings) {
+  const settings = normalizeAppSettings(nextSettings);
+  writeTextFile(settingsPath(), `${JSON.stringify(settings, null, 2)}\n`);
+  return settings;
+}
+
+function updateAppSettings(patch) {
+  return writeAppSettings({
+    ...readAppSettings(),
+    ...patch
+  });
+}
+
+function normalizeAppSettings(settings) {
+  const appearanceMode = ["Auto", "Light", "Dark"].includes(settings?.appearanceMode)
+    ? settings.appearanceMode
+    : defaultAppSettings.appearanceMode;
+
+  return {
+    appearanceMode,
+    lastFolderPath: typeof settings?.lastFolderPath === "string"
+      ? settings.lastFolderPath
+      : defaultAppSettings.lastFolderPath
+  };
+}
+
+function applyAppearanceMode(mode) {
+  nativeTheme.themeSource = mode === "Dark" ? "dark" : mode === "Light" ? "light" : "system";
+  return mode;
+}
+
+function setAppearanceMode(mode) {
+  const settings = updateAppSettings({ appearanceMode: mode });
+  applyAppearanceMode(settings.appearanceMode);
+  return settings;
+}
+
+function rememberProjectRoot(projectRoot) {
+  const resolvedRoot = assertProjectRoot(projectRoot);
+  return updateAppSettings({ lastFolderPath: resolvedRoot });
+}
+
+function restoreLastProject() {
+  const settings = readAppSettings();
+  if (!settings.lastFolderPath || !fs.existsSync(settings.lastFolderPath)) {
+    return null;
+  }
+
+  const stat = fs.statSync(settings.lastFolderPath);
+  if (!stat.isDirectory()) {
+    return null;
+  }
+
+  return createProjectResult(settings.lastFolderPath);
+}
+
+function openGeneratedPage(payload) {
+  if (!payload?.projectRoot || !payload?.pageName) {
+    throw new Error("openGeneratedPage requires projectRoot and pageName");
+  }
+  if (!generatedPageNames.has(payload.pageName)) {
+    throw new Error("Generated page is not allowed");
+  }
+
+  const projectRoot = assertProjectRoot(payload.projectRoot);
+  const compiler = getCompiler(projectRoot);
+  compiler.compileAll();
+
+  const pagePath = path.join(compiler.outputDir, payload.pageName);
+  if (!fs.existsSync(pagePath)) return null;
+
+  return {
+    name: payload.pageName,
+    path: pagePath,
+    fileUrl: pathToFileURL(pagePath).href
+  };
+}
+
+function sendAppCommand(command) {
+  const targetWindow = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
+  if (!targetWindow || targetWindow.webContents.isDestroyed()) return false;
+
+  targetWindow.webContents.send("wikiwise:appCommand", { command });
+  return true;
+}
+
+function createApplicationMenu() {
+  const template = [
+    ...(process.platform === "darwin"
+      ? [{
+          label: app.name,
+          submenu: [{ role: "about" }, { type: "separator" }, { role: "quit" }]
+        }]
+      : []),
+    {
+      label: "File",
+      submenu: [
+        {
+          label: "Open Existing Folder",
+          accelerator: "CommandOrControl+O",
+          click: () => sendAppCommand("openExisting")
+        },
+        { type: "separator" },
+        { role: "close" }
+      ]
+    },
+    {
+      label: "Navigate",
+      submenu: [
+        {
+          label: "Go Back",
+          accelerator: "CommandOrControl+[",
+          click: () => sendAppCommand("goBack")
+        },
+        {
+          label: "Go Forward",
+          accelerator: "CommandOrControl+]",
+          click: () => sendAppCommand("goForward")
+        },
+        { type: "separator" },
+        {
+          label: "Refresh Page",
+          accelerator: "CommandOrControl+R",
+          click: () => sendAppCommand("refreshWiki")
+        }
+      ]
+    },
+    {
+      label: "View",
+      submenu: [{ role: "togglefullscreen" }]
+    }
+  ];
+
+  return Menu.buildFromTemplate(template);
 }
 
 function startProjectWatcher(webContents, payload) {
@@ -426,6 +580,7 @@ function createNewWiki(payload) {
     parentDir: payload.parentDir,
     name: payload.name
   });
+  rememberProjectRoot(scaffold.path);
 
   return {
     created: true,
@@ -483,10 +638,15 @@ async function openExistingProject(browserWindow) {
   if (result.canceled || result.filePaths.length === 0) {
     return { canceled: true };
   }
+  const targetPath = result.filePaths[0];
+  const stat = fs.statSync(targetPath);
+  if (stat.isDirectory()) {
+    rememberProjectRoot(targetPath);
+  }
 
   return {
     canceled: false,
-    project: createProjectResult(result.filePaths[0])
+    project: createProjectResult(targetPath)
   };
 }
 
@@ -510,6 +670,18 @@ function createMainWindow() {
 }
 
 ipcMain.handle("wikiwise:listResources", () => getResourceManifest());
+ipcMain.handle("wikiwise:getAppSettings", () => {
+  return readAppSettings();
+});
+ipcMain.handle("wikiwise:setAppearanceMode", (_event, mode) => {
+  return setAppearanceMode(mode);
+});
+ipcMain.handle("wikiwise:restoreLastProject", () => {
+  return restoreLastProject();
+});
+ipcMain.handle("wikiwise:openGeneratedPage", (_event, payload) => {
+  return openGeneratedPage(payload);
+});
 ipcMain.handle("wikiwise:openExisting", (event) => {
   return openExistingProject(BrowserWindow.fromWebContents(event.sender));
 });
@@ -577,6 +749,8 @@ ipcMain.handle("wikiwise:stopTerminal", (event) => {
 });
 
 app.whenReady().then(() => {
+  applyAppearanceMode(readAppSettings().appearanceMode);
+  Menu.setApplicationMenu(createApplicationMenu());
   createMainWindow();
 
   app.on("activate", () => {
@@ -594,9 +768,11 @@ app.on("window-all-closed", () => {
 
 export {
   applyWatchSummary,
+  applyAppearanceMode,
   assertProjectPath,
   closeProjectWatcher,
   compileMarkdownFile,
+  createApplicationMenu,
   createNewWiki,
   createMainWindow,
   createProjectResult,
@@ -607,13 +783,20 @@ export {
   getDocumentInfo,
   getPublishConfig,
   getResourceManifest,
+  openGeneratedPage,
   openExistingProject,
   publishProject,
+  readAppSettings,
+  rememberProjectRoot,
+  restoreLastProject,
   saveFile,
   sendTerminalInput,
+  sendAppCommand,
+  setAppearanceMode,
   startTerminal,
   startProjectWatcher,
-  unpublishProject
+  unpublishProject,
+  writeAppSettings
 };
 
 function isMarkdownFile(filePath) {

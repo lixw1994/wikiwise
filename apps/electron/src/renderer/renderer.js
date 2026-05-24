@@ -5,11 +5,18 @@ const fileTree = document.querySelector("#file-tree");
 const selectedFileLabel = document.querySelector("#selected-file");
 const sourceEditor = document.querySelector("#source-editor");
 const previewFrame = document.querySelector("#preview-frame");
+const generatedPreviewFrame = document.querySelector("#generated-preview-frame");
 const saveButton = document.querySelector("#save-file");
 const saveStatus = document.querySelector("#save-status");
 const publishButton = document.querySelector("#publish-wiki");
 const modeFileButton = document.querySelector("#mode-file");
 const modeWikiButton = document.querySelector("#mode-wiki");
+const goBackButton = document.querySelector("#go-back");
+const goForwardButton = document.querySelector("#go-forward");
+const appearanceModeButton = document.querySelector("#appearance-mode");
+const openMapButton = document.querySelector("#open-map");
+const toggleRightSidebarButton = document.querySelector("#toggle-right-sidebar");
+const toolbarProjectName = document.querySelector("#toolbar-project-name");
 const rightSidebar = document.querySelector("#right-sidebar");
 const rightTabInfoButton = document.querySelector("#right-tab-info");
 const rightTabTerminalButton = document.querySelector("#right-tab-terminal");
@@ -53,8 +60,14 @@ const errorMessage = document.querySelector("#error-message");
 const state = {
   currentProject: null,
   selectedFile: null,
+  generatedPage: null,
   detailMode: "file",
+  appearanceMode: "Auto",
   rightSidebarTab: "terminal",
+  isRightSidebarVisible: true,
+  backHistory: [],
+  forwardHistory: [],
+  appCommandCleanup: null,
   autosaveTimer: null,
   projectWatcherCleanup: null,
   terminalOutputCleanup: null,
@@ -106,12 +119,15 @@ function renderApp() {
 
   if (hasProject) {
     projectName.textContent = state.currentProject.projectName;
+    toolbarProjectName.textContent = state.currentProject.projectName;
     renderTree(state.tree);
     renderDetail();
     renderRightSidebar();
   } else {
+    toolbarProjectName.textContent = "Wikiwise";
     renderRightSidebar();
   }
+  renderProjectToolbar();
 }
 
 function renderTree(nodes) {
@@ -155,9 +171,14 @@ async function openExisting() {
   }
 }
 
-async function selectFile(node) {
+async function selectFile(node, options = {}) {
   setError(null);
   state.showPostCreateGuide = false;
+  if (options.pushHistory !== false) {
+    pushHistoryEntry(currentHistoryEntry());
+    state.forwardHistory = [];
+  }
+  state.generatedPage = null;
 
   try {
     const content = await window.wikiwise.readFile(node.path);
@@ -177,6 +198,7 @@ async function selectFile(node) {
 
     setSelectedFile(nextFile);
     renderTree(state.tree);
+    renderProjectToolbar();
     await refreshDocumentInfo();
   } catch (error) {
     setError(error);
@@ -186,6 +208,7 @@ async function selectFile(node) {
 function setSelectedFile(file) {
   clearAutosave();
   state.documentInfo = null;
+  state.generatedPage = null;
   state.selectedFile = file
     ? {
         ...file,
@@ -207,35 +230,46 @@ function setDetailMode(mode) {
 function renderDetail() {
   const file = state.selectedFile;
   const hasFile = Boolean(file);
+  const hasGeneratedPage = Boolean(state.generatedPage);
   const wikiAvailable = hasCompiledPreview(file);
   const showGuide = Boolean(state.showPostCreateGuide && state.currentProject);
 
-  selectedFileLabel.textContent = showGuide ? "Your wiki is ready" : (file?.name ?? "Select a file to read");
-  sourceEditor.disabled = !hasFile;
+  selectedFileLabel.textContent = showGuide
+    ? "Your wiki is ready"
+    : (state.generatedPage?.name ?? file?.name ?? "Select a file to read");
+  sourceEditor.disabled = !hasFile || hasGeneratedPage;
   if (document.activeElement !== sourceEditor && sourceEditor.value !== (file?.draftContent ?? "")) {
     sourceEditor.value = file?.draftContent ?? "";
   }
 
-  modeFileButton.disabled = showGuide || !hasFile;
-  modeWikiButton.disabled = showGuide || !wikiAvailable;
+  modeFileButton.disabled = showGuide || hasGeneratedPage || !hasFile;
+  modeWikiButton.disabled = showGuide || hasGeneratedPage || !wikiAvailable;
   modeFileButton.classList.toggle("selected", state.detailMode === "file");
   modeWikiButton.classList.toggle("selected", state.detailMode === "wiki" && wikiAvailable);
 
-  sourceEditor.hidden = showGuide || state.detailMode !== "file";
-  previewFrame.hidden = showGuide || state.detailMode !== "wiki" || !wikiAvailable;
+  sourceEditor.hidden = showGuide || hasGeneratedPage || state.detailMode !== "file";
+  previewFrame.hidden = showGuide || hasGeneratedPage || state.detailMode !== "wiki" || !wikiAvailable;
+  generatedPreviewFrame.hidden = !hasGeneratedPage;
   postCreateGuide.hidden = !showGuide;
   renderSaveState();
 
   if (showGuide) {
     renderPostCreateGuide();
     previewFrame.removeAttribute("src");
+    generatedPreviewFrame.removeAttribute("src");
+  } else if (hasGeneratedPage) {
+    generatedPreviewFrame.src = state.generatedPage.fileUrl;
+    previewFrame.removeAttribute("src");
   } else if (state.detailMode === "wiki" && wikiAvailable) {
     renderPreview();
+    generatedPreviewFrame.removeAttribute("src");
   } else {
     previewFrame.removeAttribute("src");
+    generatedPreviewFrame.removeAttribute("src");
   }
 
   renderRightSidebar();
+  renderProjectToolbar();
 }
 
 function renderPreview() {
@@ -252,6 +286,15 @@ function renderPublishStatus() {
   publishError.textContent = state.publishError ?? "";
 }
 
+function renderProjectToolbar() {
+  goBackButton.disabled = state.backHistory.length === 0;
+  goForwardButton.disabled = state.forwardHistory.length === 0;
+  appearanceModeButton.textContent = state.appearanceMode;
+  openMapButton.disabled = !state.currentProject;
+  toggleRightSidebarButton.classList.toggle("selected", state.isRightSidebarVisible);
+  project.classList.toggle("right-sidebar-hidden", !state.isRightSidebarVisible);
+}
+
 function setRightSidebarTab(tab) {
   state.rightSidebarTab = tab;
   renderRightSidebar();
@@ -260,7 +303,7 @@ function setRightSidebarTab(tab) {
 function renderRightSidebar() {
   const hasProject = Boolean(state.currentProject);
 
-  rightSidebar.hidden = !hasProject;
+  rightSidebar.hidden = !hasProject || !state.isRightSidebarVisible;
   if (!hasProject) return;
 
   rightTabInfoButton.classList.toggle("selected", state.rightSidebarTab === "info");
@@ -314,6 +357,9 @@ async function applyProjectResult(projectResult, options = {}) {
   };
   state.tree = projectResult.tree;
   state.showPostCreateGuide = Boolean(options.showPostCreateGuide);
+  state.generatedPage = null;
+  state.backHistory = [];
+  state.forwardHistory = [];
   setSelectedFile(projectResult.selectedFile);
 
   renderApp();
@@ -409,6 +455,162 @@ function renderPostCreateGuide() {
 function dismissPostCreateGuide() {
   state.showPostCreateGuide = false;
   renderDetail();
+}
+
+async function loadAppSettings() {
+  const settings = await window.wikiwise.getAppSettings();
+  state.appearanceMode = settings.appearanceMode ?? "Auto";
+  applyAppearanceModeToDocument();
+  renderProjectToolbar();
+  return settings;
+}
+
+function applyAppearanceModeToDocument() {
+  document.documentElement.dataset.appearance = state.appearanceMode;
+}
+
+async function restoreLastProject() {
+  try {
+    const projectResult = await window.wikiwise.restoreLastProject();
+    if (projectResult) {
+      await applyProjectResult(projectResult);
+    }
+  } catch (error) {
+    setError(error);
+  }
+}
+
+async function cycleAppearanceMode() {
+  const modes = ["Auto", "Light", "Dark"];
+  const currentIndex = modes.indexOf(state.appearanceMode);
+  const nextMode = modes[(currentIndex + 1) % modes.length];
+  const settings = await window.wikiwise.setAppearanceMode(nextMode);
+  state.appearanceMode = settings.appearanceMode ?? nextMode;
+  applyAppearanceModeToDocument();
+  renderProjectToolbar();
+}
+
+function currentHistoryEntry() {
+  if (state.generatedPage) {
+    return {
+      kind: "generated",
+      name: state.generatedPage.name,
+      fileUrl: state.generatedPage.fileUrl,
+      path: state.generatedPage.path
+    };
+  }
+  if (state.selectedFile) {
+    return {
+      kind: "file",
+      name: state.selectedFile.name,
+      path: state.selectedFile.path
+    };
+  }
+  return null;
+}
+
+function pushHistoryEntry(entry) {
+  if (!entry) return;
+  const previous = state.backHistory.at(-1);
+  if (previous?.kind === entry.kind && previous?.path === entry.path) return;
+  state.backHistory.push(entry);
+}
+
+async function restoreHistoryEntry(entry) {
+  if (!entry) return;
+  if (entry.kind === "generated") {
+    clearAutosave();
+    state.selectedFile = null;
+    state.documentInfo = null;
+    state.generatedPage = entry;
+    state.detailMode = "wiki";
+    renderTree(state.tree);
+    renderDetail();
+    renderInfoTab();
+    return;
+  }
+
+  await selectFile({ path: entry.path, name: entry.name }, { pushHistory: false });
+}
+
+async function navigateBack() {
+  const previous = state.backHistory.pop();
+  if (!previous) return;
+  const current = currentHistoryEntry();
+  if (current) state.forwardHistory.push(current);
+  await restoreHistoryEntry(previous);
+  renderProjectToolbar();
+}
+
+async function navigateForward() {
+  const next = state.forwardHistory.pop();
+  if (!next) return;
+  const current = currentHistoryEntry();
+  if (current) state.backHistory.push(current);
+  await restoreHistoryEntry(next);
+  renderProjectToolbar();
+}
+
+async function openMap() {
+  if (!state.currentProject) return;
+
+  setError(null);
+  try {
+    const generatedPage = await window.wikiwise.openGeneratedPage({
+      projectRoot: state.currentProject.projectRoot,
+      pageName: "map-3d.html"
+    });
+    if (!generatedPage) return;
+
+    pushHistoryEntry(currentHistoryEntry());
+    state.forwardHistory = [];
+    clearAutosave();
+    state.selectedFile = null;
+    state.documentInfo = null;
+    state.generatedPage = generatedPage;
+    state.detailMode = "wiki";
+    renderTree(state.tree);
+    renderDetail();
+  } catch (error) {
+    setError(error);
+  }
+}
+
+async function refreshCurrentView() {
+  if (state.generatedPage?.name) {
+    const refreshed = await window.wikiwise.openGeneratedPage({
+      projectRoot: state.currentProject.projectRoot,
+      pageName: state.generatedPage.name
+    });
+    if (refreshed) {
+      state.generatedPage = refreshed;
+      renderDetail();
+    }
+    return;
+  }
+
+  if (state.selectedFile?.path && isMarkdownFile(state.selectedFile.path)) {
+    await refreshSelectedMarkdown({ invalidate: true });
+  }
+}
+
+function toggleRightSidebar() {
+  state.isRightSidebarVisible = !state.isRightSidebarVisible;
+  renderRightSidebar();
+  renderProjectToolbar();
+}
+
+function handleAppCommand(payload) {
+  const command = typeof payload === "string" ? payload : payload?.command;
+  if (command === "openExisting") {
+    openExisting();
+  } else if (command === "goBack") {
+    navigateBack();
+  } else if (command === "goForward") {
+    navigateForward();
+  } else if (command === "refreshWiki") {
+    refreshCurrentView();
+  }
 }
 
 async function startProjectServices() {
@@ -806,7 +1008,7 @@ function formatEditedTime(modifiedAt) {
 function renderSaveState() {
   const file = state.selectedFile;
 
-  saveButton.disabled = state.showPostCreateGuide || !file || !file.isDirty || file.isSaving;
+  saveButton.disabled = state.showPostCreateGuide || state.generatedPage || !file || !file.isDirty || file.isSaving;
   if (!file) {
     saveStatus.textContent = "";
   } else if (file.isSaving) {
@@ -921,8 +1123,15 @@ async function loadResources() {
   }
 }
 
-loadResources();
-renderApp();
+async function bootApp() {
+  renderApp();
+  await loadAppSettings();
+  await loadResources();
+  await restoreLastProject();
+  state.appCommandCleanup = window.wikiwise.onAppCommand(handleAppCommand);
+}
+
+bootApp();
 
 openExistingButton.addEventListener("click", openExisting);
 sourceEditor.addEventListener("input", handleEditorInput);
@@ -936,6 +1145,11 @@ document.addEventListener("keydown", (event) => {
 modeFileButton.addEventListener("click", () => setDetailMode("file"));
 modeWikiButton.addEventListener("click", () => setDetailMode("wiki"));
 publishButton.addEventListener("click", openPublishDialog);
+goBackButton.addEventListener("click", navigateBack);
+goForwardButton.addEventListener("click", navigateForward);
+appearanceModeButton.addEventListener("click", cycleAppearanceMode);
+openMapButton.addEventListener("click", openMap);
+toggleRightSidebarButton.addEventListener("click", toggleRightSidebar);
 rightTabInfoButton.addEventListener("click", () => setRightSidebarTab("info"));
 rightTabTerminalButton.addEventListener("click", () => setRightSidebarTab("terminal"));
 terminalSendButton.addEventListener("click", sendTerminalInput);

@@ -7,6 +7,16 @@
   color: #211f1a;
 }
 
+:root[data-appearance="Light"] {
+  color-scheme: light;
+}
+
+:root[data-appearance="Dark"] {
+  color-scheme: dark;
+  background: #1e1b14;
+  color: #f4eacf;
+}
+
 * {
   box-sizing: border-box;
 }
@@ -73,6 +83,7 @@ button:disabled {
 .project-shell {
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr) 360px;
+  grid-template-rows: auto 1fr;
   min-height: calc(100vh - 48px);
   overflow: hidden;
   border: 1px solid rgba(80, 72, 54, 0.18);
@@ -80,7 +91,63 @@ button:disabled {
   background: rgba(255, 252, 244, 0.82);
 }
 
+.project-shell.right-sidebar-hidden {
+  grid-template-columns: 260px minmax(0, 1fr);
+}
+
+.project-toolbar {
+  grid-column: 1 / -1;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  border-bottom: 1px solid rgba(80, 72, 54, 0.18);
+  padding: 8px 12px;
+  background: #f3edde;
+}
+
+.toolbar-group {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.toolbar-group-end {
+  justify-content: end;
+}
+
+.toolbar-icon-button {
+  min-width: 34px;
+  border: 1px solid rgba(80, 72, 54, 0.18);
+  border-radius: 6px;
+  padding: 6px 9px;
+  background: transparent;
+  color: #5b5240;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 12px;
+  letter-spacing: 0;
+}
+
+.toolbar-icon-button.selected {
+  background: rgba(194, 169, 107, 0.16);
+  color: #1a1714;
+}
+
+.toolbar-project-title {
+  min-width: 0;
+  overflow: hidden;
+  color: #5b5240;
+  font-family: Georgia, serif;
+  font-size: 13px;
+  font-style: italic;
+  text-align: center;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .sidebar {
+  grid-column: 1;
   overflow: auto;
   border-right: 1px solid rgba(80, 72, 54, 0.18);
   padding: 16px 0;
@@ -128,6 +195,7 @@ button:disabled {
 }
 
 .detail {
+  grid-column: 2;
   display: grid;
   grid-template-rows: auto 1fr;
   min-width: 0;
@@ -253,7 +321,12 @@ button:disabled {
   background: #fff;
 }
 
+.generated-preview-frame {
+  background: #fff;
+}
+
 .right-sidebar {
+  grid-column: 3;
   display: grid;
   grid-template-rows: auto 1fr;
   min-width: 0;
@@ -650,15 +723,32 @@ h2 {
 
   .project-shell {
     grid-template-columns: 1fr;
+    grid-template-rows: auto auto 1fr auto;
+  }
+
+  .project-toolbar {
+    grid-template-columns: 1fr;
+  }
+
+  .toolbar-group,
+  .toolbar-group-end {
+    justify-content: center;
+    flex-wrap: wrap;
   }
 
   .sidebar {
+    grid-column: 1;
     max-height: 260px;
     border-right: 0;
     border-bottom: 1px solid rgba(80, 72, 54, 0.18);
   }
 
+  .detail {
+    grid-column: 1;
+  }
+
   .right-sidebar {
+    grid-column: 1;
     min-height: 360px;
     border-left: 0;
     border-top: 1px solid rgba(80, 72, 54, 0.18);

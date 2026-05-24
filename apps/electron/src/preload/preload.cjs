@@ -2,6 +2,10 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("wikiwise", {
   resources: () => ipcRenderer.invoke("wikiwise:listResources"),
+  getAppSettings: () => ipcRenderer.invoke("wikiwise:getAppSettings"),
+  setAppearanceMode: (mode) => ipcRenderer.invoke("wikiwise:setAppearanceMode", mode),
+  restoreLastProject: () => ipcRenderer.invoke("wikiwise:restoreLastProject"),
+  openGeneratedPage: (payload) => ipcRenderer.invoke("wikiwise:openGeneratedPage", payload),
   openExisting: () => ipcRenderer.invoke("wikiwise:openExisting"),
   scanProject: (projectPath) => ipcRenderer.invoke("wikiwise:scanProject", projectPath),
   readFile: (filePath) => ipcRenderer.invoke("wikiwise:readFile", filePath),
@@ -29,5 +33,10 @@ contextBridge.exposeInMainWorld("wikiwise", {
     const listener = (_event, payload) => callback(payload);
     ipcRenderer.on("wikiwise:terminalOutput", listener);
     return () => ipcRenderer.removeListener("wikiwise:terminalOutput", listener);
+  },
+  onAppCommand: (callback) => {
+    const listener = (_event, payload) => callback(payload);
+    ipcRenderer.on("wikiwise:appCommand", listener);
+    return () => ipcRenderer.removeListener("wikiwise:appCommand", listener);
   }
 });
