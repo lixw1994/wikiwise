@@ -94,6 +94,9 @@ test("runtime audit script covers native shell scenarios and assertions", () => 
     /leftSidebarHiddenAfterToggle/,
     /leftSidebarRestoredVisible/,
     /leftSidebarDetailExpanded/,
+    /infoOptionalSectionEvidence/,
+    /infoDirectionsSectionVisible/,
+    /infoLinksSectionVisible/,
     /xtermTerminalPresent/,
     /rightSidebarResizeHandlePresent/,
     /rightSidebarInitialWidth/,
@@ -120,6 +123,8 @@ test("runtime audit script covers native shell scenarios and assertions", () => 
     /Left sidebar did not hide after toggle/,
     /Left sidebar did not restore after toggle/,
     /Detail area did not expand after hiding left sidebar/,
+    /Empty directions section is visible/,
+    /Empty linked section is visible/,
     /Right sidebar resize handle is missing/,
     /Right sidebar width did not change after drag/,
     /differentFromFirstPixelCount/

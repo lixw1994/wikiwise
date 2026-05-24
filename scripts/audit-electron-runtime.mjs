@@ -371,6 +371,8 @@ async function runScenario(window, scenario) {
     await simulateLeftSidebarToggle(window);
     await delay(80);
     await window.webContents.executeJavaScript(`window.__wikiwiseTerminal?.input("echo runtime audit\\r")`, true);
+    await delay(80);
+    await captureInfoOptionalSectionEvidence(window);
   }
   await delay(120);
 
@@ -549,6 +551,44 @@ async function simulateLeftSidebarToggle(window) {
   }));
 }
 
+async function captureInfoOptionalSectionEvidence(window) {
+  return window.webContents.executeJavaScript(`(() => {
+    const infoTab = document.querySelector("#right-tab-info");
+    const terminalTab = document.querySelector("#right-tab-terminal");
+    const directionsSection = document.querySelector("#info-directions-section");
+    const linksSection = document.querySelector("#info-links-section");
+    const directionsText = document.querySelector("#info-directions")?.textContent?.trim() ?? "";
+    const linksText = document.querySelector("#info-links")?.textContent?.trim() ?? "";
+    const isVisible = (element) => Boolean(
+      element &&
+      !element.hidden &&
+      element.getBoundingClientRect().width > 0 &&
+      element.getBoundingClientRect().height > 0
+    );
+
+    infoTab?.click();
+    const evidence = {
+      infoTabActivated: Boolean(infoTab?.classList.contains("selected")),
+      infoDirectionsSectionVisible: isVisible(directionsSection),
+      infoLinksSectionVisible: isVisible(linksSection),
+      infoDirectionsText: directionsText,
+      infoLinksText: linksText,
+      infoOptionalSectionEvidence: true
+    };
+    window.__wikiwiseInfoOptionalSectionEvidence = evidence;
+    terminalTab?.click();
+    return evidence;
+  })()`, true).catch((error) => ({
+    infoTabActivated: false,
+    infoDirectionsSectionVisible: false,
+    infoLinksSectionVisible: false,
+    infoDirectionsText: "",
+    infoLinksText: "",
+    infoOptionalSectionEvidence: false,
+    error: error instanceof Error ? error.message : String(error)
+  }));
+}
+
 async function waitForScenario(window, scenario) {
   const expression = scenario.kind === "project"
     ? `Boolean(
@@ -638,6 +678,7 @@ async function readDomEvidence(window) {
 	      : "";
 	    const rightSidebarResizeEvidence = window.__wikiwiseRightSidebarResizeEvidence ?? {};
 	    const leftSidebarVisibilityEvidence = window.__wikiwiseLeftSidebarVisibilityEvidence ?? {};
+	    const infoOptionalEvidence = window.__wikiwiseInfoOptionalSectionEvidence ?? {};
 	    const treeButtons = [...document.querySelectorAll(".tree-row")];
 	    const detailHeader = document.querySelector(".detail-header");
 	    const detailHeaderRect = detailHeader?.getBoundingClientRect();
@@ -743,6 +784,12 @@ async function readDomEvidence(window) {
 	      leftSidebarDetailExpanded: Boolean(leftSidebarVisibilityEvidence.leftSidebarDetailExpanded),
 	      leftSidebarSelectionPreserved: Boolean(leftSidebarVisibilityEvidence.leftSidebarSelectionPreserved),
 	      leftSidebarExpansionPreserved: Boolean(leftSidebarVisibilityEvidence.leftSidebarExpansionPreserved),
+	      infoOptionalSectionEvidence: Boolean(infoOptionalEvidence.infoOptionalSectionEvidence),
+	      infoTabActivated: Boolean(infoOptionalEvidence.infoTabActivated),
+	      infoDirectionsSectionVisible: Boolean(infoOptionalEvidence.infoDirectionsSectionVisible),
+	      infoLinksSectionVisible: Boolean(infoOptionalEvidence.infoLinksSectionVisible),
+	      infoDirectionsText: infoOptionalEvidence.infoDirectionsText ?? "",
+	      infoLinksText: infoOptionalEvidence.infoLinksText ?? "",
       previewFrameHidden: Boolean(document.querySelector("#preview-frame")?.hidden),
 		      rightSidebarHidden: Boolean(document.querySelector("#right-sidebar")?.hidden),
 		      rightSidebarResizeHandlePresent: Boolean(document.querySelector("#right-sidebar-resize-handle")),
@@ -889,6 +936,18 @@ function assertScenario(scenario, dom, screenshot) {
 	    }
 	    if (!dom.leftSidebarSelectionPreserved || !dom.leftSidebarExpansionPreserved) {
 	      failures.push("Left sidebar tree state was not preserved after restore.");
+	    }
+	    if (!dom.infoOptionalSectionEvidence || !dom.infoTabActivated) {
+	      failures.push("Info optional section evidence is missing.");
+	    }
+	    if (dom.infoDirectionsSectionVisible) {
+	      failures.push("Empty directions section is visible.");
+	    }
+	    if (dom.infoLinksSectionVisible) {
+	      failures.push("Empty linked section is visible.");
+	    }
+	    if (/\bNone\b/.test(`${dom.infoDirectionsText}\n${dom.infoLinksText}`)) {
+	      failures.push("Empty optional info placeholder text is visible.");
 	    }
 	    if (dom.sourceEditorFrameHidden) {
 	      failures.push("Source editor frame is hidden.");

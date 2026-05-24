@@ -27,7 +27,9 @@ const infoPanel = document.querySelector("#info-panel");
 const infoPath = document.querySelector("#info-path");
 const infoEdited = document.querySelector("#info-edited");
 const infoWords = document.querySelector("#info-words");
+const infoDirectionsSection = document.querySelector("#info-directions-section");
 const infoDirections = document.querySelector("#info-directions");
+const infoLinksSection = document.querySelector("#info-links-section");
 const infoLinks = document.querySelector("#info-links");
 const terminalPanel = document.querySelector("#terminal-panel");
 const terminalSurface = document.querySelector("#terminal-surface");
@@ -703,20 +705,19 @@ function renderRightSidebar() {
 function renderInfoTab() {
   const file = state.selectedFile;
   const info = state.documentInfo;
-  const hasMarkdownFile = Boolean(file?.path && isMarkdownFile(file.path));
 
   infoPath.textContent = info?.name ?? file?.name ?? "No document";
   infoEdited.textContent = info?.modifiedAt ? formatEditedTime(info.modifiedAt) : "";
   infoWords.textContent = info ? String(info.wordCount) : "";
-  infoDirections.textContent = info?.directions || (hasMarkdownFile ? "None" : "Select a markdown file");
+
+  const hasDirections = Boolean(info?.directions);
+  infoDirectionsSection.hidden = !hasDirections;
+  infoDirections.textContent = hasDirections ? info.directions : "";
 
   const links = info?.wikilinks ?? [];
-  infoLinks.replaceChildren(...links.map(renderInfoLink));
-  if (links.length === 0) {
-    const item = document.createElement("li");
-    item.textContent = hasMarkdownFile ? "None" : "";
-    infoLinks.append(item);
-  }
+  const hasLinks = links.length > 0;
+  infoLinksSection.hidden = !hasLinks;
+  infoLinks.replaceChildren(...(hasLinks ? links.map(renderInfoLink) : []));
 }
 
 function renderInfoLink(target) {

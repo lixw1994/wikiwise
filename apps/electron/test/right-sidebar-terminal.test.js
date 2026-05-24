@@ -5,9 +5,14 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const repositoryRoot = path.resolve(packageRoot, "..", "..");
 
 function read(relativePath) {
   return fs.readFileSync(path.join(packageRoot, relativePath), "utf8");
+}
+
+function readRepository(relativePath) {
+  return fs.readFileSync(path.join(repositoryRoot, relativePath), "utf8");
 }
 
 test("main process exposes document info IPC with project path validation", () => {
@@ -115,6 +120,22 @@ test("renderer markup and styles include native right sidebar tabs and terminal 
   assert.match(cssSource, /\.terminal-surface/);
   assert.match(cssSource, /\.xterm/);
   assert.match(cssSource, /\.info-links/);
+});
+
+test("renderer hides empty optional info sections like native RightSidebar", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
+  const htmlSource = read("src/renderer/index.html");
+  const rendererSource = read("src/renderer/renderer.js");
+
+  assert.match(nativeSource, /if let file = selectedFileURL,\s*let directions = parseDirections\(from: file\)/);
+  assert.match(nativeSource, /if let file = selectedFileURL,\s*!wikilinkTargets\(in: file\)\.isEmpty/);
+  assert.match(htmlSource, /id="info-directions-section"[^>]*hidden/);
+  assert.match(htmlSource, /id="info-links-section"[^>]*hidden/);
+  assert.match(rendererSource, /const hasDirections = Boolean\(info\?\.directions\)/);
+  assert.match(rendererSource, /infoDirectionsSection\.hidden = !hasDirections/);
+  assert.match(rendererSource, /const hasLinks = links\.length > 0/);
+  assert.match(rendererSource, /infoLinksSection\.hidden = !hasLinks/);
+  assert.doesNotMatch(rendererSource, /hasMarkdownFile \? "None"/);
 });
 
 test("Electron package declares PTY and xterm terminal dependencies", () => {
