@@ -28,9 +28,11 @@ the shared `@wikiwise/core` package for native-compatible project behavior.
 `apps/electron/out/Wikiwise.app` using the installed Electron runtime from
 `node_modules/electron/dist/Electron.app`.
 
-This app bundle is unsigned and intended for local migration verification. A
-signed, notarized DMG remains a separate release gate and must not bypass the
-existing release signing, notarization, and DMG packaging checks.
+This app bundle is unsigned and intended for local migration verification.
+Production release distribution uses `bash scripts/build-release.sh <version>`,
+which runs the Electron runtime audit, signs the Electron app with a Developer ID
+identity, creates `Wikiwise-macOS.dmg`, submits Apple notarization, staples the
+ticket, assesses the final DMG, and only then reports a notarized release.
 
 ## Runtime parity audit
 
@@ -40,5 +42,5 @@ appearance, and writes retained evidence to
 `apps/electron/out/runtime-audit/report.json`.
 
 Screenshots are written under `apps/electron/out/runtime-audit/screenshots/`.
-The audit is a local runtime check for migration parity evidence; final release
-hardening still requires the signed and notarized DMG gate.
+The audit is a local runtime check for migration parity evidence and is also
+part of the canonical Electron release gate.

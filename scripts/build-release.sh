@@ -2,84 +2,87 @@
 set -euo pipefail
 
 VERSION="${1:-0.1.0}"
-SIGNING_IDENTITY="Developer ID Application: Readwise, Inc (QV36BMA4LN)"
-APP="Wikiwise.app"
+PRODUCT_NAME="Wikiwise"
+SIGNING_IDENTITY="${WIKIWISE_RELEASE_SIGNING_IDENTITY:-Developer ID Application: Readwise, Inc (QV36BMA4LN)}"
+NOTARY_PROFILE="${WIKIWISE_NOTARY_PROFILE:-notarytool}"
+APP="apps/electron/out/Wikiwise.app"
 DMG="Wikiwise-macOS.dmg"
+DMG_STAGING_DIR="apps/electron/out/release-dmg"
+ENTITLEMENTS="apps/electron/build/entitlements.mac.plist"
 
-echo "=== Building Wikiwise v${VERSION} ==="
+fail() {
+  echo "Release prerequisite failed: $*" >&2
+  exit 1
+}
 
-# 1. Build universal binary (arm64 + x86_64)
-echo "[1/6] Building arm64..."
-swift build -c release --arch arm64
-echo "[1/6] Building x86_64..."
-swift build -c release --arch x86_64
+require_command() {
+  command -v "$1" >/dev/null 2>&1 || fail "missing required command '$1'"
+}
 
-# 2. Assemble .app bundle
-echo "[2/6] Creating app bundle..."
-rm -rf "$APP"
-mkdir -p "$APP/Contents/MacOS" "$APP/Contents/Resources"
+require_file() {
+  [[ -f "$1" ]] || fail "missing required file '$1'"
+}
 
-lipo -create \
-  .build/arm64-apple-macosx/release/Wikiwise \
-  .build/x86_64-apple-macosx/release/Wikiwise \
-  -output "$APP/Contents/MacOS/Wikiwise"
+require_directory() {
+  [[ -d "$1" ]] || fail "missing required directory '$1'"
+}
 
-cp -R .build/arm64-apple-macosx/release/Wikiwise_Wikiwise.bundle "$APP/Contents/Resources/"
-cp -R .build/arm64-apple-macosx/release/SwiftTerm_SwiftTerm.bundle "$APP/Contents/Resources/"
-cp .build/arm64-apple-macosx/release/Wikiwise_Wikiwise.bundle/Wikiwise.icns "$APP/Contents/Resources/Wikiwise.icns"
+check_signing_identity() {
+  security find-identity -v -p codesigning | grep -F "$SIGNING_IDENTITY" >/dev/null \
+    || fail "missing Developer ID signing identity '$SIGNING_IDENTITY'"
+}
 
-cat > "$APP/Contents/Info.plist" << PLIST
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
-<plist version="1.0">
-<dict>
-    <key>CFBundleName</key><string>Wikiwise</string>
-    <key>CFBundleDisplayName</key><string>Wikiwise</string>
-    <key>CFBundleIdentifier</key><string>com.readwise.wikiwise</string>
-    <key>CFBundleVersion</key><string>1</string>
-    <key>CFBundleShortVersionString</key><string>${VERSION}</string>
-    <key>CFBundleExecutable</key><string>Wikiwise</string>
-    <key>CFBundleIconFile</key><string>Wikiwise</string>
-    <key>CFBundlePackageType</key><string>APPL</string>
-    <key>LSMinimumSystemVersion</key><string>14.0</string>
-    <key>NSHighResolutionCapable</key><true/>
-</dict>
-</plist>
-PLIST
+preflight() {
+  [[ "$(uname -s)" == "Darwin" ]] || fail "Electron macOS releases must run on macOS"
 
-# 3. Code sign
-echo "[3/6] Signing..."
-codesign --deep --force --options runtime --sign "$SIGNING_IDENTITY" "$APP"
-codesign --verify --deep --strict "$APP"
+  require_command npm
+  require_command hdiutil
+  require_command codesign
+  require_command xcrun
+  require_command security
+  require_command spctl
+  require_file "$ENTITLEMENTS"
+  check_signing_identity
+}
 
-# 4. Create DMG with drag-to-Applications
-echo "[4/6] Creating DMG..."
+echo "=== Building Electron Wikiwise v${VERSION} ==="
+
+preflight
+
+echo "[1/7] Running Electron runtime parity audit..."
+npm run electron:audit:runtime
+
+echo "[2/7] Packaging Electron app..."
+npm run electron:package:mac -- "$VERSION"
+require_directory "$APP"
+
+echo "[3/7] Signing Electron app..."
+codesign --deep --force --options runtime --entitlements "$ENTITLEMENTS" --sign "$SIGNING_IDENTITY" "$APP"
+codesign --verify --deep --strict --verbose=2 "$APP"
+
+echo "[4/7] Creating DMG..."
+rm -rf "$DMG_STAGING_DIR"
+mkdir -p "$DMG_STAGING_DIR"
+cp -R "$APP" "$DMG_STAGING_DIR/${PRODUCT_NAME}.app"
+ln -s /Applications "$DMG_STAGING_DIR/Applications"
 rm -f "$DMG"
-create-dmg \
-  --volname "Wikiwise" \
-  --window-pos 200 120 \
-  --window-size 660 400 \
-  --icon-size 160 \
-  --icon "Wikiwise.app" 160 190 \
-  --app-drop-link 500 190 \
-  --hide-extension "Wikiwise.app" \
-  --no-internet-enable \
-  "$DMG" \
-  "$APP"
+hdiutil create -volname "$PRODUCT_NAME" -srcfolder "$DMG_STAGING_DIR" -ov -format UDZO "$DMG"
+rm -rf "$DMG_STAGING_DIR"
 
+echo "[5/7] Signing DMG..."
 codesign --sign "$SIGNING_IDENTITY" "$DMG"
+codesign --verify --verbose=2 "$DMG"
 
-# 5. Notarize
-echo "[5/6] Notarizing..."
-xcrun notarytool submit "$DMG" --keychain-profile "notarytool" --wait
+echo "[6/7] Notarizing DMG..."
+xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait
 
-# 6. Staple
-echo "[6/6] Stapling..."
+echo "[7/7] Stapling and assessing DMG..."
 xcrun stapler staple "$DMG"
+spctl --assess --type open --context context:primary-signature "$DMG"
 
 echo ""
-echo "=== Done: $DMG ($(du -h "$DMG" | cut -f1)) ==="
-echo "Universal binary (arm64 + x86_64), signed, notarized, stapled."
+echo "=== Done: $DMG ==="
+echo "Electron app packaged, signed with Developer ID, notarized, stapled, and assessed."
 echo ""
 echo "To publish:"
 echo "  gh release create v${VERSION} ${DMG} --title \"Wikiwise v${VERSION}\" --notes \"...\""

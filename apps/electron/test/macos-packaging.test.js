@@ -62,3 +62,46 @@ test("README documents local unsigned packaging and release guardrails", () => {
   assert.match(readme, /notarized/i);
   assert.match(readme, /DMG/);
 });
+
+test("canonical release script builds a signed notarized Electron DMG", () => {
+  const script = read("scripts/build-release.sh");
+
+  assert.match(script, /npm run electron:audit:runtime/);
+  assert.match(script, /npm run electron:package:mac -- "\$VERSION"/);
+  assert.match(script, /apps\/electron\/out\/Wikiwise\.app/);
+  assert.match(script, /Wikiwise-macOS\.dmg/);
+  assert.match(script, /codesign[\s\S]*--options runtime/);
+  assert.match(script, /--entitlements "\$ENTITLEMENTS"/);
+  assert.match(script, /hdiutil create/);
+  assert.match(script, /codesign --sign "\$SIGNING_IDENTITY" "\$DMG"/);
+  assert.match(script, /xcrun notarytool submit "\$DMG" --keychain-profile "\$NOTARY_PROFILE" --wait/);
+  assert.match(script, /xcrun stapler staple "\$DMG"/);
+  assert.match(script, /spctl --assess --type open --context context:primary-signature "\$DMG"/);
+  assert.doesNotMatch(script, /swift build -c release/);
+  assert.doesNotMatch(script, /lipo -create/);
+});
+
+test("Electron release script uses checked-in hardened runtime entitlements", () => {
+  const entitlementsPath = path.join(repositoryRoot, "apps", "electron", "build", "entitlements.mac.plist");
+
+  assert.equal(fs.existsSync(entitlementsPath), true);
+
+  const entitlements = fs.readFileSync(entitlementsPath, "utf8");
+  assert.match(entitlements, /com\.apple\.security\.cs\.allow-jit/);
+  assert.match(entitlements, /com\.apple\.security\.cs\.allow-unsigned-executable-memory/);
+  assert.match(entitlements, /com\.apple\.security\.cs\.disable-library-validation/);
+});
+
+test("release documentation describes the Electron signed DMG path", () => {
+  const claude = read("CLAUDE.md");
+  const project = read("openspec/project.md");
+  const electronReadme = read("apps/electron/README.md");
+
+  for (const document of [claude, project, electronReadme]) {
+    assert.match(document, /bash scripts\/build-release\.sh <version>/);
+    assert.match(document, /Electron/i);
+    assert.match(document, /Wikiwise-macOS\.dmg/);
+    assert.match(document, /Developer ID/i);
+    assert.match(document, /notar/i);
+  }
+});

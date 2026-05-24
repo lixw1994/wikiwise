@@ -185,7 +185,7 @@ try {
   console.log(`Packaged ${productName} at ${result.appPath}`);
   console.log(`Bundle identifier: ${result.bundleIdentifier}`);
   console.log(`Version: ${result.version}`);
-  console.log("This local Electron app bundle is unsigned; signed, notarized DMG release remains a separate gate.");
+  console.log("This local Electron app bundle is unsigned; use bash scripts/build-release.sh <version> for signed, notarized DMG release.");
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));
   process.exitCode = 1;
