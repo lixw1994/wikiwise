@@ -565,6 +565,37 @@ async function readDomEvidence(window) {
         left: Math.round(rect.left)
       };
     };
+    const styleFor = (selector) => {
+      const element = selector === ":root" ? document.documentElement : document.querySelector(selector);
+      if (!element) return null;
+      const style = window.getComputedStyle(element);
+      return {
+        backgroundColor: style.backgroundColor,
+        color: style.color,
+        borderTopColor: style.borderTopColor,
+        borderRightColor: style.borderRightColor,
+        borderBottomColor: style.borderBottomColor,
+        borderLeftColor: style.borderLeftColor
+      };
+    };
+    const parseRgb = (value) => {
+      const channels = String(value).match(/[0-9.]+/g);
+      if (!channels || channels.length < 3) return null;
+      return {
+        r: Number(channels[0]),
+        g: Number(channels[1]),
+        b: Number(channels[2]),
+        a: channels[3] === undefined ? 1 : Number(channels[3])
+      };
+    };
+    const isDarkSurface = (value) => {
+      const color = parseRgb(value);
+      return Boolean(color && color.a > 0.75 && color.r < 80 && color.g < 80 && color.b < 80);
+    };
+    const isLightSurface = (value) => {
+      const color = parseRgb(value);
+      return Boolean(color && color.a > 0.75 && color.r > 180 && color.g > 170 && color.b > 130);
+    };
 	    const textFor = (selector) => document.querySelector(selector)?.textContent?.trim() ?? "";
 	    const sourceEditorFrame = document.querySelector("#source-editor-frame");
 	    const sourceEditorDocument = sourceEditorFrame?.contentDocument;
@@ -607,8 +638,43 @@ async function readDomEvidence(window) {
 	    const specialFolderDotContent = specialFolderIcon
 	      ? window.getComputedStyle(specialFolderIcon, "::after").content
 	      : "none";
+	    const rootAppearance = document.documentElement.dataset.appearance ?? "";
+	    const computedShellColors = {
+	      root: styleFor(":root"),
+	      body: styleFor("body"),
+	      shell: styleFor(".shell"),
+	      welcomePanel: styleFor(".welcome-panel"),
+	      projectShell: styleFor(".project-shell"),
+	      projectToolbar: styleFor(".project-toolbar"),
+	      sidebar: styleFor(".sidebar"),
+	      detail: styleFor(".detail"),
+	      rightSidebar: styleFor(".right-sidebar"),
+	      modalPanel: styleFor(".modal-panel")
+	    };
+	    const paletteSurfaces = document.querySelector("#project")?.hidden
+	      ? [computedShellColors.body, computedShellColors.shell, computedShellColors.welcomePanel]
+	      : [
+	          computedShellColors.body,
+	          computedShellColors.projectShell,
+	          computedShellColors.projectToolbar,
+	          computedShellColors.sidebar,
+	          computedShellColors.detail,
+	          computedShellColors.rightSidebar
+	        ];
+	    const existingPaletteSurfaces = paletteSurfaces.filter(Boolean);
+	    const darkAppearancePaletteEvidence = existingPaletteSurfaces.length > 0 &&
+	      existingPaletteSurfaces.every((surface) => isDarkSurface(surface.backgroundColor));
+	    const lightAppearancePaletteEvidence = existingPaletteSurfaces.length > 0 &&
+	      existingPaletteSurfaces.every((surface) => isLightSurface(surface.backgroundColor));
+	    const appearancePaletteEvidence = rootAppearance === "Dark"
+	      ? darkAppearancePaletteEvidence
+	      : lightAppearancePaletteEvidence;
 	    return {
       documentTitle: document.title,
+      rootAppearance,
+      computedShellColors,
+      appearancePaletteEvidence,
+      darkAppearancePaletteEvidence,
       bodyText: document.body.innerText,
       welcomeHidden: Boolean(document.querySelector("#welcome")?.hidden),
       projectHidden: Boolean(document.querySelector("#project")?.hidden),
@@ -698,6 +764,15 @@ function assertScenario(scenario, dom, screenshot) {
   }
   if (dom.resourcePanelPresent || /Shared resources/i.test(bodyText)) {
     failures.push("Shared resource debug panel is visible.");
+  }
+  if (dom.rootAppearance !== scenario.appearanceMode) {
+    failures.push(`Renderer root appearance is ${dom.rootAppearance}, expected ${scenario.appearanceMode}.`);
+  }
+  if (!dom.appearancePaletteEvidence) {
+    failures.push(`Appearance palette evidence is missing for ${scenario.appearanceMode}.`);
+  }
+  if (scenario.appearanceMode === "Dark" && !dom.darkAppearancePaletteEvidence) {
+    failures.push("Dark appearance palette is not active.");
   }
   if (!dom.publishDialogHidden || !dom.newWikiDialogHidden) {
     failures.push("A modal dialog is visible without user action.");

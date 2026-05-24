@@ -99,3 +99,35 @@ test("renderer markup and styles include native-like project toolbar controls", 
   assert.match(cssSource, /\.generated-preview-frame/);
   assert.match(cssSource, /\[data-appearance="Dark"\]/);
 });
+
+test("renderer styles wire native adaptive palette tokens into visible shell surfaces", () => {
+  const cssSource = read("src/renderer/styles.css");
+
+  for (const token of [
+    "sidebar-bg",
+    "sidebar-text",
+    "sidebar-selected-text",
+    "sidebar-rule",
+    "content-bg",
+    "detail-bg",
+    "accent-primary",
+    "accent-primary-text",
+    "toolbar-text",
+    "tab-active-bg"
+  ]) {
+    assert.match(cssSource, new RegExp(`--color-${token}:`));
+  }
+
+  assert.match(cssSource, /:root\[data-appearance="Dark"\]\s*{[\s\S]*--color-sidebar-bg:\s*#0e0c08/i);
+  assert.match(cssSource, /:root\[data-appearance="Dark"\]\s*{[\s\S]*--color-content-bg:\s*#1e1b14/i);
+  assert.match(cssSource, /:root\[data-appearance="Dark"\]\s*{[\s\S]*--color-sidebar-selected-text:\s*#f4eacf/i);
+  assert.match(cssSource, /:root\[data-appearance="Dark"\]\s*{[\s\S]*--color-sidebar-rule:\s*#3a3428/i);
+  assert.match(cssSource, /:root\[data-appearance="Dark"\]\s*{[\s\S]*--color-toolbar-text:\s*#8a7d62/i);
+
+  assert.match(cssSource, /\.welcome-panel\s*{[\s\S]*background:\s*var\(--color-content-bg\)/);
+  assert.match(cssSource, /\.project-toolbar\s*{[\s\S]*background:\s*var\(--color-sidebar-bg\)/);
+  assert.match(cssSource, /\.sidebar\s*{[\s\S]*background:\s*var\(--color-sidebar-bg\)/);
+  assert.match(cssSource, /\.detail\s*{[\s\S]*background:\s*var\(--color-detail-bg\)/);
+  assert.match(cssSource, /\.right-sidebar\s*{[\s\S]*background:\s*var\(--color-sidebar-bg\)/);
+  assert.match(cssSource, /\.modal-panel\s*{[\s\S]*background:\s*var\(--color-detail-bg\)/);
+});

@@ -85,8 +85,13 @@ test("runtime audit script covers native shell scenarios and assertions", () => 
     /rightSidebarResizeObserved/,
     /terminalResizeObserved/,
     /terminalInputObserved/,
+    /computedShellColors/,
+    /rootAppearance/,
+    /appearancePaletteEvidence/,
+    /darkAppearancePaletteEvidence/,
     /rightSidebarHidden/,
     /previewFrameHidden/,
+    /Dark appearance palette is not active/,
     /Project shell exceeds viewport/,
     /Non-native detail save chrome is visible/,
     /File tree folder icons are missing/,
@@ -140,7 +145,9 @@ test("main process delegates audit mode to checked-in runtime audit script", () 
   assertSourceContains(mainSource, [
     /--audit-runtime/,
     /audit-electron-runtime\.mjs/,
-    /runElectronRuntimeAudit/
+    /runElectronRuntimeAudit/,
+    /process\.exitCode\s*=\s*0/,
+    /app\.quit\(\)/
   ]);
 });
 

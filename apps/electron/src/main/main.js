@@ -980,7 +980,8 @@ app.whenReady().then(async () => {
       pathToFileURL(path.join(repositoryRoot, "scripts", "audit-electron-runtime.mjs")).href
     );
     await auditModule.runElectronRuntimeAudit();
-    app.exit(0);
+    process.exitCode = 0;
+    app.quit();
     return;
   }
 
