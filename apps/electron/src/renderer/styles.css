@@ -214,6 +214,8 @@ button:disabled {
 
 .toolbar-icon-button {
   min-width: 34px;
+  inline-size: 34px;
+  block-size: 31px;
   border: 1px solid var(--color-sidebar-rule);
   border-radius: 6px;
   padding: 6px 9px;
@@ -222,6 +224,14 @@ button:disabled {
   font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
   font-size: 12px;
   letter-spacing: 0;
+}
+
+.toolbar-symbol {
+  display: inline-grid;
+  place-items: center;
+  width: 1em;
+  height: 1em;
+  line-height: 1;
 }
 
 .toolbar-icon-button.selected {

@@ -68,6 +68,43 @@ const errorMessage = document.querySelector("#error-message");
 const scriptLoadPromises = new Map();
 const RIGHT_SIDEBAR_DEFAULT_WIDTH = 360;
 const RIGHT_SIDEBAR_MIN_WIDTH = 200;
+const toolbarSymbols = Object.freeze({
+  Auto: {
+    nativeSymbol: "circle.lefthalf.filled",
+    glyph: "◐",
+    label: "Appearance: Auto"
+  },
+  Light: {
+    nativeSymbol: "sun.max.fill",
+    glyph: "☀",
+    label: "Appearance: Light"
+  },
+  Dark: {
+    nativeSymbol: "moon.fill",
+    glyph: "☾",
+    label: "Appearance: Dark"
+  },
+  map: {
+    nativeSymbol: "map",
+    glyph: "⌖",
+    label: "Open 3D Map"
+  },
+  leftSidebar: {
+    nativeSymbol: "sidebar.left",
+    glyph: "▤",
+    label: "Toggle left sidebar"
+  },
+  rightSidebarVisible: {
+    nativeSymbol: "sidebar.right",
+    glyph: "▣",
+    label: "Hide Right Sidebar"
+  },
+  rightSidebarHidden: {
+    nativeSymbol: "sidebar.right",
+    glyph: "▣",
+    label: "Show Right Sidebar"
+  }
+});
 
 const state = {
   currentProject: null,
@@ -588,7 +625,13 @@ function renderPublishFeedback() {
 function renderProjectToolbar() {
   goBackButton.disabled = state.backHistory.length === 0;
   goForwardButton.disabled = state.forwardHistory.length === 0;
-  appearanceModeButton.textContent = state.appearanceMode;
+  setToolbarButtonSymbol(appearanceModeButton, toolbarSymbols[state.appearanceMode] ?? toolbarSymbols.Auto);
+  setToolbarButtonSymbol(openMapButton, toolbarSymbols.map);
+  setToolbarButtonSymbol(toggleLeftSidebarButton, toolbarSymbols.leftSidebar);
+  setToolbarButtonSymbol(
+    toggleRightSidebarButton,
+    state.isRightSidebarVisible ? toolbarSymbols.rightSidebarVisible : toolbarSymbols.rightSidebarHidden
+  );
   openMapButton.disabled = !state.currentProject;
   toggleLeftSidebarButton.classList.toggle("selected", state.isLeftSidebarVisible);
   toggleLeftSidebarButton.setAttribute("aria-pressed", String(state.isLeftSidebarVisible));
@@ -599,6 +642,23 @@ function renderProjectToolbar() {
   if (state.currentProject && state.isRightSidebarVisible) {
     applyRightSidebarWidth();
   }
+}
+
+function setToolbarButtonSymbol(button, symbol) {
+  if (!button || !symbol) return;
+
+  let icon = button.querySelector(".toolbar-symbol");
+  if (!icon) {
+    icon = document.createElement("span");
+    icon.className = "toolbar-symbol";
+    icon.setAttribute("aria-hidden", "true");
+    button.replaceChildren(icon);
+  }
+
+  icon.dataset.nativeSymbol = symbol.nativeSymbol;
+  icon.textContent = symbol.glyph;
+  button.title = symbol.label;
+  button.setAttribute("aria-label", symbol.label);
 }
 
 function maxRightSidebarWidth() {

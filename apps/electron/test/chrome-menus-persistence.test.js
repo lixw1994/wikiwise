@@ -5,9 +5,14 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const repositoryRoot = path.resolve(packageRoot, "..", "..");
 
 function read(relativePath) {
   return fs.readFileSync(path.join(packageRoot, relativePath), "utf8");
+}
+
+function readRepository(relativePath) {
+  return fs.readFileSync(path.join(repositoryRoot, relativePath), "utf8");
 }
 
 test("main process owns app settings, appearance, restore, generated pages, and menu commands", () => {
@@ -98,6 +103,41 @@ test("renderer markup and styles include native-like project toolbar controls", 
   assert.match(cssSource, /\.toolbar-project-title/);
   assert.match(cssSource, /\.generated-preview-frame/);
   assert.match(cssSource, /\[data-appearance="Dark"\]/);
+});
+
+test("project toolbar icon controls mirror native SwiftUI symbol semantics", () => {
+  const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const htmlSource = read("src/renderer/index.html");
+  const rendererSource = read("src/renderer/renderer.js");
+  const cssSource = read("src/renderer/styles.css");
+
+  assert.match(
+    swiftSource,
+    /Image\(systemName:\s*currentMode == \.dark \? "moon\.fill" : currentMode == \.light \? "sun\.max\.fill" : "circle\.lefthalf\.filled"\)/
+  );
+  assert.match(swiftSource, /Image\(systemName:\s*"map"\)/);
+  assert.match(swiftSource, /Image\(systemName:\s*"sidebar\.left"\)/);
+  assert.match(swiftSource, /Image\(systemName:\s*"sidebar\.right"\)/);
+
+  assert.doesNotMatch(htmlSource, /id="appearance-mode"[\s\S]*?>\s*(Auto|Light|Dark)\s*<\/button>/);
+  assert.doesNotMatch(htmlSource, /id="open-map"[\s\S]*?>\s*Map\s*<\/button>/);
+  assert.match(htmlSource, /class="toolbar-symbol"/);
+  assert.match(htmlSource, /data-native-symbol="circle\.lefthalf\.filled"/);
+  assert.match(htmlSource, /data-native-symbol="map"/);
+  assert.match(htmlSource, /data-native-symbol="sidebar\.left"/);
+  assert.match(htmlSource, /data-native-symbol="sidebar\.right"/);
+
+  assert.match(rendererSource, /function setToolbarButtonSymbol/);
+  assert.match(rendererSource, /nativeSymbol:\s*"circle\.lefthalf\.filled"/);
+  assert.match(rendererSource, /nativeSymbol:\s*"sun\.max\.fill"/);
+  assert.match(rendererSource, /nativeSymbol:\s*"moon\.fill"/);
+  assert.match(rendererSource, /nativeSymbol:\s*"map"/);
+  assert.match(rendererSource, /nativeSymbol:\s*"sidebar\.left"/);
+  assert.match(rendererSource, /nativeSymbol:\s*"sidebar\.right"/);
+  assert.match(rendererSource, /button\.setAttribute\("aria-label",\s*symbol\.label\)/);
+  assert.match(rendererSource, /button\.title\s*=\s*symbol\.label/);
+
+  assert.match(cssSource, /\.toolbar-symbol/);
 });
 
 test("renderer styles wire native adaptive palette tokens into visible shell surfaces", () => {

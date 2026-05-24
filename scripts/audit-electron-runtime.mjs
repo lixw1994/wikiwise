@@ -668,6 +668,25 @@ async function readDomEvidence(window) {
       return Boolean(color && color.a > 0.75 && color.r > 180 && color.g > 170 && color.b > 130);
     };
 	    const textFor = (selector) => document.querySelector(selector)?.textContent?.trim() ?? "";
+	    const toolbarSymbolFor = (selector) =>
+	      document.querySelector(selector + " .toolbar-symbol")?.dataset.nativeSymbol ?? "";
+	    const toolbarIconText = {
+	      appearance: textFor("#appearance-mode"),
+	      map: textFor("#open-map"),
+	      leftSidebar: textFor("#toggle-left-sidebar"),
+	      rightSidebar: textFor("#toggle-right-sidebar")
+	    };
+	    const toolbarIconEvidence = {
+	      toolbarIconEvidence: true,
+	      appearanceNativeSymbol: toolbarSymbolFor("#appearance-mode"),
+	      mapNativeSymbol: toolbarSymbolFor("#open-map"),
+	      leftSidebarNativeSymbol: toolbarSymbolFor("#toggle-left-sidebar"),
+	      rightSidebarNativeSymbol: toolbarSymbolFor("#toggle-right-sidebar"),
+	      toolbarIconText,
+	      toolbarIconTextVisible: /\\b(?:Auto|Light|Dark|Map)\\b/.test(
+	        toolbarIconText.appearance + "\\n" + toolbarIconText.map
+	      )
+	    };
 	    const sourceEditorFrame = document.querySelector("#source-editor-frame");
 	    const sourceEditorDocument = sourceEditorFrame?.contentDocument;
 	    const terminalSurface = document.querySelector("#terminal-surface");
@@ -756,6 +775,13 @@ async function readDomEvidence(window) {
       projectRect: rectFor("#project"),
       projectName: textFor("#project-name"),
       toolbarProjectName: textFor("#toolbar-project-name"),
+      toolbarIconEvidence: Boolean(toolbarIconEvidence.toolbarIconEvidence),
+      appearanceNativeSymbol: toolbarIconEvidence.appearanceNativeSymbol,
+      mapNativeSymbol: toolbarIconEvidence.mapNativeSymbol,
+      leftSidebarNativeSymbol: toolbarIconEvidence.leftSidebarNativeSymbol,
+      rightSidebarNativeSymbol: toolbarIconEvidence.rightSidebarNativeSymbol,
+      toolbarIconText: toolbarIconEvidence.toolbarIconText,
+      toolbarIconTextVisible: toolbarIconEvidence.toolbarIconTextVisible,
       selectedFileLabel: textFor("#selected-file"),
       detailHeaderVisible,
       detailSaveChromeTextVisible: /\\bSaved\\b\\s*\\n\\s*Save\\b/.test(document.body.innerText),
@@ -891,6 +917,18 @@ function assertScenario(scenario, dom, screenshot) {
     }
     if (dom.toolbarProjectName !== "runtime-audit-wiki") {
       failures.push(`Unexpected toolbar project name: ${dom.toolbarProjectName}`);
+    }
+    if (
+      !dom.toolbarIconEvidence ||
+      !["circle.lefthalf.filled", "sun.max.fill", "moon.fill"].includes(dom.appearanceNativeSymbol) ||
+      dom.mapNativeSymbol !== "map" ||
+      dom.leftSidebarNativeSymbol !== "sidebar.left" ||
+      dom.rightSidebarNativeSymbol !== "sidebar.right"
+    ) {
+      failures.push("Toolbar native symbol evidence is missing.");
+    }
+    if (dom.toolbarIconTextVisible) {
+      failures.push("Toolbar icon text is visible.");
     }
     if (!dom.projectViewportBounded) {
       failures.push(`Project shell exceeds viewport: ${JSON.stringify(dom.projectRect)}`);
