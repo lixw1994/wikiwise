@@ -603,9 +603,20 @@ function renderPreview() {
   previewFrame.src = state.selectedFile.compiled.fileUrl;
 }
 
+function publishButtonHelpText() {
+  if (state.publishConfig?.published && state.publishConfig.url) {
+    return `Last published: ${state.publishConfig.lastPublishedAt ?? "never"}\n${state.publishConfig.url}\n⌥-click to change URL`;
+  }
+
+  return "Publish wiki to wiki-wise.com";
+}
+
 function renderPublishStatus() {
+  const publishHelpText = publishButtonHelpText();
   publishButton.disabled = !state.currentProject || state.isPublishing;
   publishButton.textContent = state.isPublishing ? "PUBLISHING..." : "PUBLISH ↑";
+  publishButton.title = publishHelpText;
+  publishButton.setAttribute("aria-label", publishHelpText);
   renderPublishFeedback();
 }
 

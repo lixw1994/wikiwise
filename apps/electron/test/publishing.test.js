@@ -5,9 +5,14 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const repositoryRoot = path.resolve(packageRoot, "..", "..");
 
 function read(relativePath) {
   return fs.readFileSync(path.join(packageRoot, relativePath), "utf8");
+}
+
+function readRepository(relativePath) {
+  return fs.readFileSync(path.join(repositoryRoot, relativePath), "utf8");
 }
 
 test("main process exposes publishing IPC through core helpers", () => {
@@ -64,6 +69,23 @@ test("renderer contains native publishing state and project service refresh", ()
   assert.match(rendererSource, /wikiwise\.unpublishSite/);
   assert.match(rendererSource, /wikiwise\.openExternalUrl/);
   assert.doesNotMatch(rendererSource, /window\.confirm/);
+});
+
+test("renderer mirrors native publish toolbar help text", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+
+  assert.match(
+    nativeSource,
+    /\.help\(publishConfig\.map\s*\{\s*"Last published: \\\(\$0\.lastPublishedAt \?\? "never"\)\\n\\\(\$0\.url\)\\n\\u\{2325\}-click to change URL"\s*\}\s*\?\?\s*"Publish wiki to wiki-wise\.com"\)/
+  );
+  assert.match(rendererSource, /function publishButtonHelpText/);
+  assert.match(rendererSource, /Publish wiki to wiki-wise\.com/);
+  assert.match(rendererSource, /Last published: \$\{state\.publishConfig\.lastPublishedAt \?\? "never"\}/);
+  assert.match(rendererSource, /\$\{state\.publishConfig\.url\}/);
+  assert.match(rendererSource, /⌥-click to change URL/);
+  assert.match(rendererSource, /publishButton\.title\s*=\s*publishHelpText/);
+  assert.match(rendererSource, /publishButton\.setAttribute\("aria-label",\s*publishHelpText\)/);
 });
 
 test("renderer markup and styles include publish dialog, status, and unpublish controls", () => {
