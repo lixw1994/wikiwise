@@ -5,9 +5,14 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const repositoryRoot = path.resolve(packageRoot, "..", "..");
 
 function read(relativePath) {
   return fs.readFileSync(path.join(packageRoot, relativePath), "utf8");
+}
+
+function readRepository(relativePath) {
+  return fs.readFileSync(path.join(repositoryRoot, relativePath), "utf8");
 }
 
 test("main and preload expose path-safe tree expansion IPC", () => {
@@ -95,4 +100,31 @@ test("renderer preserves file tree state across left sidebar visibility changes"
   assert.match(rendererSource, /leftSidebar\.hidden\s*=\s*!state\.isLeftSidebarVisible/);
   assert.match(styleSource, /\.project-shell\.left-sidebar-hidden/);
   assert.match(styleSource, /\.project-shell\.left-sidebar-hidden\s+\.detail/);
+});
+
+test("renderer matches native left sidebar width constraints and resize affordance", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const htmlSource = read("src/renderer/index.html");
+  const styleSource = read("src/renderer/styles.css");
+
+  assert.match(nativeSource, /\.navigationSplitViewColumnWidth\(min:\s*110,\s*ideal:\s*200,\s*max:\s*360\)/);
+  assert.match(htmlSource, /id="left-sidebar-resize-handle"/);
+  assert.match(styleSource, /--left-sidebar-width:\s*200px/);
+  assert.match(styleSource, /grid-template-columns:\s*var\(--left-sidebar-width\)\s+minmax\(0,\s*1fr\)\s+var\(--right-sidebar-width\)/);
+  assert.match(styleSource, /\.project-shell\.right-sidebar-hidden\s*{[\s\S]*grid-template-columns:\s*var\(--left-sidebar-width\)\s+minmax\(0,\s*1fr\)/);
+  assert.match(styleSource, /\.left-sidebar-resize-handle/);
+  assert.match(styleSource, /body\.resizing-left-sidebar/);
+
+  assert.match(rendererSource, /const LEFT_SIDEBAR_DEFAULT_WIDTH = 200/);
+  assert.match(rendererSource, /const LEFT_SIDEBAR_MIN_WIDTH = 110/);
+  assert.match(rendererSource, /const LEFT_SIDEBAR_MAX_WIDTH = 360/);
+  assert.match(rendererSource, /leftSidebarWidth:\s*LEFT_SIDEBAR_DEFAULT_WIDTH/);
+  assert.match(rendererSource, /leftSidebarResizeDrag:\s*null/);
+  assert.match(rendererSource, /function clampLeftSidebarWidth/);
+  assert.match(rendererSource, /function applyLeftSidebarWidth/);
+  assert.match(rendererSource, /function startLeftSidebarResize/);
+  assert.match(rendererSource, /function updateLeftSidebarResize/);
+  assert.match(rendererSource, /function endLeftSidebarResize/);
+  assert.match(rendererSource, /project\.style\.setProperty\("--left-sidebar-width"/);
 });

@@ -19,6 +19,7 @@ const openMapButton = document.querySelector("#open-map");
 const toggleRightSidebarButton = document.querySelector("#toggle-right-sidebar");
 const toolbarProjectName = document.querySelector("#toolbar-project-name");
 const leftSidebar = document.querySelector("#left-sidebar");
+const leftSidebarResizeHandle = document.querySelector("#left-sidebar-resize-handle");
 const rightSidebar = document.querySelector("#right-sidebar");
 const rightSidebarResizeHandle = document.querySelector("#right-sidebar-resize-handle");
 const rightTabInfoButton = document.querySelector("#right-tab-info");
@@ -66,6 +67,9 @@ const guideCursorCommand = document.querySelector("#guide-cursor-command");
 const dismissPostCreateGuideButton = document.querySelector("#dismiss-post-create-guide");
 const errorMessage = document.querySelector("#error-message");
 const scriptLoadPromises = new Map();
+const LEFT_SIDEBAR_DEFAULT_WIDTH = 200;
+const LEFT_SIDEBAR_MIN_WIDTH = 110;
+const LEFT_SIDEBAR_MAX_WIDTH = 360;
 const RIGHT_SIDEBAR_DEFAULT_WIDTH = 360;
 const RIGHT_SIDEBAR_MIN_WIDTH = 200;
 const toolbarSymbols = Object.freeze({
@@ -113,6 +117,8 @@ const state = {
   detailMode: "file",
   appearanceMode: "Auto",
   rightSidebarTab: "terminal",
+  leftSidebarWidth: LEFT_SIDEBAR_DEFAULT_WIDTH,
+  leftSidebarResizeDrag: null,
   rightSidebarWidth: 360,
   rightSidebarResizeDrag: null,
   isLeftSidebarVisible: true,
@@ -633,6 +639,7 @@ function renderProjectToolbar() {
     state.isRightSidebarVisible ? toolbarSymbols.rightSidebarVisible : toolbarSymbols.rightSidebarHidden
   );
   openMapButton.disabled = !state.currentProject;
+  applyLeftSidebarWidth();
   toggleLeftSidebarButton.classList.toggle("selected", state.isLeftSidebarVisible);
   toggleLeftSidebarButton.setAttribute("aria-pressed", String(state.isLeftSidebarVisible));
   toggleRightSidebarButton.classList.toggle("selected", state.isRightSidebarVisible);
@@ -670,6 +677,28 @@ function updateToolbarTitleOffset() {
     ? -Math.round(leftSidebarWidth / 2)
     : 0;
   project.style.setProperty("--toolbar-title-offset", `${toolbarTitleOffset}px`);
+}
+
+function clampLeftSidebarWidth(width) {
+  const numericWidth = Number(width);
+  const targetWidth = Number.isFinite(numericWidth) ? numericWidth : LEFT_SIDEBAR_DEFAULT_WIDTH;
+  return Math.min(
+    Math.max(Math.round(targetWidth), LEFT_SIDEBAR_MIN_WIDTH),
+    LEFT_SIDEBAR_MAX_WIDTH
+  );
+}
+
+function applyLeftSidebarWidth(width = state.leftSidebarWidth) {
+  state.leftSidebarWidth = clampLeftSidebarWidth(width);
+  project.style.setProperty("--left-sidebar-width", `${state.leftSidebarWidth}px`);
+  window.__wikiwiseLeftSidebarWidth = state.leftSidebarWidth;
+  updateToolbarTitleOffset();
+
+  if (state.currentProject) {
+    window.requestAnimationFrame(() => fitTerminal());
+  }
+
+  return state.leftSidebarWidth;
 }
 
 function maxRightSidebarWidth() {
@@ -743,6 +772,51 @@ function endRightSidebarResize(event) {
 
   try {
     rightSidebarResizeHandle.releasePointerCapture?.(event.pointerId);
+  } catch {
+    // Pointer capture may already be gone after cancellation.
+  }
+
+  fitTerminal();
+}
+
+function startLeftSidebarResize(event) {
+  if (!state.currentProject || !state.isLeftSidebarVisible) return;
+  if (event.button !== undefined && event.button !== 0) return;
+
+  event.preventDefault();
+  applyLeftSidebarWidth();
+  state.leftSidebarResizeDrag = {
+    pointerId: event.pointerId,
+    startX: event.clientX,
+    startWidth: state.leftSidebarWidth
+  };
+  document.body.classList.add("resizing-left-sidebar");
+
+  try {
+    leftSidebarResizeHandle.setPointerCapture?.(event.pointerId);
+  } catch {
+    // Synthetic audit events do not create an active pointer capture target.
+  }
+}
+
+function updateLeftSidebarResize(event) {
+  const drag = state.leftSidebarResizeDrag;
+  if (!drag || event.pointerId !== drag.pointerId) return;
+
+  event.preventDefault();
+  applyLeftSidebarWidth(drag.startWidth + (event.clientX - drag.startX));
+}
+
+function endLeftSidebarResize(event) {
+  const drag = state.leftSidebarResizeDrag;
+  if (!drag || event.pointerId !== drag.pointerId) return;
+
+  event.preventDefault();
+  state.leftSidebarResizeDrag = null;
+  document.body.classList.remove("resizing-left-sidebar");
+
+  try {
+    leftSidebarResizeHandle.releasePointerCapture?.(event.pointerId);
   } catch {
     // Pointer capture may already be gone after cancellation.
   }
@@ -1876,6 +1950,7 @@ openExistingButton.addEventListener("click", openExisting);
 window.addEventListener("message", handleEditorMessage);
 window.addEventListener("beforeunload", disposeTerminalView);
 window.addEventListener("resize", () => {
+  applyLeftSidebarWidth();
   applyRightSidebarWidth();
   fitTerminal();
 });
@@ -1894,6 +1969,10 @@ publishButton.addEventListener("click", openPublishDialog);
 goBackButton.addEventListener("click", navigateBack);
 goForwardButton.addEventListener("click", navigateForward);
 toggleLeftSidebarButton.addEventListener("click", toggleLeftSidebar);
+leftSidebarResizeHandle.addEventListener("pointerdown", startLeftSidebarResize);
+leftSidebarResizeHandle.addEventListener("pointermove", updateLeftSidebarResize);
+leftSidebarResizeHandle.addEventListener("pointerup", endLeftSidebarResize);
+leftSidebarResizeHandle.addEventListener("pointercancel", endLeftSidebarResize);
 appearanceModeButton.addEventListener("click", cycleAppearanceMode);
 openMapButton.addEventListener("click", openMap);
 toggleRightSidebarButton.addEventListener("click", toggleRightSidebar);

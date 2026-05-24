@@ -1,4 +1,5 @@
 :root {
+  --left-sidebar-width: 200px;
   --right-sidebar-width: 360px;
   --color-sidebar-bg: #f3edde;
   --color-sidebar-text: #7a6e54;
@@ -170,7 +171,7 @@ button:disabled {
 .project-shell {
   --toolbar-title-offset: 0px;
   display: grid;
-  grid-template-columns: 260px minmax(0, 1fr) var(--right-sidebar-width);
+  grid-template-columns: var(--left-sidebar-width) minmax(0, 1fr) var(--right-sidebar-width);
   grid-template-rows: auto 1fr;
   height: 100vh;
   min-height: 100vh;
@@ -180,7 +181,7 @@ button:disabled {
 }
 
 .project-shell.right-sidebar-hidden {
-  grid-template-columns: 260px minmax(0, 1fr);
+  grid-template-columns: var(--left-sidebar-width) minmax(0, 1fr);
 }
 
 .project-shell.left-sidebar-hidden {
@@ -255,11 +256,32 @@ button:disabled {
 
 .sidebar {
   grid-column: 1;
+  position: relative;
   min-height: 0;
   overflow: auto;
   border-right: 1px solid var(--color-sidebar-rule);
   padding: 16px 0;
   background: var(--color-sidebar-bg);
+}
+
+.left-sidebar-resize-handle {
+  position: absolute;
+  z-index: 2;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  width: 5px;
+  border-radius: 0;
+  padding: 0;
+  background: transparent;
+  cursor: col-resize;
+  touch-action: none;
+}
+
+.left-sidebar-resize-handle:hover,
+.left-sidebar-resize-handle:focus-visible {
+  background: var(--color-resize-hover);
+  outline: none;
 }
 
 .sidebar .eyebrow,
@@ -572,7 +594,9 @@ button:disabled {
 }
 
 body.resizing-right-sidebar,
-body.resizing-right-sidebar * {
+body.resizing-right-sidebar *,
+body.resizing-left-sidebar,
+body.resizing-left-sidebar * {
   cursor: col-resize !important;
   user-select: none;
 }

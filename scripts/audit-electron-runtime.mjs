@@ -368,6 +368,8 @@ async function runScenario(window, scenario) {
     await simulateRightSidebarResize(window);
     await delay(160);
     rightSidebarTerminalResizeObserved = terminalResizeCount > terminalResizeCountBeforeSidebarResize;
+    await simulateLeftSidebarResize(window);
+    await delay(80);
     await simulateLeftSidebarToggle(window);
     await delay(80);
     await window.webContents.executeJavaScript(`window.__wikiwiseTerminal?.input("echo runtime audit\\r")`, true);
@@ -595,6 +597,103 @@ async function simulateLeftSidebarToggle(window) {
   }));
 }
 
+async function simulateLeftSidebarResize(window) {
+  return window.webContents.executeJavaScript(`(() => {
+    const leftSidebar = document.querySelector("#left-sidebar");
+    const handle = document.querySelector("#left-sidebar-resize-handle");
+    const toolbarTitle = document.querySelector("#toolbar-project-name");
+    const native = {
+      min: 110,
+      ideal: 200,
+      max: 360
+    };
+    const titleOffset = () => {
+      const transform = toolbarTitle ? window.getComputedStyle(toolbarTitle).transform : "";
+      if (!transform || transform === "none") return 0;
+
+      const matrix3d = transform.match(/^matrix3d\\(([^)]+)\\)$/);
+      if (matrix3d) {
+        const values = matrix3d[1].split(",").map((value) => Number.parseFloat(value.trim()));
+        return Math.round(Number.isFinite(values[12]) ? values[12] : 0);
+      }
+
+      const matrix = transform.match(/^matrix\\(([^)]+)\\)$/);
+      if (matrix) {
+        const values = matrix[1].split(",").map((value) => Number.parseFloat(value.trim()));
+        return Math.round(Number.isFinite(values[4]) ? values[4] : 0);
+      }
+
+      return 0;
+    };
+
+    if (!leftSidebar || !handle) {
+      const missingEvidence = {
+        leftSidebarResizeHandlePresent: Boolean(handle),
+        leftSidebarNativeMinWidth: native.min,
+        leftSidebarNativeIdealWidth: native.ideal,
+        leftSidebarNativeMaxWidth: native.max,
+        leftSidebarInitialWidth: leftSidebar ? Math.round(leftSidebar.getBoundingClientRect().width) : null,
+        leftSidebarResizedWidth: null,
+        leftSidebarResizeObserved: false,
+        leftSidebarResizedTitleOffset: titleOffset()
+      };
+      window.__wikiwiseLeftSidebarResizeEvidence = missingEvidence;
+      return missingEvidence;
+    }
+
+    const before = Math.round(leftSidebar.getBoundingClientRect().width);
+    const handleRect = handle.getBoundingClientRect();
+    const startX = Math.round(handleRect.left + Math.max(1, handleRect.width / 2));
+    const clientY = Math.round(handleRect.top + Math.max(1, handleRect.height / 2));
+    const pointer = {
+      bubbles: true,
+      cancelable: true,
+      pointerId: 23,
+      pointerType: "mouse",
+      isPrimary: true,
+      button: 0,
+      buttons: 1,
+      clientX: startX,
+      clientY
+    };
+
+    handle.dispatchEvent(new PointerEvent("pointerdown", pointer));
+    handle.dispatchEvent(new PointerEvent("pointermove", {
+      ...pointer,
+      clientX: startX + 60
+    }));
+    handle.dispatchEvent(new PointerEvent("pointerup", {
+      ...pointer,
+      buttons: 0,
+      clientX: startX + 60
+    }));
+
+    const after = Math.round(leftSidebar.getBoundingClientRect().width);
+    const evidence = {
+      leftSidebarResizeHandlePresent: true,
+      leftSidebarNativeMinWidth: native.min,
+      leftSidebarNativeIdealWidth: native.ideal,
+      leftSidebarNativeMaxWidth: native.max,
+      leftSidebarInitialWidth: before,
+      leftSidebarResizedWidth: after,
+      leftSidebarResizeObserved: before !== after,
+      leftSidebarResizedTitleOffset: titleOffset()
+    };
+    window.__wikiwiseLeftSidebarResizeEvidence = evidence;
+    return evidence;
+  })()`, true).catch((error) => ({
+    leftSidebarResizeHandlePresent: false,
+    leftSidebarNativeMinWidth: 110,
+    leftSidebarNativeIdealWidth: 200,
+    leftSidebarNativeMaxWidth: 360,
+    leftSidebarInitialWidth: null,
+    leftSidebarResizedWidth: null,
+    leftSidebarResizeObserved: false,
+    leftSidebarResizedTitleOffset: null,
+    error: error instanceof Error ? error.message : String(error)
+  }));
+}
+
 async function captureInfoOptionalSectionEvidence(window) {
   return window.webContents.executeJavaScript(`(() => {
     const infoTab = document.querySelector("#right-tab-info");
@@ -740,6 +839,7 @@ async function readDomEvidence(window) {
 	        ).join("\\n").trim()
 	      : "";
 	    const rightSidebarResizeEvidence = window.__wikiwiseRightSidebarResizeEvidence ?? {};
+	    const leftSidebarResizeEvidence = window.__wikiwiseLeftSidebarResizeEvidence ?? {};
 	    const leftSidebarVisibilityEvidence = window.__wikiwiseLeftSidebarVisibilityEvidence ?? {};
 	    const infoOptionalEvidence = window.__wikiwiseInfoOptionalSectionEvidence ?? {};
 	    const treeButtons = [...document.querySelectorAll(".tree-row")];
@@ -846,6 +946,14 @@ async function readDomEvidence(window) {
 	      fileTreeSpecialFolderMarkerPresent: Boolean(specialFolderIcon && specialFolderDotContent !== "none"),
 	      fileTreeSelectedAccentPresent: Boolean(selectedAccent && selectedAccentWidth === 2),
       leftSidebarTogglePresent: Boolean(document.querySelector("#toggle-left-sidebar")),
+	      leftSidebarResizeHandlePresent: Boolean(leftSidebarResizeEvidence.leftSidebarResizeHandlePresent),
+	      leftSidebarNativeMinWidth: leftSidebarResizeEvidence.leftSidebarNativeMinWidth ?? null,
+	      leftSidebarNativeIdealWidth: leftSidebarResizeEvidence.leftSidebarNativeIdealWidth ?? null,
+	      leftSidebarNativeMaxWidth: leftSidebarResizeEvidence.leftSidebarNativeMaxWidth ?? null,
+	      leftSidebarInitialWidth: leftSidebarResizeEvidence.leftSidebarInitialWidth ?? null,
+	      leftSidebarResizedWidth: leftSidebarResizeEvidence.leftSidebarResizedWidth ?? null,
+	      leftSidebarResizeObserved: Boolean(leftSidebarResizeEvidence.leftSidebarResizeObserved),
+	      leftSidebarResizedTitleOffset: leftSidebarResizeEvidence.leftSidebarResizedTitleOffset ?? null,
 	      leftSidebarInitiallyVisible: Boolean(leftSidebarVisibilityEvidence.leftSidebarInitiallyVisible),
 	      leftSidebarHiddenAfterToggle: Boolean(leftSidebarVisibilityEvidence.leftSidebarHiddenAfterToggle),
 	      leftSidebarRestoredVisible: Boolean(leftSidebarVisibilityEvidence.leftSidebarRestoredVisible),
@@ -1009,6 +1117,31 @@ function assertScenario(scenario, dom, screenshot) {
 	    }
 	    if (!dom.leftSidebarTogglePresent) {
 	      failures.push("Left sidebar toggle control is missing.");
+	    }
+	    if (!dom.leftSidebarResizeHandlePresent) {
+	      failures.push("Left sidebar resize handle is missing.");
+	    }
+	    if (dom.leftSidebarInitialWidth !== 200 || dom.leftSidebarNativeIdealWidth !== 200) {
+	      failures.push("Left sidebar initial width does not match native ideal.");
+	    }
+	    if (!dom.leftSidebarResizeObserved) {
+	      failures.push("Left sidebar width did not change after drag.");
+	    }
+	    if (
+	      dom.leftSidebarNativeMinWidth !== 110 ||
+	      dom.leftSidebarNativeMaxWidth !== 360 ||
+	      !Number.isFinite(dom.leftSidebarResizedWidth) ||
+	      dom.leftSidebarResizedWidth < 110 ||
+	      dom.leftSidebarResizedWidth > 360
+	    ) {
+	      failures.push("Left sidebar resized width violates native constraints.");
+	    }
+	    if (
+	      Number.isFinite(dom.leftSidebarResizedWidth) &&
+	      Number.isFinite(dom.leftSidebarResizedTitleOffset) &&
+	      Math.abs(dom.leftSidebarResizedTitleOffset - (-Math.round(dom.leftSidebarResizedWidth / 2))) > 1
+	    ) {
+	      failures.push("Toolbar title offset does not match resized left sidebar.");
 	    }
 	    if (!dom.leftSidebarInitiallyVisible) {
 	      failures.push("Left sidebar is not initially visible.");
