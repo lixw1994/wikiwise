@@ -11,6 +11,7 @@ contextBridge.exposeInMainWorld("wikiwise", {
   scanProject: (projectPath) => ipcRenderer.invoke("wikiwise:scanProject", projectPath),
   readFile: (filePath) => ipcRenderer.invoke("wikiwise:readFile", filePath),
   compilePage: (payload) => ipcRenderer.invoke("wikiwise:compilePage", payload),
+  getEditorResource: () => ipcRenderer.invoke("wikiwise:getEditorResource"),
   saveFile: (payload) => ipcRenderer.invoke("wikiwise:saveFile", payload),
   getDocumentInfo: (payload) => ipcRenderer.invoke("wikiwise:getDocumentInfo", payload),
   getPublishConfig: (payload) => ipcRenderer.invoke("wikiwise:getPublishConfig", payload),

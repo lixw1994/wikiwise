@@ -63,6 +63,9 @@ test("runtime audit script covers native shell scenarios and assertions", () => 
     /selectedFileLabel/,
     /publishDialogHidden/,
     /newWikiDialogHidden/,
+    /sourceEditorFramePresent/,
+    /sourceEditorFrameReady/,
+    /codeMirrorEditorPresent/,
     /rightSidebarHidden/,
     /previewFrameHidden/,
     /differentFromFirstPixelCount/

@@ -45,6 +45,7 @@ const auditIpcChannels = Object.freeze([
   "wikiwise:scanProject",
   "wikiwise:readFile",
   "wikiwise:compilePage",
+  "wikiwise:getEditorResource",
   "wikiwise:openGeneratedPage",
   "wikiwise:resolvePreviewNavigation",
   "wikiwise:openExternalUrl",
@@ -177,6 +178,14 @@ function registerAuditIpcHandlers() {
       fileUrl: pathToFileURL(compiled.outputPath).href
     };
   });
+  ipcMain.handle("wikiwise:getEditorResource", () => {
+    const editorPath = path.join(repositoryRoot, "Sources", "Wikiwise", "Resources", "editor.html");
+    return {
+      path: editorPath,
+      fileUrl: pathToFileURL(editorPath).href,
+      bundlePath: path.join(repositoryRoot, "Sources", "Wikiwise", "Resources", "codemirror-bundle.js")
+    };
+  });
   ipcMain.handle("wikiwise:openGeneratedPage", () => null);
   ipcMain.handle("wikiwise:resolvePreviewNavigation", () => null);
   ipcMain.handle("wikiwise:openExternalUrl", () => ({ ok: true }));
@@ -229,6 +238,17 @@ async function runScenario(window, scenario) {
 
   await window.loadFile(rendererHtmlPath);
   await waitForScenario(window, scenario);
+  if (scenario.kind === "project") {
+    await window.webContents.executeJavaScript(`document.querySelector("#mode-file")?.click()`, true);
+    await waitForCondition(
+      window,
+      `Boolean(
+        !document.querySelector("#source-editor-frame")?.hidden &&
+        document.querySelector("#source-editor-frame")?.contentDocument?.querySelector(".cm-editor")
+      )`,
+      `scenario ${scenario.name} CodeMirror editor to render`
+    );
+  }
   await delay(120);
 
   const screenshotPath = path.join(screenshotRoot, `${scenario.name}.png`);
@@ -291,6 +311,8 @@ async function readDomEvidence(window) {
       };
     };
     const textFor = (selector) => document.querySelector(selector)?.textContent?.trim() ?? "";
+    const sourceEditorFrame = document.querySelector("#source-editor-frame");
+    const sourceEditorDocument = sourceEditorFrame?.contentDocument;
     return {
       documentTitle: document.title,
       bodyText: document.body.innerText,
@@ -305,6 +327,10 @@ async function readDomEvidence(window) {
       selectedFileLabel: textFor("#selected-file"),
       publishDialogHidden: Boolean(document.querySelector("#publish-dialog")?.hidden),
       newWikiDialogHidden: Boolean(document.querySelector("#new-wiki-dialog")?.hidden),
+      sourceEditorFramePresent: Boolean(sourceEditorFrame),
+      sourceEditorFrameReady: Boolean(sourceEditorFrame?.contentWindow?.getContent),
+      sourceEditorFrameHidden: Boolean(sourceEditorFrame?.hidden),
+      codeMirrorEditorPresent: Boolean(sourceEditorDocument?.querySelector(".cm-editor")),
       previewFrameHidden: Boolean(document.querySelector("#preview-frame")?.hidden),
       rightSidebarHidden: Boolean(document.querySelector("#right-sidebar")?.hidden),
       terminalText: textFor("#terminal-output"),
@@ -392,8 +418,14 @@ function assertScenario(scenario, dom, screenshot) {
     if (dom.selectedFileLabel !== "home.md") {
       failures.push(`Unexpected selected document: ${dom.selectedFileLabel}`);
     }
-    if (dom.previewFrameHidden) {
-      failures.push("Compiled preview frame is hidden.");
+    if (!dom.sourceEditorFramePresent || !dom.sourceEditorFrameReady || !dom.codeMirrorEditorPresent) {
+      failures.push("CodeMirror source editor did not render through the shared editor resource.");
+    }
+    if (dom.sourceEditorFrameHidden) {
+      failures.push("Source editor frame is hidden.");
+    }
+    if (!dom.previewFrameHidden) {
+      failures.push("Compiled preview frame is visible during editor audit mode.");
     }
     if (dom.rightSidebarHidden) {
       failures.push("Right sidebar is hidden.");

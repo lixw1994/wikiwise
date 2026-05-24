@@ -26,6 +26,24 @@
 </head>
 <body>
 <div id="editor"></div>
+<script>
+if (!window.webkit && window.parent && window.parent !== window) {
+  window.webkit = {
+    messageHandlers: {
+      contentChanged: {
+        postMessage: function(payload) {
+          window.parent.postMessage({ type: 'wikiwise:editorContentChanged', payload: payload }, '*');
+        }
+      },
+      editorReady: {
+        postMessage: function(payload) {
+          window.parent.postMessage({ type: 'wikiwise:editorReady', payload: payload }, '*');
+        }
+      }
+    }
+  };
+}
+</script>
 <script src="codemirror-bundle.js"></script>
 <script>
 // Scroll fraction helpers for preserving position across view switches.
@@ -41,6 +59,21 @@ function __scrollToFraction(f) {
   if (!s) return;
   var max = s.scrollHeight - s.clientHeight;
   s.scrollTop = f * max;
+}
+function __postEditorMessage(type, payload) {
+  if (window.webkit && window.webkit.messageHandlers) {
+    if (type === 'wikiwise:editorReady' && window.webkit.messageHandlers.editorReady) {
+      window.webkit.messageHandlers.editorReady.postMessage(payload);
+      return;
+    }
+    if (type === 'wikiwise:editorContentChanged' && window.webkit.messageHandlers.contentChanged) {
+      window.webkit.messageHandlers.contentChanged.postMessage(payload);
+      return;
+    }
+  }
+  if (window.parent && window.parent !== window) {
+    window.parent.postMessage({ type: type, payload: payload }, '*');
+  }
 }
 </script>
 </body>

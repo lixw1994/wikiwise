@@ -41,6 +41,6 @@ test("renderer contains project lifecycle state and welcome entry points", () =>
   assert.match(htmlSource, /id="open-existing"/);
   assert.match(htmlSource, /id="create-new"/);
   assert.match(htmlSource, /id="file-tree"/);
-  assert.match(htmlSource, /id="source-editor"/);
+  assert.match(htmlSource, /id="source-editor-frame"/);
   assert.match(htmlSource, /id="new-wiki-dialog"/);
 });

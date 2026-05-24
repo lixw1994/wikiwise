@@ -29,6 +29,7 @@ const watchersByWebContents = new Map();
 const terminalSessionsByWebContents = new Map();
 const projectWatcherDebounceMs = 200;
 const wikiHomeRelativePath = "wiki/home.md";
+const nativeResourcesRoot = path.join(repositoryRoot, "Sources", "Wikiwise", "Resources");
 const defaultAppSettings = Object.freeze({
   appearanceMode: "Auto",
   lastFolderPath: ""
@@ -156,6 +157,21 @@ function openGeneratedPage(payload) {
     name: payload.pageName,
     path: pagePath,
     fileUrl: pathToFileURL(pagePath).href
+  };
+}
+
+function getEditorResource() {
+  const editorPath = path.join(nativeResourcesRoot, "editor.html");
+  const codeMirrorBundlePath = path.join(nativeResourcesRoot, "codemirror-bundle.js");
+
+  if (!fs.existsSync(editorPath) || !fs.existsSync(codeMirrorBundlePath)) {
+    throw new Error("Missing bundled CodeMirror editor resources.");
+  }
+
+  return {
+    path: editorPath,
+    fileUrl: pathToFileURL(editorPath).href,
+    bundlePath: codeMirrorBundlePath
   };
 }
 
@@ -794,6 +810,9 @@ ipcMain.handle("wikiwise:compilePage", (_event, payload) => {
     reloadCSS: Boolean(payload.reloadCSS)
   });
 });
+ipcMain.handle("wikiwise:getEditorResource", () => {
+  return getEditorResource();
+});
 ipcMain.handle("wikiwise:saveFile", (_event, payload) => {
   return saveFile(payload);
 });
@@ -886,6 +905,7 @@ export {
   checkProjectPublishAvailability,
   getDefaultWikiLocation,
   getDocumentInfo,
+  getEditorResource,
   getPublishConfig,
   findMarkdownFileForSlug,
   generatedPageResult,

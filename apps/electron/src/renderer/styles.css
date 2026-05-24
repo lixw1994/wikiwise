@@ -317,7 +317,12 @@ button:disabled {
   white-space: pre-wrap;
 }
 
-.source-editor:focus {
+.source-editor-frame {
+  padding: 0;
+  display: block;
+}
+
+.source-editor-frame:focus {
   outline: 2px solid rgba(122, 31, 31, 0.2);
   outline-offset: -2px;
 }
