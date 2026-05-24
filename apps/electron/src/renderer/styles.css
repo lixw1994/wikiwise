@@ -260,7 +260,7 @@ button:disabled {
   min-height: 0;
   overflow: auto;
   border-right: 1px solid var(--color-sidebar-rule);
-  padding: 16px 0;
+  padding: 0 0 20px;
   background: var(--color-sidebar-bg);
 }
 
@@ -284,15 +284,22 @@ button:disabled {
   outline: none;
 }
 
-.sidebar .eyebrow,
-.sidebar h2 {
+.sidebar .eyebrow {
+  margin: 0;
   padding-inline: 18px;
+  padding-top: 6px;
+  padding-bottom: 10px;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 9px;
+  font-weight: 400;
+  letter-spacing: 1.6px;
+  text-transform: none;
 }
 
 .file-tree {
   display: grid;
   gap: 1px;
-  margin: 14px 0 0;
+  margin: 0;
   padding: 0;
   list-style: none;
 }

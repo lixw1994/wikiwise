@@ -1,6 +1,5 @@
 const welcome = document.querySelector("#welcome");
 const project = document.querySelector("#project");
-const projectName = document.querySelector("#project-name");
 const fileTree = document.querySelector("#file-tree");
 const selectedFileLabel = document.querySelector("#selected-file");
 const sourceEditorFrame = document.querySelector("#source-editor-frame");
@@ -230,7 +229,6 @@ function renderApp() {
   renderPublishFeedback();
 
   if (hasProject) {
-    projectName.textContent = state.currentProject.projectName;
     toolbarProjectName.textContent = state.currentProject.projectName;
     renderTree(state.tree);
     renderDetail();

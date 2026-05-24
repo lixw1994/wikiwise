@@ -132,6 +132,41 @@ test("offsets toolbar project title like native left-sidebar compensation", () =
   assert.match(rendererSource, /project\.style\.setProperty\("--toolbar-title-offset",\s*`\$\{toolbarTitleOffset\}px`\)/);
 });
 
+test("matches native left-sidebar header structure and typography", () => {
+  const sidebarBlock = cssBlock(".sidebar");
+  const sidebarHeaderBlock = cssBlock(".sidebar .eyebrow");
+  const fileTreeBlock = cssBlock(".file-tree");
+
+  assert.match(
+    nativeContentViewSource,
+    /Text\("FILES"\)\s*\.font\(\.system\(size:\s*9,\s*weight:\s*\.regular,\s*design:\s*\.monospaced\)\)\s*\.tracking\(1\.6\)\s*\.foregroundStyle\(Color\.sidebarHeader\)\s*\.padding\(\.horizontal,\s*18\)\s*\.padding\(\.top,\s*6\)\s*\.padding\(\.bottom,\s*10\)/
+  );
+  assert.match(
+    htmlSource,
+    /<aside id="left-sidebar" class="sidebar">\s*<p class="eyebrow">FILES<\/p>\s*<ul id="file-tree" class="file-tree"><\/ul>/
+  );
+  assert.doesNotMatch(htmlSource, /id="project-name"/);
+  assert.doesNotMatch(rendererSource, /const projectName =/);
+  assert.doesNotMatch(rendererSource, /projectName\.textContent/);
+  assert.match(htmlSource, /id="toolbar-project-name"/);
+  assert.match(rendererSource, /toolbarProjectName\.textContent = state\.currentProject\.projectName/);
+
+  assert.match(sidebarHeaderBlock, /padding-inline:\s*18px/);
+  assert.match(sidebarHeaderBlock, /padding-top:\s*6px/);
+  assert.match(sidebarHeaderBlock, /padding-bottom:\s*10px/);
+  assert.match(sidebarHeaderBlock, /margin:\s*0/);
+  assert.match(
+    sidebarHeaderBlock,
+    /font-family:\s*ui-monospace,\s*"SFMono-Regular",\s*Menlo,\s*monospace/
+  );
+  assert.match(sidebarHeaderBlock, /font-size:\s*9px/);
+  assert.match(sidebarHeaderBlock, /font-weight:\s*400/);
+  assert.match(sidebarHeaderBlock, /letter-spacing:\s*1\.6px/);
+  assert.match(sidebarHeaderBlock, /text-transform:\s*none/);
+  assert.match(fileTreeBlock, /margin:\s*0/);
+  assert.match(sidebarBlock, /padding:\s*0 0 20px/);
+});
+
 test("hides non-native detail save chrome while preserving save wiring", () => {
   const detailBlock = cssBlock(".detail");
   const sourceFrameBlock = cssBlock(".source-editor-frame");
