@@ -645,6 +645,22 @@ export function scanOneLevel(rootPath) {
   ];
 }
 
+export function expandTreeDirectory(projectRoot, directoryPath) {
+  const resolvedRoot = path.resolve(projectRoot);
+  const resolvedDirectory = path.resolve(directoryPath);
+
+  if (!isPathInside(resolvedDirectory, resolvedRoot)) {
+    throw new Error("Directory must be inside the project root");
+  }
+
+  const stat = fs.statSync(resolvedDirectory);
+  if (!stat.isDirectory()) {
+    throw new Error("Tree expansion target must be a directory");
+  }
+
+  return scanOneLevel(resolvedDirectory);
+}
+
 function defaultRepositoryRoot() {
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 }

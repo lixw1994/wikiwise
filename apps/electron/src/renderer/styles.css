@@ -175,10 +175,19 @@ button:disabled {
   list-style: none;
 }
 
-.file-tree button {
+.tree-children {
+  display: grid;
+  gap: 1px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.tree-row {
   width: 100%;
   overflow: hidden;
   border-radius: 0;
+  padding: 5px 8px 5px calc(18px + (var(--tree-depth, 0) * 16px));
   background: transparent;
   color: #7a6e54;
   text-align: left;
@@ -186,17 +195,40 @@ button:disabled {
   white-space: nowrap;
 }
 
-.tree-folder button {
+.tree-folder-button {
+  display: flex;
+  align-items: center;
+  gap: 5px;
   color: #3a2f1c;
   font-family: Georgia, serif;
 }
 
-.tree-file button {
-  padding-left: 28px;
+.tree-disclosure {
+  display: inline-grid;
+  width: 10px;
+  flex: 0 0 10px;
+  place-items: center;
+  color: #a89a7c;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-size: 11px;
+}
+
+.tree-label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.tree-file-button {
+  padding-left: calc(33px + (var(--tree-depth, 0) * 16px));
   font-family: Georgia, serif;
 }
 
-.tree-file button.selected {
+.tree-file-button.special-file {
+  font-weight: 600;
+}
+
+.tree-file-button.selected {
   background: rgba(194, 169, 107, 0.16);
   color: #1a1714;
   font-style: italic;

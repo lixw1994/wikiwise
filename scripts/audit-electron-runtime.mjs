@@ -7,6 +7,7 @@ import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   WikiCompiler,
   createWikiScaffold,
+  expandTreeDirectory,
   randomPublishSubdomain,
   readTextFile,
   scanOneLevel,
@@ -35,6 +36,7 @@ let activeScenario = null;
 let auditProject = null;
 let terminalResizeObserved = false;
 let terminalInputObserved = false;
+let activeFileObserved = false;
 const auditIpcChannels = Object.freeze([
   "wikiwise:getAppSettings",
   "wikiwise:setAppearanceMode",
@@ -48,6 +50,7 @@ const auditIpcChannels = Object.freeze([
   "wikiwise:getDocumentInfo",
   "wikiwise:getPublishConfig",
   "wikiwise:scanProject",
+  "wikiwise:expandTreeDirectory",
   "wikiwise:readFile",
   "wikiwise:compilePage",
   "wikiwise:getEditorResource",
@@ -60,6 +63,7 @@ const auditIpcChannels = Object.freeze([
   "wikiwise:chooseNewWikiLocation",
   "wikiwise:createNewWiki",
   "wikiwise:saveFile",
+  "wikiwise:setActiveFile",
   "wikiwise:checkPublishAvailability",
   "wikiwise:publishSite",
   "wikiwise:unpublishSite"
@@ -209,6 +213,9 @@ function registerAuditIpcHandlers() {
     suggestedSubdomain: randomPublishSubdomain(path.basename(payload.projectRoot))
   }));
   ipcMain.handle("wikiwise:scanProject", (_event, projectRoot) => scanOneLevel(projectRoot));
+  ipcMain.handle("wikiwise:expandTreeDirectory", (_event, payload) => {
+    return expandTreeDirectory(payload.projectRoot, payload.directoryPath);
+  });
   ipcMain.handle("wikiwise:readFile", (_event, filePath) => readTextFile(filePath));
   ipcMain.handle("wikiwise:compilePage", (_event, payload) => {
     const compiler = new WikiCompiler({ projectRoot: payload.projectRoot, repositoryRoot });
@@ -239,6 +246,10 @@ function registerAuditIpcHandlers() {
   });
   ipcMain.handle("wikiwise:saveFile", () => {
     throw new Error("Runtime audit is read-only.");
+  });
+  ipcMain.handle("wikiwise:setActiveFile", (_event, payload) => {
+    activeFileObserved = Boolean(payload?.projectRoot && payload?.filePath);
+    return { ok: true };
   });
   ipcMain.handle("wikiwise:checkPublishAvailability", () => ({ availability: "unknown" }));
   ipcMain.handle("wikiwise:publishSite", () => {
@@ -277,12 +288,34 @@ async function runScenario(window, scenario) {
   activeScenario = scenario;
   terminalResizeObserved = false;
   terminalInputObserved = false;
+  activeFileObserved = false;
   nativeTheme.themeSource = scenario.appearanceMode.toLowerCase();
   console.log(`Running runtime audit scenario: ${scenario.name}`);
 
   await window.loadFile(rendererHtmlPath);
   await waitForScenario(window, scenario);
   if (scenario.kind === "project") {
+    await waitForCondition(
+      window,
+      `Boolean(
+        [...document.querySelectorAll(".tree-folder-button")]
+          .some((button) => button.textContent.includes("wiki") && button.getAttribute("aria-expanded") === "true") &&
+        [...document.querySelectorAll(".tree-file-button")]
+          .some((button) => button.textContent.trim() === "home.md")
+      )`,
+      `scenario ${scenario.name} expanded wiki tree to render`
+    );
+    activeFileObserved = false;
+    await window.webContents.executeJavaScript(
+      `[...document.querySelectorAll(".tree-file-button")]
+        .find((button) => button.textContent.trim() === "home.md")
+        ?.click()`,
+      true
+    );
+    await waitForHostCondition(
+      () => activeFileObserved,
+      `scenario ${scenario.name} nested file selection to reach active-file IPC`
+    );
     await window.webContents.executeJavaScript(`document.querySelector("#mode-file")?.click()`, true);
     await waitForCondition(
       window,
@@ -308,6 +341,7 @@ async function runScenario(window, scenario) {
   const dom = await readDomEvidence(window);
   dom.terminalResizeObserved = terminalResizeObserved;
   dom.terminalInputObserved = terminalInputObserved;
+  dom.activeFileObserved = activeFileObserved;
   const screenshot = screenshotStats(image);
   const assertions = assertScenario(scenario, dom, screenshot);
   console.log(`Captured runtime audit scenario: ${scenario.name}`);
@@ -349,6 +383,15 @@ async function waitForCondition(window, expression, label, timeoutMs = 5000) {
   throw new Error(`Timed out waiting for ${label}.`);
 }
 
+async function waitForHostCondition(predicate, label, timeoutMs = 5000) {
+  const start = Date.now();
+  while (Date.now() - start < timeoutMs) {
+    if (predicate()) return;
+    await delay(50);
+  }
+  throw new Error(`Timed out waiting for ${label}.`);
+}
+
 async function readDomEvidence(window) {
   return window.webContents.executeJavaScript(`(() => {
     const rectFor = (selector) => {
@@ -371,6 +414,20 @@ async function readDomEvidence(window) {
 	          window.__wikiwiseTerminal.buffer.active.getLine(index)?.translateToString(true) ?? ""
 	        ).join("\\n").trim()
 	      : "";
+	    const treeButtons = [...document.querySelectorAll(".tree-row")];
+	    const expandedTreeEvidence = treeButtons.some((button) =>
+	      button.classList.contains("tree-folder-button") &&
+	      button.textContent.includes("wiki") &&
+	      button.getAttribute("aria-expanded") === "true"
+	    ) && treeButtons.some((button) =>
+	      button.classList.contains("tree-file-button") &&
+	      button.textContent.trim() === "home.md"
+	    );
+	    const nestedSelectionEvidence = treeButtons.some((button) =>
+	      button.classList.contains("tree-file-button") &&
+	      button.classList.contains("selected") &&
+	      button.textContent.trim() === "home.md"
+	    );
 	    return {
       documentTitle: document.title,
       bodyText: document.body.innerText,
@@ -389,6 +446,8 @@ async function readDomEvidence(window) {
       sourceEditorFrameReady: Boolean(sourceEditorFrame?.contentWindow?.getContent),
       sourceEditorFrameHidden: Boolean(sourceEditorFrame?.hidden),
       codeMirrorEditorPresent: Boolean(sourceEditorDocument?.querySelector(".cm-editor")),
+      expandedTreeEvidence,
+      nestedSelectionEvidence,
       previewFrameHidden: Boolean(document.querySelector("#preview-frame")?.hidden),
 	      rightSidebarHidden: Boolean(document.querySelector("#right-sidebar")?.hidden),
 	      xtermTerminalPresent: Boolean(terminalSurface?.querySelector(".xterm")),
@@ -479,6 +538,12 @@ function assertScenario(scenario, dom, screenshot) {
     }
     if (!dom.sourceEditorFramePresent || !dom.sourceEditorFrameReady || !dom.codeMirrorEditorPresent) {
       failures.push("CodeMirror source editor did not render through the shared editor resource.");
+    }
+    if (!dom.expandedTreeEvidence) {
+      failures.push("File tree did not show native default expansion for the wiki folder.");
+    }
+    if (!dom.nestedSelectionEvidence || !dom.activeFileObserved) {
+      failures.push("Nested file selection did not update selected tree state and active-file IPC evidence.");
     }
     if (dom.sourceEditorFrameHidden) {
       failures.push("Source editor frame is hidden.");

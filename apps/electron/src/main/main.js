@@ -8,6 +8,7 @@ import {
   WikiCompiler,
   checkPublishAvailability,
   createWikiScaffold,
+  expandTreeDirectory,
   loadPublishConfig,
   publishSite,
   randomPublishSubdomain,
@@ -538,6 +539,16 @@ function saveFile(payload) {
   };
 }
 
+function setActiveFile(payload) {
+  if (!payload?.projectRoot || !payload?.filePath) {
+    throw new Error("setActiveFile requires projectRoot and filePath");
+  }
+
+  const projectRoot = assertProjectRoot(payload.projectRoot);
+  const filePath = assertProjectPath(projectRoot, payload.filePath);
+  return writeActiveFile(projectRoot, filePath);
+}
+
 function getDocumentInfo(payload) {
   if (!payload?.projectRoot || !payload?.filePath) {
     throw new Error("getDocumentInfo requires projectRoot and filePath");
@@ -546,6 +557,16 @@ function getDocumentInfo(payload) {
   const projectRoot = path.resolve(payload.projectRoot);
   const filePath = assertProjectPath(projectRoot, payload.filePath);
   return summarizeDocumentInfo(filePath);
+}
+
+function expandProjectTreeDirectory(payload) {
+  if (!payload?.projectRoot || !payload?.directoryPath) {
+    throw new Error("expandTreeDirectory requires projectRoot and directoryPath");
+  }
+
+  const projectRoot = assertProjectRoot(payload.projectRoot);
+  const directoryPath = assertProjectPath(projectRoot, payload.directoryPath);
+  return expandTreeDirectory(projectRoot, directoryPath);
 }
 
 function getPublishConfig(payload) {
@@ -878,6 +899,9 @@ ipcMain.handle("wikiwise:openExisting", (event) => {
 ipcMain.handle("wikiwise:scanProject", (_event, projectPath) => {
   return scanOneLevel(projectPath);
 });
+ipcMain.handle("wikiwise:expandTreeDirectory", (_event, payload) => {
+  return expandProjectTreeDirectory(payload);
+});
 ipcMain.handle("wikiwise:readFile", (_event, filePath) => {
   return readTextFile(filePath);
 });
@@ -899,6 +923,9 @@ ipcMain.handle("wikiwise:getTerminalResource", () => {
 });
 ipcMain.handle("wikiwise:saveFile", (_event, payload) => {
   return saveFile(payload);
+});
+ipcMain.handle("wikiwise:setActiveFile", (_event, payload) => {
+  return setActiveFile(payload);
 });
 ipcMain.handle("wikiwise:getDocumentInfo", (_event, payload) => {
   return getDocumentInfo(payload);
@@ -990,6 +1017,7 @@ export {
   chooseNewWikiLocation,
   closeTerminal,
   checkProjectPublishAvailability,
+  expandProjectTreeDirectory,
   getDefaultWikiLocation,
   getDocumentInfo,
   getEditorResource,
@@ -1008,6 +1036,7 @@ export {
   resizeTerminal,
   restoreLastProject,
   saveFile,
+  setActiveFile,
   sendTerminalInput,
   sendAppCommand,
   setAppearanceMode,

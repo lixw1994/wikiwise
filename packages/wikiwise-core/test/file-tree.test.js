@@ -3,7 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
-import { readTextFile, scanOneLevel } from "../src/index.js";
+import { expandTreeDirectory, readTextFile, scanOneLevel } from "../src/index.js";
 
 function makeFixture() {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "wikiwise-tree-"));
@@ -58,6 +58,31 @@ test("scanOneLevel matches native file filtering and ordering", () => {
   assert.equal(nodes[0].isDirectory, true);
   assert.deepEqual(nodes[0].children, []);
   assert.equal(nodes.at(-1).isDirectory, false);
+});
+
+test("expandTreeDirectory scans one nested directory inside the project root", () => {
+  const root = makeFixture();
+  fs.writeFileSync(path.join(root, "wiki", "home.md"), "# Home");
+  fs.writeFileSync(path.join(root, "wiki", "index.md"), "# Index");
+  fs.writeFileSync(path.join(root, "wiki", "draft.txt"), "ignored");
+
+  const children = expandTreeDirectory(root, path.join(root, "wiki"));
+
+  assert.deepEqual(
+    children.map((node) => node.name),
+    ["home.md", "index.md"]
+  );
+  assert.equal(children[0].isDirectory, false);
+});
+
+test("expandTreeDirectory rejects paths outside the project root", () => {
+  const root = makeFixture();
+  const outside = fs.mkdtempSync(path.join(os.tmpdir(), "wikiwise-outside-"));
+
+  assert.throws(
+    () => expandTreeDirectory(root, outside),
+    /inside the project/
+  );
 });
 
 test("readTextFile returns UTF-8 file contents", () => {

@@ -92,6 +92,8 @@ const state = {
   newWikiLocation: "",
   isCreatingWiki: false,
   showPostCreateGuide: false,
+  expandedTreePaths: new Set(),
+  treeLoadingPaths: new Set(),
   tree: []
 };
 
@@ -178,28 +180,182 @@ function renderApp() {
 }
 
 function renderTree(nodes) {
-  fileTree.replaceChildren(...nodes.map(renderNode));
+  fileTree.replaceChildren(...nodes.map((node) => renderNode(node, 0)));
 }
 
-function renderNode(node) {
+function renderNode(node, depth) {
   const item = document.createElement("li");
   const button = document.createElement("button");
 
   item.className = node.isDirectory ? "tree-folder" : "tree-file";
+  item.style.setProperty("--tree-depth", String(depth));
+  item.dataset.path = node.path;
+  item.setAttribute("data-path", node.path);
   button.type = "button";
-  button.textContent = node.isDirectory ? `▸ ${node.name}` : node.name;
-  button.disabled = node.isDirectory;
+  button.dataset.path = node.path;
+  button.setAttribute("data-path", node.path);
 
-  if (!node.isDirectory && state.selectedFile?.path === node.path) {
-    button.classList.add("selected");
+  if (node.isDirectory) {
+    const isExpanded = state.expandedTreePaths.has(node.path);
+    const isLoading = state.treeLoadingPaths.has(node.path);
+    const disclosure = document.createElement("span");
+    const label = document.createElement("span");
+
+    button.className = "tree-row tree-folder-button";
+    button.title = folderTooltip(node.name);
+    button.setAttribute("aria-expanded", String(isExpanded));
+    button.disabled = isLoading;
+    disclosure.className = "tree-disclosure";
+    disclosure.textContent = isLoading ? "..." : (isExpanded ? "▾" : "▸");
+    label.className = "tree-label";
+    label.textContent = node.name;
+
+    if (node.name === "raw" || node.name === "site") {
+      item.classList.add("special-folder");
+    }
+
+    button.append(disclosure, label);
+    button.addEventListener("click", () => {
+      toggleTreeFolder(node).catch(setError);
+    });
+    item.append(button);
+
+    if (isExpanded && Array.isArray(node.children) && node.children.length > 0) {
+      const children = document.createElement("ul");
+      children.className = "tree-children";
+      children.replaceChildren(...node.children.map((child) => renderNode(child, depth + 1)));
+      item.append(children);
+    }
+
+    return item;
   }
 
+  button.className = "tree-row tree-file-button";
+  button.textContent = node.name;
+  if (state.selectedFile?.path === node.path) {
+    button.classList.add("selected");
+  }
+  if (["home.md", "index.md", "log.md"].includes(node.name)) {
+    button.classList.add("special-file");
+  }
   if (!node.isDirectory) {
     button.addEventListener("click", () => selectFile(node));
   }
 
   item.append(button);
   return item;
+}
+
+function normalizeTreeNodes(nodes) {
+  return (nodes ?? []).map((node) => {
+    if (!node.isDirectory) return { ...node };
+    const children = Array.isArray(node.children) ? normalizeTreeNodes(node.children) : [];
+    return {
+      ...node,
+      children,
+      childrenLoaded: Boolean(node.childrenLoaded || children.length > 0)
+    };
+  });
+}
+
+function folderTooltip(name) {
+  switch (name) {
+  case "wiki":
+    return "Wiki pages - your editable knowledge base";
+  case "sources":
+    return "Source summaries - one page per ingested source";
+  case "raw":
+    return "Raw source documents - read-only originals";
+  case "site":
+    return "Build tooling and compiled HTML output";
+  default:
+    return name;
+  }
+}
+
+async function toggleTreeFolder(node) {
+  if (!node?.isDirectory) return;
+
+  if (state.expandedTreePaths.has(node.path)) {
+    state.expandedTreePaths.delete(node.path);
+    renderTree(state.tree);
+    return;
+  }
+
+  await expandProjectTreeFolder(node);
+}
+
+async function expandProjectTreeFolder(node, options = {}) {
+  if (!state.currentProject || !node?.isDirectory) return [];
+  if (state.treeLoadingPaths.has(node.path)) return node.children ?? [];
+
+  state.expandedTreePaths.add(node.path);
+  if (node.childrenLoaded) {
+    if (options.render !== false) renderTree(state.tree);
+    return node.children ?? [];
+  }
+
+  state.treeLoadingPaths.add(node.path);
+  if (options.render !== false) renderTree(state.tree);
+
+  try {
+    const children = await window.wikiwise.expandTreeDirectory({
+      projectRoot: state.currentProject.projectRoot,
+      directoryPath: node.path
+    });
+    node.children = normalizeTreeNodes(children);
+    node.childrenLoaded = true;
+    return node.children;
+  } finally {
+    state.treeLoadingPaths.delete(node.path);
+    if (options.render !== false) renderTree(state.tree);
+  }
+}
+
+async function autoExpandInitialTree() {
+  const defaultFolders = state.tree.filter((node) => node.isDirectory && node.name !== "site");
+  await Promise.all(defaultFolders.map((node) => expandProjectTreeFolder(node, { render: false })));
+  renderTree(state.tree);
+}
+
+function findTreeNodeByPath(nodes, targetPath) {
+  for (const node of nodes ?? []) {
+    if (node.path === targetPath) return node;
+    if (node.isDirectory) {
+      const found = findTreeNodeByPath(node.children, targetPath);
+      if (found) return found;
+    }
+  }
+  return null;
+}
+
+function pruneExpandedTreePaths(nodes, expandedPaths) {
+  const allDirectoryPaths = new Set();
+  const visit = (entries) => {
+    for (const node of entries ?? []) {
+      if (!node.isDirectory) continue;
+      allDirectoryPaths.add(node.path);
+      visit(node.children);
+    }
+  };
+  visit(nodes);
+
+  return new Set([...expandedPaths].filter((folderPath) => allDirectoryPaths.has(folderPath)));
+}
+
+async function restoreExpandedTree(previousExpandedPaths) {
+  const sortedPaths = [...previousExpandedPaths].sort((a, b) => a.length - b.length);
+  state.expandedTreePaths = new Set();
+
+  for (const folderPath of sortedPaths) {
+    const node = findTreeNodeByPath(state.tree, folderPath);
+    if (node?.isDirectory) {
+      await expandProjectTreeFolder(node, { render: false });
+    }
+  }
+
+  state.expandedTreePaths = pruneExpandedTreePaths(state.tree, state.expandedTreePaths);
+  renderTree(state.tree);
 }
 
 async function openExisting() {
@@ -244,6 +400,7 @@ async function selectFile(node, options = {}) {
     }
 
     setSelectedFile(nextFile);
+    await setActiveSelectedFile(nextFile.path);
     renderTree(state.tree);
     renderProjectToolbar();
     await refreshDocumentInfo();
@@ -269,6 +426,17 @@ function setSelectedFile(file) {
     : null;
   state.detailMode = hasCompiledPreview(file) ? "wiki" : "file";
   renderDetail();
+}
+
+async function setActiveSelectedFile(filePath = state.selectedFile?.path) {
+  if (!state.currentProject || !filePath) return null;
+  return window.wikiwise.setActiveFile({
+    projectRoot: state.currentProject.projectRoot,
+    filePath
+  }).catch((error) => {
+    setError(error);
+    return null;
+  });
 }
 
 function setDetailMode(mode) {
@@ -568,7 +736,9 @@ async function applyProjectResult(projectResult, options = {}) {
     projectRoot: projectResult.projectRoot,
     projectName: projectResult.projectName
   };
-  state.tree = projectResult.tree;
+  state.tree = normalizeTreeNodes(projectResult.tree);
+  state.expandedTreePaths = new Set();
+  state.treeLoadingPaths = new Set();
   state.showPostCreateGuide = Boolean(options.showPostCreateGuide);
   state.generatedPage = null;
   state.backHistory = [];
@@ -576,6 +746,8 @@ async function applyProjectResult(projectResult, options = {}) {
   setSelectedFile(projectResult.selectedFile);
 
   renderApp();
+  await autoExpandInitialTree();
+  await setActiveSelectedFile();
   await startProjectServices();
 }
 
@@ -1235,8 +1407,9 @@ async function handleProjectChanged(change) {
 
   try {
     if (change.kind === "structure" || change.kind === "rebuild") {
-      state.tree = await window.wikiwise.scanProject(state.currentProject.projectRoot);
-      renderTree(state.tree);
+      const previousExpandedPaths = new Set(state.expandedTreePaths);
+      state.tree = normalizeTreeNodes(await window.wikiwise.scanProject(state.currentProject.projectRoot));
+      await restoreExpandedTree(previousExpandedPaths);
     }
 
     if (generatedOutputChanged) {

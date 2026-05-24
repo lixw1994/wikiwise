@@ -1,7 +1,7 @@
 # electron-native-parity-roadmap Specification
 
 ## Purpose
-TBD - created by archiving change define-electron-native-parity-roadmap. Update Purpose after archive.
+Track the phased Electron migration against the current SwiftUI macOS app surface, including completion evidence for each native parity phase and the remaining release gates before the migration can be considered complete.
 ## Requirements
 ### Requirement: Native Feature Inventory
 
@@ -130,3 +130,11 @@ The migration roadmap SHALL record Electron PTY terminal parity as a final nativ
 - **WHEN** the Electron PTY terminal parity change is archived
 - **THEN** retained verification records PTY-backed shell startup, xterm-compatible rendering, direct input, resize evidence, and native warm palette evidence
 - **AND** remaining final parity evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation
+
+### Requirement: File Tree Expansion Parity Phase Completion Tracking
+The migration roadmap SHALL record Electron file-tree expansion parity as a native project-browser gap closure phase.
+
+#### Scenario: File tree expansion phase is archived
+- **WHEN** the Electron file-tree expansion parity change is archived
+- **THEN** retained verification records native ordering, default top-level expansion, lazy nested expansion, path-safe expansion IPC, nested file selection, and runtime audit evidence
+- **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation
