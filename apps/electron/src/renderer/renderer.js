@@ -878,7 +878,7 @@ function renderInfoTab() {
 
 function renderInfoLink(target) {
   const item = document.createElement("li");
-  item.textContent = `-> ${target}`;
+  item.textContent = `↗ ${target}`;
   return item;
 }
 

@@ -138,6 +138,15 @@ test("renderer hides empty optional info sections like native RightSidebar", () 
   assert.doesNotMatch(rendererSource, /hasMarkdownFile \? "None"/);
 });
 
+test("renderer linked info rows use native north-east marker", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+
+  assert.match(nativeSource, /Text\("\\u\{2197\} \\\(link\)"\)/);
+  assert.match(rendererSource, /item\.textContent = `↗ \$\{target\}`/);
+  assert.doesNotMatch(rendererSource, /item\.textContent = `-> \$\{target\}`/);
+});
+
 test("Electron package declares PTY and xterm terminal dependencies", () => {
   const packageJson = JSON.parse(read("package.json"));
 
