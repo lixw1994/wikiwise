@@ -1,6 +1,7 @@
 import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, shell } from "electron";
-import { spawn } from "node:child_process";
+import * as pty from "node-pty";
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
@@ -24,12 +25,14 @@ const currentFile = fileURLToPath(import.meta.url);
 const currentDir = path.dirname(currentFile);
 const packageRoot = path.resolve(currentDir, "..", "..");
 const repositoryRoot = path.resolve(packageRoot, "..", "..");
+const requireFromMain = createRequire(import.meta.url);
 const compilersByProjectRoot = new Map();
 const watchersByWebContents = new Map();
 const terminalSessionsByWebContents = new Map();
 const projectWatcherDebounceMs = 200;
 const wikiHomeRelativePath = "wiki/home.md";
 const nativeResourcesRoot = path.join(repositoryRoot, "Sources", "Wikiwise", "Resources");
+const terminalRuntimeDependencies = Object.freeze(["node-pty", "@xterm/xterm", "@xterm/addon-fit"]);
 const defaultAppSettings = Object.freeze({
   appearanceMode: "Auto",
   lastFolderPath: ""
@@ -157,6 +160,47 @@ function openGeneratedPage(payload) {
     name: payload.pageName,
     path: pagePath,
     fileUrl: pathToFileURL(pagePath).href
+  };
+}
+
+function resolveNodePackageRoot(packageName) {
+  const resolvedEntry = requireFromMain.resolve(packageName);
+  let directory = path.dirname(resolvedEntry);
+  const root = path.parse(directory).root;
+
+  while (directory !== root) {
+    const manifestPath = path.join(directory, "package.json");
+    if (fs.existsSync(manifestPath)) {
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+      if (manifest.name === packageName) {
+        return directory;
+      }
+    }
+    directory = path.dirname(directory);
+  }
+
+  throw new Error(`Unable to resolve package root for ${packageName}`);
+}
+
+function getTerminalResource() {
+  const xtermRoot = resolveNodePackageRoot("@xterm/xterm");
+  const fitRoot = resolveNodePackageRoot("@xterm/addon-fit");
+  const xtermScriptPath = requireFromMain.resolve("@xterm/xterm");
+  const fitScriptPath = requireFromMain.resolve("@xterm/addon-fit");
+  const xtermCssPath = path.join(xtermRoot, "css", "xterm.css");
+
+  for (const resourcePath of [xtermScriptPath, fitScriptPath, xtermCssPath]) {
+    if (!fs.existsSync(resourcePath)) {
+      throw new Error(`Missing bundled terminal resource: ${resourcePath}`);
+    }
+  }
+
+  return {
+    xtermRoot,
+    fitRoot,
+    xtermScriptUrl: pathToFileURL(xtermScriptPath).href,
+    fitScriptUrl: pathToFileURL(fitScriptPath).href,
+    xtermCssUrl: pathToFileURL(xtermCssPath).href
   };
 }
 
@@ -588,44 +632,68 @@ function startTerminal(webContents, payload) {
   const webContentsId = webContents.id;
   closeTerminal(webContentsId);
 
-  const shell = process.env.SHELL || (process.platform === "win32" ? "cmd.exe" : "/bin/zsh");
-  const child = spawn(shell, [], {
+  const { cols, rows } = normalizeTerminalSize(payload);
+  const shellPath = process.env.SHELL || process.env.ComSpec || (process.platform === "win32" ? "cmd.exe" : "/bin/zsh");
+  const ptyProcess = pty.spawn(shellPath, [], {
+    name: "xterm-256color",
+    cols,
+    rows,
     cwd: resolvedRoot,
-    env: process.env
+    env: {
+      ...process.env,
+      TERM: "xterm-256color",
+      COLORTERM: "truecolor"
+    }
   });
 
   const session = {
     projectRoot: resolvedRoot,
-    process: child
+    process: ptyProcess,
+    cols,
+    rows
   };
   terminalSessionsByWebContents.set(webContentsId, session);
 
-  function sendOutput(stream, chunk) {
+  function sendOutput(source, chunk) {
     if (webContents.isDestroyed()) return;
     webContents.send("wikiwise:terminalOutput", {
       projectRoot: resolvedRoot,
-      stream,
+      source,
       data: String(chunk)
     });
   }
 
-  child.stdout?.on("data", (chunk) => sendOutput("stdout", chunk));
-  child.stderr?.on("data", (chunk) => sendOutput("stderr", chunk));
-  child.on("error", (error) => sendOutput("stderr", `${error.message}\n`));
-  child.on("exit", (code, signal) => {
+  ptyProcess.onData((data) => sendOutput("pty", data));
+  ptyProcess.onExit(({ exitCode, signal }) => {
     const current = terminalSessionsByWebContents.get(webContentsId);
-    if (current?.process === child) {
+    if (current?.process === ptyProcess) {
       terminalSessionsByWebContents.delete(webContentsId);
     }
-    sendOutput("system", `\n[process exited ${signal ?? code ?? 0}]\n`);
+    sendOutput("system", `\r\n[process exited ${signal ?? exitCode ?? 0}]\r\n`);
   });
   webContents.once("destroyed", () => closeTerminal(webContentsId));
 
   return {
     started: true,
     projectRoot: resolvedRoot,
-    shell: path.basename(shell)
+    shell: path.basename(shellPath),
+    pty: true,
+    cols,
+    rows
   };
+}
+
+function normalizeTerminalSize(payload) {
+  return {
+    cols: clampTerminalDimension(payload?.cols, 80, 20, 300),
+    rows: clampTerminalDimension(payload?.rows, 24, 8, 120)
+  };
+}
+
+function clampTerminalDimension(value, fallback, min, max) {
+  const parsed = Number(value);
+  if (!Number.isFinite(parsed)) return fallback;
+  return Math.max(min, Math.min(max, Math.floor(parsed)));
 }
 
 function sendTerminalInput(webContents, payload) {
@@ -639,8 +707,21 @@ function sendTerminalInput(webContents, payload) {
     return { sent: false };
   }
 
-  session.process.stdin.write(input);
+  session.process.write(input);
   return { sent: true };
+}
+
+function resizeTerminal(webContents, payload) {
+  const session = terminalSessionsByWebContents.get(webContents.id);
+  if (!session) {
+    return { resized: false };
+  }
+
+  const { cols, rows } = normalizeTerminalSize(payload);
+  session.process.resize(cols, rows);
+  session.cols = cols;
+  session.rows = rows;
+  return { resized: true, cols, rows };
 }
 
 function closeTerminal(webContentsId) {
@@ -813,6 +894,9 @@ ipcMain.handle("wikiwise:compilePage", (_event, payload) => {
 ipcMain.handle("wikiwise:getEditorResource", () => {
   return getEditorResource();
 });
+ipcMain.handle("wikiwise:getTerminalResource", () => {
+  return getTerminalResource();
+});
 ipcMain.handle("wikiwise:saveFile", (_event, payload) => {
   return saveFile(payload);
 });
@@ -853,6 +937,9 @@ ipcMain.handle("wikiwise:startTerminal", (event, payload) => {
 });
 ipcMain.handle("wikiwise:sendTerminalInput", (event, payload) => {
   return sendTerminalInput(event.sender, payload);
+});
+ipcMain.handle("wikiwise:resizeTerminal", (event, payload) => {
+  return resizeTerminal(event.sender, payload);
 });
 ipcMain.handle("wikiwise:stopTerminal", (event) => {
   return {
@@ -906,6 +993,7 @@ export {
   getDefaultWikiLocation,
   getDocumentInfo,
   getEditorResource,
+  getTerminalResource,
   getPublishConfig,
   findMarkdownFileForSlug,
   generatedPageResult,
@@ -917,6 +1005,7 @@ export {
   readAppSettings,
   rememberProjectRoot,
   resolvePreviewNavigation,
+  resizeTerminal,
   restoreLastProject,
   saveFile,
   sendTerminalInput,

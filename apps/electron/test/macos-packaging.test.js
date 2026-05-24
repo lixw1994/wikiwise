@@ -50,6 +50,10 @@ test("packaging script embeds the Electron app and shared core package layout", 
   assert.match(script, /node_modules\/@wikiwise\/core/);
   assert.match(script, /packages\/wikiwise-core\/src/);
   assert.match(script, /packages\/wikiwise-core\/package\.json/);
+  assert.match(script, /copyElectronRuntimeDependencies/);
+  assert.match(script, /node-pty/);
+  assert.match(script, /@xterm\/xterm/);
+  assert.match(script, /@xterm\/addon-fit/);
 });
 
 test("README documents local unsigned packaging and release guardrails", () => {

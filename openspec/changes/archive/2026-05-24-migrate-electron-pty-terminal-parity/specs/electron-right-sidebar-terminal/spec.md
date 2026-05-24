@@ -1,30 +1,4 @@
-# electron-right-sidebar-terminal Specification
-
-## Purpose
-Define Electron right sidebar parity for document metadata and the project-root terminal, including PTY-backed terminal behavior that matches the native SwiftTerm surface.
-
-## Requirements
-### Requirement: Right Sidebar Layout
-
-The Electron app SHALL show a right sidebar for opened projects with INFO and TERMINAL tabs.
-
-#### Scenario: Project is open
-
-- **WHEN** a project is open
-- **THEN** the renderer displays a right sidebar next to the detail pane
-- **AND** the sidebar has INFO and TERMINAL tab controls
-- **AND** TERMINAL is the default active tab, matching native startup behavior
-
-### Requirement: Info Tab
-
-The Electron right sidebar SHALL show selected-document metadata matching native INFO behavior.
-
-#### Scenario: Markdown file is selected
-
-- **WHEN** a markdown file is selected
-- **THEN** the INFO tab shows the selected document path label, modified time label, and word count
-- **AND** it shows directions from frontmatter when present
-- **AND** it shows unique wikilink targets found in the file
+## MODIFIED Requirements
 
 ### Requirement: Terminal Tab
 

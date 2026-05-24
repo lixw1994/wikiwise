@@ -1,5 +1,6 @@
 #!/usr/bin/env node
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 
@@ -21,6 +22,13 @@ const outputAppPath = path.join(repositoryRoot, outputAppRelativePath);
 const electronPackageRoot = path.join(repositoryRoot, "apps", "electron");
 const corePackageRoot = path.join(repositoryRoot, "packages", "wikiwise-core");
 const nativeResourcesRoot = path.join(repositoryRoot, "Sources", "Wikiwise", "Resources");
+const requireFromElectronPackage = createRequire(path.join(electronPackageRoot, "package.json"));
+const electronRuntimeDependencyNames = Object.freeze([
+  "node-pty",
+  "node-addon-api",
+  "@xterm/xterm",
+  "@xterm/addon-fit"
+]);
 const productName = "Wikiwise";
 const bundleIdentifier = process.env.WIKIWISE_ELECTRON_BUNDLE_ID || "com.readwise.wikiwise";
 
@@ -144,6 +152,40 @@ function copyCorePackage() {
   );
 }
 
+function resolveDependencyRoot(packageName) {
+  const resolvedEntry = requireFromElectronPackage.resolve(packageName);
+  let directory = path.dirname(resolvedEntry);
+  const root = path.parse(directory).root;
+
+  while (directory !== root) {
+    const manifestPath = path.join(directory, "package.json");
+    if (fs.existsSync(manifestPath)) {
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+      if (manifest.name === packageName) {
+        return directory;
+      }
+    }
+    directory = path.dirname(directory);
+  }
+
+  throw new Error(`Unable to resolve Electron runtime dependency ${packageName}`);
+}
+
+function dependencyDestination(appRoot, packageName) {
+  return path.join(appRoot, "node_modules", ...packageName.split("/"));
+}
+
+function copyElectronRuntimeDependencies() {
+  const appRoot = path.join(outputAppPath, embeddedAppRelativePath);
+
+  for (const dependencyName of electronRuntimeDependencyNames) {
+    copyDirectory(
+      resolveDependencyRoot(dependencyName),
+      dependencyDestination(appRoot, dependencyName)
+    );
+  }
+}
+
 function copyNativeResources() {
   const packagedResources = path.join(outputAppPath, "Contents", "Sources", "Wikiwise", "Resources");
   copyDirectory(nativeResourcesRoot, packagedResources);
@@ -170,6 +212,7 @@ function packageElectronMacApp() {
   renameExecutable();
   copyElectronAppSource();
   copyCorePackage();
+  copyElectronRuntimeDependencies();
   copyNativeResources();
   rewriteInfoPlist();
 

@@ -66,6 +66,9 @@ test("runtime audit script covers native shell scenarios and assertions", () => 
     /sourceEditorFramePresent/,
     /sourceEditorFrameReady/,
     /codeMirrorEditorPresent/,
+    /xtermTerminalPresent/,
+    /terminalResizeObserved/,
+    /terminalInputObserved/,
     /rightSidebarHidden/,
     /previewFrameHidden/,
     /differentFromFirstPixelCount/
@@ -84,7 +87,9 @@ test("runtime audit script creates scaffold project evidence through core helper
     /wikiwise:getAppSettings/,
     /wikiwise:restoreLastProject/,
     /wikiwise:startProjectWatcher/,
-    /wikiwise:startTerminal/
+    /wikiwise:startTerminal/,
+    /wikiwise:resizeTerminal/,
+    /wikiwise:sendTerminalInput/
   ]);
 });
 

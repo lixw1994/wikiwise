@@ -1,6 +1,7 @@
 #!/usr/bin/env electron
 import { app, BrowserWindow, ipcMain, nativeTheme } from "electron";
 import fs from "node:fs";
+import { createRequire } from "node:module";
 import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
@@ -21,6 +22,7 @@ const sampleProjectParent = path.join(runtimeAuditRoot, "sample-projects");
 const reportPath = path.join(runtimeAuditRoot, "report.json");
 const rendererHtmlPath = path.join(electronPackageRoot, "src", "renderer", "index.html");
 const preloadPath = path.join(electronPackageRoot, "src", "preload", "preload.cjs");
+const requireFromAudit = createRequire(import.meta.url);
 const viewport = Object.freeze({ width: 1180, height: 780 });
 const scenarios = Object.freeze([
   { name: "welcome-light", kind: "welcome", appearanceMode: "Light" },
@@ -31,6 +33,8 @@ const scenarios = Object.freeze([
 
 let activeScenario = null;
 let auditProject = null;
+let terminalResizeObserved = false;
+let terminalInputObserved = false;
 const auditIpcChannels = Object.freeze([
   "wikiwise:getAppSettings",
   "wikiwise:setAppearanceMode",
@@ -39,6 +43,7 @@ const auditIpcChannels = Object.freeze([
   "wikiwise:stopProjectWatcher",
   "wikiwise:startTerminal",
   "wikiwise:sendTerminalInput",
+  "wikiwise:resizeTerminal",
   "wikiwise:stopTerminal",
   "wikiwise:getDocumentInfo",
   "wikiwise:getPublishConfig",
@@ -46,6 +51,7 @@ const auditIpcChannels = Object.freeze([
   "wikiwise:readFile",
   "wikiwise:compilePage",
   "wikiwise:getEditorResource",
+  "wikiwise:getTerminalResource",
   "wikiwise:openGeneratedPage",
   "wikiwise:resolvePreviewNavigation",
   "wikiwise:openExternalUrl",
@@ -127,6 +133,34 @@ function createAuditPreviewFile() {
   return previewPath;
 }
 
+function resolveAuditPackageRoot(packageName) {
+  const resolvedEntry = requireFromAudit.resolve(packageName);
+  let directory = path.dirname(resolvedEntry);
+  const root = path.parse(directory).root;
+
+  while (directory !== root) {
+    const manifestPath = path.join(directory, "package.json");
+    if (fs.existsSync(manifestPath)) {
+      const manifest = JSON.parse(fs.readFileSync(manifestPath, "utf8"));
+      if (manifest.name === packageName) {
+        return directory;
+      }
+    }
+    directory = path.dirname(directory);
+  }
+
+  throw new Error(`Unable to resolve audit package root for ${packageName}`);
+}
+
+function getAuditTerminalResource() {
+  const xtermRoot = resolveAuditPackageRoot("@xterm/xterm");
+  return {
+    xtermScriptUrl: pathToFileURL(requireFromAudit.resolve("@xterm/xterm")).href,
+    fitScriptUrl: pathToFileURL(requireFromAudit.resolve("@xterm/addon-fit")).href,
+    xtermCssUrl: pathToFileURL(path.join(xtermRoot, "css", "xterm.css")).href
+  };
+}
+
 function registerAuditIpcHandlers() {
   for (const channel of auditIpcChannels) {
     ipcMain.removeHandler(channel);
@@ -151,13 +185,20 @@ function registerAuditIpcHandlers() {
         event.sender.send("wikiwise:terminalOutput", {
           projectRoot: payload?.projectRoot,
           source: "system",
-          data: "$ runtime audit ready\n"
+          data: "\x1b[32m$ runtime audit ready\x1b[0m\r\n"
         });
       }
     }, 25);
+    return { ok: true, pty: true, cols: payload?.cols, rows: payload?.rows };
+  });
+  ipcMain.handle("wikiwise:sendTerminalInput", (_event, payload) => {
+    terminalInputObserved = Boolean(payload?.input);
     return { ok: true };
   });
-  ipcMain.handle("wikiwise:sendTerminalInput", () => ({ ok: true }));
+  ipcMain.handle("wikiwise:resizeTerminal", (_event, payload) => {
+    terminalResizeObserved = Number(payload?.cols) > 0 && Number(payload?.rows) > 0;
+    return { ok: true, cols: payload?.cols, rows: payload?.rows };
+  });
   ipcMain.handle("wikiwise:stopTerminal", () => ({ ok: true }));
   ipcMain.handle("wikiwise:getDocumentInfo", (_event, payload) => {
     return summarizeDocumentInfo(payload.filePath);
@@ -186,6 +227,7 @@ function registerAuditIpcHandlers() {
       bundlePath: path.join(repositoryRoot, "Sources", "Wikiwise", "Resources", "codemirror-bundle.js")
     };
   });
+  ipcMain.handle("wikiwise:getTerminalResource", () => getAuditTerminalResource());
   ipcMain.handle("wikiwise:openGeneratedPage", () => null);
   ipcMain.handle("wikiwise:resolvePreviewNavigation", () => null);
   ipcMain.handle("wikiwise:openExternalUrl", () => ({ ok: true }));
@@ -233,6 +275,8 @@ function createAuditWindow() {
 
 async function runScenario(window, scenario) {
   activeScenario = scenario;
+  terminalResizeObserved = false;
+  terminalInputObserved = false;
   nativeTheme.themeSource = scenario.appearanceMode.toLowerCase();
   console.log(`Running runtime audit scenario: ${scenario.name}`);
 
@@ -248,6 +292,12 @@ async function runScenario(window, scenario) {
       )`,
       `scenario ${scenario.name} CodeMirror editor to render`
     );
+    await waitForCondition(
+      window,
+      `Boolean(document.querySelector("#terminal-surface .xterm") && window.__wikiwiseTerminal)`,
+      `scenario ${scenario.name} xterm terminal to render`
+    );
+    await window.webContents.executeJavaScript(`window.__wikiwiseTerminal?.input("echo runtime audit\\r")`, true);
   }
   await delay(120);
 
@@ -256,6 +306,8 @@ async function runScenario(window, scenario) {
   fs.writeFileSync(screenshotPath, image.toPNG());
 
   const dom = await readDomEvidence(window);
+  dom.terminalResizeObserved = terminalResizeObserved;
+  dom.terminalInputObserved = terminalInputObserved;
   const screenshot = screenshotStats(image);
   const assertions = assertScenario(scenario, dom, screenshot);
   console.log(`Captured runtime audit scenario: ${scenario.name}`);
@@ -310,10 +362,16 @@ async function readDomEvidence(window) {
         left: Math.round(rect.left)
       };
     };
-    const textFor = (selector) => document.querySelector(selector)?.textContent?.trim() ?? "";
-    const sourceEditorFrame = document.querySelector("#source-editor-frame");
-    const sourceEditorDocument = sourceEditorFrame?.contentDocument;
-    return {
+	    const textFor = (selector) => document.querySelector(selector)?.textContent?.trim() ?? "";
+	    const sourceEditorFrame = document.querySelector("#source-editor-frame");
+	    const sourceEditorDocument = sourceEditorFrame?.contentDocument;
+	    const terminalSurface = document.querySelector("#terminal-surface");
+	    const terminalLineText = window.__wikiwiseTerminal?.buffer?.active
+	      ? Array.from({ length: window.__wikiwiseTerminal.buffer.active.length }, (_value, index) =>
+	          window.__wikiwiseTerminal.buffer.active.getLine(index)?.translateToString(true) ?? ""
+	        ).join("\\n").trim()
+	      : "";
+	    return {
       documentTitle: document.title,
       bodyText: document.body.innerText,
       welcomeHidden: Boolean(document.querySelector("#welcome")?.hidden),
@@ -332,10 +390,11 @@ async function readDomEvidence(window) {
       sourceEditorFrameHidden: Boolean(sourceEditorFrame?.hidden),
       codeMirrorEditorPresent: Boolean(sourceEditorDocument?.querySelector(".cm-editor")),
       previewFrameHidden: Boolean(document.querySelector("#preview-frame")?.hidden),
-      rightSidebarHidden: Boolean(document.querySelector("#right-sidebar")?.hidden),
-      terminalText: textFor("#terminal-output"),
-      errorText: textFor("#error-message")
-    };
+	      rightSidebarHidden: Boolean(document.querySelector("#right-sidebar")?.hidden),
+	      xtermTerminalPresent: Boolean(terminalSurface?.querySelector(".xterm")),
+	      terminalText: window.__wikiwiseTerminalText || terminalLineText || textFor("#terminal-surface"),
+	      errorText: textFor("#error-message")
+	    };
   })()`, true);
 }
 
@@ -427,12 +486,21 @@ function assertScenario(scenario, dom, screenshot) {
     if (!dom.previewFrameHidden) {
       failures.push("Compiled preview frame is visible during editor audit mode.");
     }
-    if (dom.rightSidebarHidden) {
-      failures.push("Right sidebar is hidden.");
-    }
-    if (!/runtime audit ready|Starting shell/.test(dom.terminalText)) {
-      failures.push("Terminal panel did not render audit output.");
-    }
+	    if (dom.rightSidebarHidden) {
+	      failures.push("Right sidebar is hidden.");
+	    }
+	    if (!dom.xtermTerminalPresent) {
+	      failures.push("Terminal panel did not render an xterm terminal surface.");
+	    }
+	    if (!dom.terminalResizeObserved) {
+	      failures.push("Terminal resize was not sent through the preload bridge.");
+	    }
+	    if (!dom.terminalInputObserved) {
+	      failures.push("Terminal input was not sent through the preload bridge.");
+	    }
+	    if (!/runtime audit ready|Starting shell/.test(dom.terminalText)) {
+	      failures.push("Terminal panel did not render audit output.");
+	    }
   }
 
   return failures;

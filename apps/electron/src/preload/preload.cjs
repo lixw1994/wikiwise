@@ -12,6 +12,7 @@ contextBridge.exposeInMainWorld("wikiwise", {
   readFile: (filePath) => ipcRenderer.invoke("wikiwise:readFile", filePath),
   compilePage: (payload) => ipcRenderer.invoke("wikiwise:compilePage", payload),
   getEditorResource: () => ipcRenderer.invoke("wikiwise:getEditorResource"),
+  getTerminalResource: () => ipcRenderer.invoke("wikiwise:getTerminalResource"),
   saveFile: (payload) => ipcRenderer.invoke("wikiwise:saveFile", payload),
   getDocumentInfo: (payload) => ipcRenderer.invoke("wikiwise:getDocumentInfo", payload),
   getPublishConfig: (payload) => ipcRenderer.invoke("wikiwise:getPublishConfig", payload),
@@ -25,6 +26,7 @@ contextBridge.exposeInMainWorld("wikiwise", {
   stopProjectWatcher: () => ipcRenderer.invoke("wikiwise:stopProjectWatcher"),
   startTerminal: (payload) => ipcRenderer.invoke("wikiwise:startTerminal", payload),
   sendTerminalInput: (payload) => ipcRenderer.invoke("wikiwise:sendTerminalInput", payload),
+  resizeTerminal: (payload) => ipcRenderer.invoke("wikiwise:resizeTerminal", payload),
   stopTerminal: () => ipcRenderer.invoke("wikiwise:stopTerminal"),
   onProjectChanged: (callback) => {
     const listener = (_event, payload) => callback(payload);

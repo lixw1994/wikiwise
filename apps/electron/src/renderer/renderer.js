@@ -27,9 +27,7 @@ const infoWords = document.querySelector("#info-words");
 const infoDirections = document.querySelector("#info-directions");
 const infoLinks = document.querySelector("#info-links");
 const terminalPanel = document.querySelector("#terminal-panel");
-const terminalOutput = document.querySelector("#terminal-output");
-const terminalInput = document.querySelector("#terminal-input");
-const terminalSendButton = document.querySelector("#terminal-send");
+const terminalSurface = document.querySelector("#terminal-surface");
 const openExistingButton = document.querySelector("#open-existing");
 const createNewButton = document.querySelector("#create-new");
 const newWikiDialog = document.querySelector("#new-wiki-dialog");
@@ -54,6 +52,7 @@ const guideCodexCommand = document.querySelector("#guide-codex-command");
 const guideCursorCommand = document.querySelector("#guide-cursor-command");
 const dismissPostCreateGuideButton = document.querySelector("#dismiss-post-create-guide");
 const errorMessage = document.querySelector("#error-message");
+const scriptLoadPromises = new Map();
 
 const state = {
   currentProject: null,
@@ -74,7 +73,11 @@ const state = {
   projectWatcherCleanup: null,
   terminalOutputCleanup: null,
   documentInfo: null,
-  terminalTranscript: "",
+  terminalInstance: null,
+  terminalFitAddon: null,
+  terminalResizeObserver: null,
+  terminalResourcesLoaded: false,
+  terminalResizeTimer: null,
   publishConfig: null,
   isPublishDialogOpen: false,
   publishSubdomain: "",
@@ -117,6 +120,39 @@ async function loadEditorResource() {
   state.editorResourceUrl = resource.fileUrl;
   sourceEditorFrame.src = resource.fileUrl;
   return state.editorResourceUrl;
+}
+
+function loadScriptOnce(id, src) {
+  if (scriptLoadPromises.has(id)) return scriptLoadPromises.get(id);
+  if (document.getElementById(id)) return Promise.resolve();
+
+  const loadPromise = new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.id = id;
+    script.src = src;
+    script.onload = () => resolve();
+    script.onerror = () => reject(new Error(`Failed to load ${src}`));
+    document.head.append(script);
+  });
+  scriptLoadPromises.set(id, loadPromise);
+  return loadPromise;
+}
+
+async function loadTerminalResources() {
+  if (state.terminalResourcesLoaded) return;
+
+  const resource = await window.wikiwise.getTerminalResource();
+  if (!document.getElementById("wikiwise-terminal-css")) {
+    const link = document.createElement("link");
+    link.id = "wikiwise-terminal-css";
+    link.rel = "stylesheet";
+    link.href = resource.xtermCssUrl;
+    document.head.append(link);
+  }
+
+  await loadScriptOnce("wikiwise-xterm-script", resource.xtermScriptUrl);
+  await loadScriptOnce("wikiwise-xterm-fit-script", resource.fitScriptUrl);
+  state.terminalResourcesLoaded = true;
 }
 
 function renderApp() {
@@ -391,10 +427,140 @@ function renderInfoLink(target) {
 }
 
 function renderTerminalTab() {
-  terminalOutput.textContent = state.terminalTranscript || "Starting shell...";
-  terminalInput.disabled = !state.currentProject;
-  terminalSendButton.disabled = !state.currentProject;
-  terminalOutput.scrollTop = terminalOutput.scrollHeight;
+  terminalSurface.classList.toggle("inactive", !state.currentProject);
+  if (state.currentProject && state.rightSidebarTab === "terminal") {
+    ensureTerminalInstance().catch(setError);
+    fitTerminal();
+  }
+}
+
+async function ensureTerminalInstance() {
+  if (state.terminalInstance) return state.terminalInstance;
+
+  await loadTerminalResources();
+  const TerminalCtor = window.Terminal?.Terminal ?? window.Terminal;
+  const FitAddonCtor = window.FitAddon?.FitAddon ?? window.FitAddon;
+  if (!TerminalCtor || !FitAddonCtor) {
+    throw new Error("Terminal resources did not expose xterm constructors.");
+  }
+
+  const terminalInstance = new TerminalCtor({
+    cursorBlink: true,
+    fontFamily: '"JetBrains Mono", "SFMono-Regular", Menlo, monospace',
+    fontSize: 12,
+    lineHeight: 1.1,
+    scrollback: 5000,
+    convertEol: true,
+    theme: terminalTheme()
+  });
+  const terminalFitAddon = new FitAddonCtor();
+
+  terminalInstance.loadAddon(terminalFitAddon);
+  terminalInstance.open(terminalSurface);
+  terminalInstance.onData((input) => {
+    window.wikiwise.sendTerminalInput({ input }).catch(setError);
+  });
+
+  state.terminalInstance = terminalInstance;
+  state.terminalFitAddon = terminalFitAddon;
+  window.__wikiwiseTerminal = terminalInstance;
+  window.__wikiwiseTerminalText = "";
+  observeTerminalResize();
+  fitTerminal();
+  return terminalInstance;
+}
+
+function observeTerminalResize() {
+  if (state.terminalResizeObserver || !window.ResizeObserver) return;
+
+  state.terminalResizeObserver = new ResizeObserver(() => fitTerminal());
+  state.terminalResizeObserver.observe(terminalSurface);
+}
+
+function terminalTheme() {
+  const isDark = state.appearanceMode === "Dark"
+    || (state.appearanceMode === "Auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+
+  return isDark
+    ? {
+        background: "#0E0C08",
+        foreground: "#CFC3A3",
+        cursor: "#C2A96B",
+        selectionBackground: "#C2A96B33",
+        black: "#1E1B14",
+        red: "#B85E5E",
+        green: "#7F965B",
+        yellow: "#C2A96B",
+        blue: "#6B7FA3",
+        magenta: "#A36B8F",
+        cyan: "#6B9696",
+        white: "#A89A7C",
+        brightBlack: "#6F6450",
+        brightRed: "#D07070",
+        brightGreen: "#96AD70",
+        brightYellow: "#D4BE80",
+        brightBlue: "#8096B8",
+        brightMagenta: "#B880A3",
+        brightCyan: "#80ADAD",
+        brightWhite: "#F4EACF"
+      }
+    : {
+        background: "#F3EDDE",
+        foreground: "#5B5240",
+        cursor: "#7A1F1F",
+        selectionBackground: "#B89B5A33",
+        black: "#3A2F1C",
+        red: "#9B3D3D",
+        green: "#6B7F4A",
+        yellow: "#B89B5A",
+        blue: "#5B6A8A",
+        magenta: "#8A5B7A",
+        cyan: "#5B7F7F",
+        white: "#D9CFB9",
+        brightBlack: "#7A6E54",
+        brightRed: "#B84E4E",
+        brightGreen: "#7F965B",
+        brightYellow: "#C8AE6B",
+        brightBlue: "#6B7FA3",
+        brightMagenta: "#A36B8F",
+        brightCyan: "#6B9696",
+        brightWhite: "#F3EDDE"
+      };
+}
+
+function applyTerminalTheme() {
+  if (!state.terminalInstance) return;
+  state.terminalInstance.options.theme = terminalTheme();
+}
+
+function fitTerminal() {
+  if (!state.terminalInstance || !state.terminalFitAddon || terminalPanel.hidden) return;
+
+  try {
+    state.terminalFitAddon.fit();
+    resizeTerminal();
+  } catch {
+    // xterm cannot fit until fonts and cell metrics are ready.
+  }
+}
+
+function resizeTerminal() {
+  if (!state.currentProject || !state.terminalInstance) return;
+
+  clearTimeout(state.terminalResizeTimer);
+  state.terminalResizeTimer = setTimeout(() => sendTerminalResize(), 40);
+}
+
+function sendTerminalResize() {
+  if (!state.currentProject || !state.terminalInstance) return Promise.resolve({ resized: false });
+
+  return window.wikiwise.resizeTerminal({
+    cols: state.terminalInstance.cols,
+    rows: state.terminalInstance.rows
+  }).catch((error) => {
+    setError(error);
+    return { resized: false };
+  });
 }
 
 async function applyProjectResult(projectResult, options = {}) {
@@ -514,6 +680,7 @@ async function loadAppSettings() {
 
 function applyAppearanceModeToDocument() {
   document.documentElement.dataset.appearance = state.appearanceMode;
+  applyTerminalTheme();
 }
 
 async function restoreLastProject() {
@@ -971,20 +1138,24 @@ async function startTerminal() {
     state.terminalOutputCleanup = null;
   }
   if (!state.currentProject) {
-    state.terminalTranscript = "";
     await window.wikiwise.stopTerminal();
+    state.terminalInstance?.clear?.();
     renderTerminalTab();
     return;
   }
 
-  state.terminalTranscript = "";
-  renderTerminalTab();
-
+  const terminalInstance = await ensureTerminalInstance();
+  terminalInstance.clear();
+  terminalInstance.writeln("Starting shell...");
+  window.__wikiwiseTerminalText = "Starting shell...\n";
   const cleanup = window.wikiwise.onTerminalOutput(handleTerminalOutput);
   try {
     await window.wikiwise.startTerminal({
-      projectRoot: state.currentProject.projectRoot
+      projectRoot: state.currentProject.projectRoot,
+      cols: terminalInstance.cols,
+      rows: terminalInstance.rows
     });
+    await sendTerminalResize();
     state.terminalOutputCleanup = cleanup;
   } catch (error) {
     cleanup();
@@ -992,35 +1163,28 @@ async function startTerminal() {
   }
 }
 
+function disposeTerminalView() {
+  clearTimeout(state.terminalResizeTimer);
+  state.terminalResizeObserver?.disconnect();
+  state.terminalResizeObserver = null;
+}
+
 function handleTerminalOutput(output) {
   if (!state.currentProject || output.projectRoot !== state.currentProject.projectRoot) {
     return;
   }
 
-  state.terminalTranscript = `${state.terminalTranscript}${output.data}`;
-  if (state.terminalTranscript.length > 24000) {
-    state.terminalTranscript = state.terminalTranscript.slice(-24000);
-  }
-  renderTerminalTab();
+  ensureTerminalInstance()
+    .then((terminalInstance) => {
+      window.__wikiwiseTerminalText = `${window.__wikiwiseTerminalText ?? ""}${output.data}`.slice(-4000);
+      terminalInstance.write(output.data);
+    })
+    .catch(setError);
 }
 
 async function sendTerminalInput() {
-  if (!state.currentProject) return;
-
-  const command = terminalInput.value;
-  if (!command.trim()) return;
-
-  terminalInput.value = "";
-  state.terminalTranscript = `${state.terminalTranscript}$ ${command}\n`;
-  renderTerminalTab();
-
-  try {
-    await window.wikiwise.sendTerminalInput({
-      input: `${command}\n`
-    });
-  } catch (error) {
-    setError(error);
-  }
+  if (!state.currentProject || !state.terminalInstance) return;
+  state.terminalInstance.focus();
 }
 
 async function refreshDocumentInfo() {
@@ -1288,6 +1452,7 @@ bootApp();
 
 openExistingButton.addEventListener("click", openExisting);
 window.addEventListener("message", handleEditorMessage);
+window.addEventListener("beforeunload", disposeTerminalView);
 saveButton.addEventListener("click", () => saveSelectedFile({ reason: "button" }));
 document.addEventListener("keydown", (event) => {
   if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {
@@ -1307,13 +1472,6 @@ openMapButton.addEventListener("click", openMap);
 toggleRightSidebarButton.addEventListener("click", toggleRightSidebar);
 rightTabInfoButton.addEventListener("click", () => setRightSidebarTab("info"));
 rightTabTerminalButton.addEventListener("click", () => setRightSidebarTab("terminal"));
-terminalSendButton.addEventListener("click", sendTerminalInput);
-terminalInput.addEventListener("keydown", (event) => {
-  if (event.key === "Enter") {
-    event.preventDefault();
-    sendTerminalInput();
-  }
-});
 createNewButton.addEventListener("click", openNewWikiDialog);
 publishSubdomainInput.addEventListener("input", () => {
   const sanitized = sanitizePublishSubdomain(publishSubdomainInput.value);
