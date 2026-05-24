@@ -1,8 +1,5 @@
-# electron-project-lifecycle Specification
+## MODIFIED Requirements
 
-## Purpose
-TBD - created by archiving change migrate-electron-project-lifecycle. Update Purpose after archive.
-## Requirements
 ### Requirement: Welcome Entry Points
 
 The Electron app SHALL show a welcome state with entry points for creating a new wiki and opening an existing folder, matching the native app's first-step structure.
@@ -39,16 +36,6 @@ The Electron app SHALL let the user choose an existing directory or file through
 - **AND** scans visible project files
 - **AND** displays the created wiki name in the app chrome
 - **AND** scans compiler metadata and compiles `wiki/home.md`
-
-### Requirement: File Tree Selection
-
-The Electron app SHALL render a file tree from the current project and allow selecting visible files.
-
-#### Scenario: User selects a file
-
-- **WHEN** the user selects a visible file in the Electron file tree
-- **THEN** the selected file path is stored in renderer state
-- **AND** the file content is displayed in the detail area
 
 ### Requirement: Phase Gap Disclosure
 

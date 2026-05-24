@@ -68,6 +68,114 @@ export function writeActiveFile(projectRoot, filePath) {
   };
 }
 
+export function slugForWikiName(name) {
+  return String(name)
+    .trim()
+    .toLowerCase()
+    .replace(/ /g, "-")
+    .replace(/[^\p{L}\p{N}-]/gu, "");
+}
+
+export function createWikiScaffold(options = {}) {
+  const name = String(options.name ?? "").trim();
+  if (!name) {
+    throw new Error("createWikiScaffold requires a wiki name");
+  }
+  if (!options.parentDir) {
+    throw new Error("createWikiScaffold requires parentDir");
+  }
+
+  const repositoryRoot = path.resolve(options.repositoryRoot ?? defaultRepositoryRoot());
+  const parentDir = path.resolve(options.parentDir);
+  const slug = slugForWikiName(name);
+  if (!slug) {
+    throw new Error("createWikiScaffold requires a sluggable wiki name");
+  }
+
+  const wikiPath = path.join(parentDir, slug);
+  const scaffoldDir = path.join(repositoryRoot, "Sources", "Wikiwise", "Resources", "scaffold");
+  if (!fs.existsSync(scaffoldDir)) {
+    throw new Error(`Missing Wikiwise scaffold resources: ${scaffoldDir}`);
+  }
+
+  for (const directoryPath of [
+    wikiPath,
+    path.join(wikiPath, "raw"),
+    path.join(wikiPath, "wiki"),
+    path.join(wikiPath, "wiki", "sources"),
+    path.join(wikiPath, "site"),
+    path.join(wikiPath, "site", "out"),
+    path.join(wikiPath, ".claude"),
+    path.join(wikiPath, ".claude", "skills")
+  ]) {
+    fs.mkdirSync(directoryPath, { recursive: true });
+  }
+
+  copyTemplateFile(
+    path.join(scaffoldDir, "CLAUDE.md"),
+    path.join(wikiPath, "CLAUDE.md"),
+    [["{{WIKI_NAME}}", name]]
+  );
+  fs.copyFileSync(path.join(scaffoldDir, "AGENTS.md"), path.join(wikiPath, "AGENTS.md"));
+
+  const llmWikiPath = path.join(scaffoldDir, "llm-wiki.md");
+  if (fs.existsSync(llmWikiPath)) {
+    fs.copyFileSync(llmWikiPath, path.join(wikiPath, "llm-wiki.md"));
+  }
+
+  for (const fileName of ["home.md", "index.md", "log.md"]) {
+    const sourcePath = path.join(scaffoldDir, "wiki", fileName);
+    const destinationPath = path.join(wikiPath, "wiki", fileName);
+    if (fileName === "home.md") {
+      copyTemplateFile(sourcePath, destinationPath, [["{{WIKI_PATH}}", wikiPath]]);
+    } else {
+      fs.copyFileSync(sourcePath, destinationPath);
+    }
+  }
+
+  for (const skill of [
+    "ingest",
+    "digest",
+    "lint",
+    "ingest-tweets",
+    "import-readwise",
+    "fetch-readwise-document",
+    "fetch-readwise-highlights",
+    "upgrade"
+  ]) {
+    fs.cpSync(path.join(scaffoldDir, "skills", skill), path.join(wikiPath, ".claude", "skills", skill), {
+      recursive: true
+    });
+  }
+
+  writeTextFile(path.join(wikiPath, ".claude", "settings.json"), scaffoldSettingsJson());
+  fs.copyFileSync(resolveRepositoryResourcePath(repositoryRoot, "build.js"), path.join(wikiPath, "site", "build.js"));
+  fs.copyFileSync(resolveRepositoryResourcePath(repositoryRoot, "style.css"), path.join(wikiPath, "site", "style.css"));
+
+  for (const resourceName of [
+    "markdown-it.min.js",
+    "app.js",
+    "graph.js",
+    "map.html",
+    "map-3d.html"
+  ]) {
+    fs.copyFileSync(
+      resolveRepositoryResourcePath(repositoryRoot, resourceName),
+      path.join(wikiPath, "site", resourceName)
+    );
+  }
+
+  const createdDate = options.createdDate ?? currentISODate();
+  writeTextFile(path.join(wikiPath, ".claude", "scaffold-version"), `created:${createdDate}\n`);
+  writeTextFile(path.join(wikiPath, ".gitignore"), "site/out/\npublish.json\n.rebuild\n");
+
+  return {
+    path: wikiPath,
+    name,
+    slug
+  };
+}
+
 export function summarizeWatchEvents({ projectRoot, outputDir, events }) {
   let cssChanged = false;
   let rebuildTriggered = false;
@@ -379,6 +487,41 @@ function createWatchSummary(kind, cssChanged, changedMarkdownPaths, structureCha
     changedMarkdownPaths,
     structureChanged
   };
+}
+
+function copyTemplateFile(sourcePath, destinationPath, replacements) {
+  let content = fs.readFileSync(sourcePath, "utf8");
+  for (const [placeholder, value] of replacements) {
+    content = content.split(placeholder).join(value);
+  }
+  writeTextFile(destinationPath, content);
+}
+
+function scaffoldSettingsJson() {
+  return `{
+  "permissions": {
+    "allow": ["Read", "Write", "Edit", "Glob", "Grep", "Bash(*)"]
+  },
+  "hooks": {
+    "UserPromptSubmit": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo \\"[Active file: $(cat .claude/active-file 2>/dev/null || echo none)]\\"",
+            "timeout": 2000
+          }
+        ]
+      }
+    ]
+  }
+}
+`;
+}
+
+function currentISODate() {
+  return new Date().toISOString().slice(0, 10);
 }
 
 function isPathInside(filePath, directoryPath) {

@@ -27,10 +27,29 @@
             Open Existing Folder
           </button>
         </div>
-        <p class="phase-note">
-          New wiki creation lands in a later OpenSpec phase. Open an existing
-          folder or text file in this phase.
-        </p>
+      </section>
+
+      <section id="new-wiki-dialog" class="modal-backdrop" hidden>
+        <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="new-wiki-title">
+          <h2 id="new-wiki-title">Create a New Wiki</h2>
+          <label class="field-label" for="new-wiki-name">Name</label>
+          <input id="new-wiki-name" class="text-input" type="text" placeholder="My Wiki" />
+          <div class="location-row">
+            <div>
+              <p class="field-label">Location</p>
+              <p id="new-wiki-location" class="location-path"></p>
+            </div>
+            <button id="choose-new-wiki-location" class="secondary-action compact" type="button">
+              Choose
+            </button>
+          </div>
+          <div class="modal-actions">
+            <button id="cancel-create-new" class="secondary-action" type="button">Cancel</button>
+            <button id="confirm-create-new" class="primary-action" type="button" disabled>
+              Create
+            </button>
+          </div>
+        </div>
       </section>
 
       <section id="project" class="project-shell" hidden>
@@ -70,6 +89,38 @@
             sandbox="allow-scripts allow-same-origin"
             hidden
           ></iframe>
+          <section id="post-create-guide" class="post-create-guide" hidden>
+            <div class="guide-block">
+              <h2>Your wiki is ready</h2>
+              <p>
+                Wikiwise created the folder structure, build tools, and agent skills.
+                Now seed it with sources.
+              </p>
+            </div>
+            <div class="guide-block">
+              <p class="eyebrow">Open your agent</p>
+              <p>Use the built-in terminal in a later phase, or open your own terminal:</p>
+              <pre><code id="guide-claude-command"></code></pre>
+              <pre><code id="guide-codex-command"></code></pre>
+              <pre><code id="guide-cursor-command"></code></pre>
+            </div>
+            <div class="guide-block">
+              <p class="eyebrow">Seed your wiki</p>
+              <ul>
+                <li><strong>Import from Readwise:</strong> <code>/import-readwise</code></li>
+                <li><strong>Ingest an article:</strong> <code>Ingest this article: [paste URL]</code></li>
+                <li><strong>Import existing files:</strong> <code>Ingest the files in ~/my-notes/ into this wiki</code></li>
+                <li><strong>Start from a topic:</strong> <code>Start a wiki about [your topic]</code></li>
+              </ul>
+            </div>
+            <p>
+              This is your project. You can change the styles, page structure, and build pipeline
+              with your agent.
+            </p>
+            <button id="dismiss-post-create-guide" class="primary-action" type="button">
+              Got it - start reading
+            </button>
+          </section>
         </section>
       </section>
 

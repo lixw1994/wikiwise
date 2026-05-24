@@ -29,7 +29,7 @@ test("preload bridge exposes project lifecycle APIs", () => {
   assert.match(preloadSource, /readFile:\s*\(filePath\)\s*=>\s*ipcRenderer\.invoke\("wikiwise:readFile"/);
 });
 
-test("renderer contains project lifecycle state and deferred feature messaging", () => {
+test("renderer contains project lifecycle state and welcome entry points", () => {
   const rendererSource = read("src/renderer/renderer.js");
   const htmlSource = read("src/renderer/index.html");
 
@@ -42,5 +42,5 @@ test("renderer contains project lifecycle state and deferred feature messaging",
   assert.match(htmlSource, /id="create-new"/);
   assert.match(htmlSource, /id="file-tree"/);
   assert.match(htmlSource, /id="source-editor"/);
-  assert.match(htmlSource, /later OpenSpec phase/);
+  assert.match(htmlSource, /id="new-wiki-dialog"/);
 });

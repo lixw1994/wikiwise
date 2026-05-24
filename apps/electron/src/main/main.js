@@ -4,6 +4,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   WikiCompiler,
+  createWikiScaffold,
   getBundledResourceNames,
   readTextFile,
   resolveRepositoryResourcePath,
@@ -218,6 +219,46 @@ function saveFile(payload) {
   };
 }
 
+function getDefaultWikiLocation() {
+  return path.join(app.getPath("home"), "wikis");
+}
+
+async function chooseNewWikiLocation(browserWindow) {
+  const result = await dialog.showOpenDialog(browserWindow, {
+    title: "Choose where to create your wiki",
+    message: "Choose where to create your wiki",
+    defaultPath: getDefaultWikiLocation(),
+    properties: ["openDirectory", "createDirectory"]
+  });
+
+  if (result.canceled || result.filePaths.length === 0) {
+    return { canceled: true, path: null };
+  }
+
+  return {
+    canceled: false,
+    path: result.filePaths[0]
+  };
+}
+
+function createNewWiki(payload) {
+  if (!payload?.name || !payload?.parentDir) {
+    throw new Error("createNewWiki requires name and parentDir");
+  }
+
+  const scaffold = createWikiScaffold({
+    repositoryRoot,
+    parentDir: payload.parentDir,
+    name: payload.name
+  });
+
+  return {
+    created: true,
+    scaffold,
+    project: createProjectResult(scaffold.path)
+  };
+}
+
 function compileWikiHomeIfPresent(projectRoot) {
   const homePath = path.join(projectRoot, ...wikiHomeRelativePath.split("/"));
   if (!fs.existsSync(homePath)) return null;
@@ -316,6 +357,15 @@ ipcMain.handle("wikiwise:compilePage", (_event, payload) => {
 ipcMain.handle("wikiwise:saveFile", (_event, payload) => {
   return saveFile(payload);
 });
+ipcMain.handle("wikiwise:getDefaultWikiLocation", () => {
+  return getDefaultWikiLocation();
+});
+ipcMain.handle("wikiwise:chooseNewWikiLocation", (event) => {
+  return chooseNewWikiLocation(BrowserWindow.fromWebContents(event.sender));
+});
+ipcMain.handle("wikiwise:createNewWiki", (_event, payload) => {
+  return createNewWiki(payload);
+});
 ipcMain.handle("wikiwise:startProjectWatcher", (event, payload) => {
   return startProjectWatcher(event.sender, payload);
 });
@@ -346,8 +396,11 @@ export {
   assertProjectPath,
   closeProjectWatcher,
   compileMarkdownFile,
+  createNewWiki,
   createMainWindow,
   createProjectResult,
+  chooseNewWikiLocation,
+  getDefaultWikiLocation,
   getResourceManifest,
   openExistingProject,
   saveFile,

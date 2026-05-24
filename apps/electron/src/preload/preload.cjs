@@ -7,6 +7,9 @@ contextBridge.exposeInMainWorld("wikiwise", {
   readFile: (filePath) => ipcRenderer.invoke("wikiwise:readFile", filePath),
   compilePage: (payload) => ipcRenderer.invoke("wikiwise:compilePage", payload),
   saveFile: (payload) => ipcRenderer.invoke("wikiwise:saveFile", payload),
+  getDefaultWikiLocation: () => ipcRenderer.invoke("wikiwise:getDefaultWikiLocation"),
+  chooseNewWikiLocation: () => ipcRenderer.invoke("wikiwise:chooseNewWikiLocation"),
+  createNewWiki: (payload) => ipcRenderer.invoke("wikiwise:createNewWiki", payload),
   startProjectWatcher: (payload) => ipcRenderer.invoke("wikiwise:startProjectWatcher", payload),
   stopProjectWatcher: () => ipcRenderer.invoke("wikiwise:stopProjectWatcher"),
   onProjectChanged: (callback) => {

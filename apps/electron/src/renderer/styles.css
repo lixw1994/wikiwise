@@ -70,14 +70,6 @@ button:disabled {
   color: #272219;
 }
 
-.phase-note {
-  max-width: 42ch;
-  margin-top: 18px;
-  color: #7f7566;
-  font-size: 12px;
-  line-height: 1.5;
-}
-
 .project-shell {
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr);
@@ -187,6 +179,10 @@ button:disabled {
   color: #958a76;
 }
 
+.compact {
+  padding-inline: 10px;
+}
+
 .mode-switch {
   display: flex;
   flex: 0 0 auto;
@@ -240,6 +236,111 @@ button:disabled {
   height: 100%;
   border: 0;
   background: #fff;
+}
+
+.modal-backdrop {
+  position: fixed;
+  z-index: 10;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background: rgba(33, 31, 26, 0.28);
+}
+
+.modal-panel {
+  display: grid;
+  gap: 12px;
+  width: min(400px, 100%);
+  border: 1px solid rgba(80, 72, 54, 0.2);
+  border-radius: 8px;
+  background: #fbfaf5;
+  padding: 22px;
+  box-shadow: 0 18px 54px rgba(34, 30, 22, 0.22);
+}
+
+.modal-panel h2 {
+  margin-bottom: 4px;
+}
+
+.field-label {
+  margin: 0;
+  color: #5d523f;
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.text-input {
+  width: 100%;
+  border: 1px solid rgba(80, 72, 54, 0.24);
+  border-radius: 6px;
+  padding: 9px 10px;
+  background: #fffdf8;
+  color: #211f1a;
+  font: inherit;
+}
+
+.location-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+  gap: 10px;
+}
+
+.location-path {
+  overflow: hidden;
+  margin: 4px 0 0;
+  color: #6b6356;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.post-create-guide {
+  overflow: auto;
+  padding: 36px 44px;
+  background: #fbfaf5;
+  color: #332c22;
+}
+
+.post-create-guide h2 {
+  font-family: Georgia, serif;
+  font-size: 22px;
+  font-weight: 500;
+}
+
+.post-create-guide p,
+.post-create-guide li {
+  max-width: 70ch;
+  color: #5c5243;
+  line-height: 1.6;
+}
+
+.guide-block {
+  margin-bottom: 24px;
+}
+
+.post-create-guide pre {
+  overflow: auto;
+  border: 1px solid rgba(80, 72, 54, 0.14);
+  border-radius: 6px;
+  margin: 8px 0;
+  padding: 10px 12px;
+  background: #efe8d6;
+  color: #332c22;
+}
+
+.post-create-guide code {
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 12px;
 }
 
 .error-message {

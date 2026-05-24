@@ -11,6 +11,17 @@ const modeFileButton = document.querySelector("#mode-file");
 const modeWikiButton = document.querySelector("#mode-wiki");
 const openExistingButton = document.querySelector("#open-existing");
 const createNewButton = document.querySelector("#create-new");
+const newWikiDialog = document.querySelector("#new-wiki-dialog");
+const newWikiNameInput = document.querySelector("#new-wiki-name");
+const newWikiLocationLabel = document.querySelector("#new-wiki-location");
+const chooseNewWikiLocationButton = document.querySelector("#choose-new-wiki-location");
+const cancelCreateNewButton = document.querySelector("#cancel-create-new");
+const confirmCreateNewButton = document.querySelector("#confirm-create-new");
+const postCreateGuide = document.querySelector("#post-create-guide");
+const guideClaudeCommand = document.querySelector("#guide-claude-command");
+const guideCodexCommand = document.querySelector("#guide-codex-command");
+const guideCursorCommand = document.querySelector("#guide-cursor-command");
+const dismissPostCreateGuideButton = document.querySelector("#dismiss-post-create-guide");
 const resourceCount = document.querySelector("#resource-count");
 const resourceList = document.querySelector("#resource-list");
 const errorMessage = document.querySelector("#error-message");
@@ -21,6 +32,11 @@ const state = {
   detailMode: "file",
   autosaveTimer: null,
   projectWatcherCleanup: null,
+  isNewWikiDialogOpen: false,
+  newWikiName: "",
+  newWikiLocation: "",
+  isCreatingWiki: false,
+  showPostCreateGuide: false,
   tree: []
 };
 
@@ -47,6 +63,7 @@ function renderApp() {
 
   welcome.hidden = hasProject;
   project.hidden = !hasProject;
+  renderNewWikiDialog();
 
   if (hasProject) {
     projectName.textContent = state.currentProject.projectName;
@@ -88,15 +105,7 @@ async function openExisting() {
     const result = await window.wikiwise.openExisting();
     if (result.canceled) return;
 
-    state.currentProject = {
-      projectRoot: result.project.projectRoot,
-      projectName: result.project.projectName
-    };
-    state.tree = result.project.tree;
-    setSelectedFile(result.project.selectedFile);
-
-    renderApp();
-    await startProjectWatcher();
+    await applyProjectResult(result.project);
   } catch (error) {
     setError(error);
   } finally {
@@ -106,6 +115,7 @@ async function openExisting() {
 
 async function selectFile(node) {
   setError(null);
+  state.showPostCreateGuide = false;
 
   try {
     const content = await window.wikiwise.readFile(node.path);
@@ -154,23 +164,28 @@ function renderDetail() {
   const file = state.selectedFile;
   const hasFile = Boolean(file);
   const wikiAvailable = hasCompiledPreview(file);
+  const showGuide = Boolean(state.showPostCreateGuide && state.currentProject);
 
-  selectedFileLabel.textContent = file?.name ?? "Select a file to read";
+  selectedFileLabel.textContent = showGuide ? "Your wiki is ready" : (file?.name ?? "Select a file to read");
   sourceEditor.disabled = !hasFile;
   if (document.activeElement !== sourceEditor && sourceEditor.value !== (file?.draftContent ?? "")) {
     sourceEditor.value = file?.draftContent ?? "";
   }
 
-  modeFileButton.disabled = !hasFile;
-  modeWikiButton.disabled = !wikiAvailable;
+  modeFileButton.disabled = showGuide || !hasFile;
+  modeWikiButton.disabled = showGuide || !wikiAvailable;
   modeFileButton.classList.toggle("selected", state.detailMode === "file");
   modeWikiButton.classList.toggle("selected", state.detailMode === "wiki" && wikiAvailable);
 
-  sourceEditor.hidden = state.detailMode !== "file";
-  previewFrame.hidden = state.detailMode !== "wiki" || !wikiAvailable;
+  sourceEditor.hidden = showGuide || state.detailMode !== "file";
+  previewFrame.hidden = showGuide || state.detailMode !== "wiki" || !wikiAvailable;
+  postCreateGuide.hidden = !showGuide;
   renderSaveState();
 
-  if (state.detailMode === "wiki" && wikiAvailable) {
+  if (showGuide) {
+    renderPostCreateGuide();
+    previewFrame.removeAttribute("src");
+  } else if (state.detailMode === "wiki" && wikiAvailable) {
     renderPreview();
   } else {
     previewFrame.removeAttribute("src");
@@ -179,6 +194,110 @@ function renderDetail() {
 
 function renderPreview() {
   previewFrame.src = state.selectedFile.compiled.fileUrl;
+}
+
+async function applyProjectResult(projectResult, options = {}) {
+  state.currentProject = {
+    projectRoot: projectResult.projectRoot,
+    projectName: projectResult.projectName
+  };
+  state.tree = projectResult.tree;
+  state.showPostCreateGuide = Boolean(options.showPostCreateGuide);
+  setSelectedFile(projectResult.selectedFile);
+
+  renderApp();
+  await startProjectWatcher();
+}
+
+async function openNewWikiDialog() {
+  setError(null);
+  state.isNewWikiDialogOpen = true;
+  state.newWikiName = "";
+  state.isCreatingWiki = false;
+
+  try {
+    state.newWikiLocation = await window.wikiwise.getDefaultWikiLocation();
+  } catch (error) {
+    setError(error);
+  }
+
+  renderNewWikiDialog();
+  newWikiNameInput.focus();
+}
+
+function closeNewWikiDialog() {
+  if (state.isCreatingWiki) return;
+
+  state.isNewWikiDialogOpen = false;
+  renderNewWikiDialog();
+}
+
+function renderNewWikiDialog() {
+  newWikiDialog.hidden = !state.isNewWikiDialogOpen;
+  if (!state.isNewWikiDialogOpen) return;
+
+  if (document.activeElement !== newWikiNameInput) {
+    newWikiNameInput.value = state.newWikiName;
+  }
+  newWikiLocationLabel.textContent = state.newWikiLocation || "";
+  newWikiNameInput.disabled = state.isCreatingWiki;
+  chooseNewWikiLocationButton.disabled = state.isCreatingWiki;
+  cancelCreateNewButton.disabled = state.isCreatingWiki;
+  confirmCreateNewButton.disabled =
+    state.isCreatingWiki || state.newWikiName.trim().length === 0 || !state.newWikiLocation;
+  confirmCreateNewButton.textContent = state.isCreatingWiki ? "Creating" : "Create";
+}
+
+async function chooseNewWikiLocation() {
+  setError(null);
+
+  try {
+    const result = await window.wikiwise.chooseNewWikiLocation();
+    if (!result.canceled && result.path) {
+      state.newWikiLocation = result.path;
+      renderNewWikiDialog();
+    }
+  } catch (error) {
+    setError(error);
+  }
+}
+
+async function createNewWiki() {
+  const name = state.newWikiName.trim();
+  if (!name || !state.newWikiLocation || state.isCreatingWiki) return;
+
+  state.isCreatingWiki = true;
+  renderNewWikiDialog();
+  setError(null);
+
+  try {
+    const result = await window.wikiwise.createNewWiki({
+      name,
+      parentDir: state.newWikiLocation
+    });
+
+    state.isNewWikiDialogOpen = false;
+    await applyProjectResult(result.project, { showPostCreateGuide: true });
+  } catch (error) {
+    setError(error);
+  } finally {
+    state.isCreatingWiki = false;
+    renderNewWikiDialog();
+  }
+}
+
+function renderPostCreateGuide() {
+  if (!state.currentProject) return;
+
+  const projectRoot = state.currentProject.projectRoot;
+  guideClaudeCommand.textContent = `cd ${projectRoot} && claude`;
+  guideCodexCommand.textContent = `cd ${projectRoot} && codex`;
+  guideCursorCommand.textContent = `Open ${projectRoot} in Cursor`;
+}
+
+function dismissPostCreateGuide() {
+  state.showPostCreateGuide = false;
+  renderDetail();
 }
 
 async function startProjectWatcher() {
@@ -274,7 +393,7 @@ function compileMarkdownPreview(filePath, options = {}) {
 function renderSaveState() {
   const file = state.selectedFile;
 
-  saveButton.disabled = !file || !file.isDirty || file.isSaving;
+  saveButton.disabled = state.showPostCreateGuide || !file || !file.isDirty || file.isSaving;
   if (!file) {
     saveStatus.textContent = "";
   } else if (file.isSaving) {
@@ -400,6 +519,12 @@ document.addEventListener("keydown", (event) => {
 });
 modeFileButton.addEventListener("click", () => setDetailMode("file"));
 modeWikiButton.addEventListener("click", () => setDetailMode("wiki"));
-createNewButton.addEventListener("click", () => {
-  setError("Create a New Wiki will be migrated in a later OpenSpec phase.");
+createNewButton.addEventListener("click", openNewWikiDialog);
+newWikiNameInput.addEventListener("input", () => {
+  state.newWikiName = newWikiNameInput.value;
+  renderNewWikiDialog();
 });
+chooseNewWikiLocationButton.addEventListener("click", chooseNewWikiLocation);
+cancelCreateNewButton.addEventListener("click", closeNewWikiDialog);
+confirmCreateNewButton.addEventListener("click", createNewWiki);
+dismissPostCreateGuideButton.addEventListener("click", dismissPostCreateGuide);
