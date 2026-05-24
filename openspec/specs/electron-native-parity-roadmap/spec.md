@@ -40,3 +40,13 @@ Each migration phase SHALL retain command and manual-check evidence under its Op
 
 - **WHEN** a migration phase is ready for archive
 - **THEN** its verification artifact lists commands run, manual checks, parity evidence, known gaps, and residual risks
+
+### Requirement: Publishing Phase Completion Tracking
+
+The migration roadmap SHALL record Electron publishing as a phase that advances native parity while preserving later phases.
+
+#### Scenario: Publishing phase is archived
+
+- **WHEN** the Electron publishing change is archived
+- **THEN** retained verification records publish config, availability, publish, and unpublish evidence
+- **AND** remaining phases still include app chrome, menus, persistence, maps, packaging, and final parity audit

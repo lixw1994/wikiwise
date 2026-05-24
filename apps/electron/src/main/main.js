@@ -5,14 +5,19 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   WikiCompiler,
+  checkPublishAvailability,
   createWikiScaffold,
   getBundledResourceNames,
+  loadPublishConfig,
+  publishSite,
+  randomPublishSubdomain,
   readTextFile,
   resolveRepositoryResourcePath,
   scanOneLevel,
   slugForPath,
   summarizeDocumentInfo,
   summarizeWatchEvents,
+  unpublishSite,
   writeActiveFile,
   writeTextFile
 } from "@wikiwise/core";
@@ -200,6 +205,15 @@ function assertProjectPath(projectRoot, filePath) {
   return resolvedFilePath;
 }
 
+function assertProjectRoot(projectRoot) {
+  const resolvedRoot = path.resolve(projectRoot);
+  const stat = fs.statSync(resolvedRoot);
+  if (!stat.isDirectory()) {
+    throw new Error("Project root must be a directory");
+  }
+  return resolvedRoot;
+}
+
 function saveFile(payload) {
   if (!payload?.projectRoot || !payload?.filePath || typeof payload.content !== "string") {
     throw new Error("saveFile requires projectRoot, filePath, and content");
@@ -230,6 +244,72 @@ function getDocumentInfo(payload) {
   const projectRoot = path.resolve(payload.projectRoot);
   const filePath = assertProjectPath(projectRoot, payload.filePath);
   return summarizeDocumentInfo(filePath);
+}
+
+function getPublishConfig(payload) {
+  if (!payload?.projectRoot) {
+    throw new Error("getPublishConfig requires projectRoot");
+  }
+
+  const projectRoot = assertProjectRoot(payload.projectRoot);
+  const config = loadPublishConfig(projectRoot);
+  if (config) {
+    return {
+      published: true,
+      subdomain: config.subdomain,
+      url: config.url,
+      lastPublishedAt: config.lastPublishedAt ?? null
+    };
+  }
+
+  const suggestedSubdomain = randomPublishSubdomain(path.basename(projectRoot));
+  return {
+    published: false,
+    subdomain: "",
+    suggestedSubdomain,
+    url: "",
+    lastPublishedAt: null
+  };
+}
+
+async function checkProjectPublishAvailability(payload) {
+  if (!payload?.projectRoot || !payload?.subdomain) {
+    throw new Error("checkPublishAvailability requires projectRoot and subdomain");
+  }
+
+  const projectRoot = assertProjectRoot(payload.projectRoot);
+  const config = loadPublishConfig(projectRoot);
+  return {
+    availability: await checkPublishAvailability(payload.subdomain, {
+      token: config?.token
+    })
+  };
+}
+
+async function publishProject(payload) {
+  if (!payload?.projectRoot) {
+    throw new Error("publishSite requires projectRoot");
+  }
+
+  const projectRoot = assertProjectRoot(payload.projectRoot);
+  const compiler = getCompiler(projectRoot);
+  compiler.compileAll();
+
+  return publishSite({
+    projectRoot,
+    siteFolder: compiler.outputDir,
+    subdomain: payload.subdomain
+  });
+}
+
+async function unpublishProject(payload) {
+  if (!payload?.projectRoot) {
+    throw new Error("unpublishSite requires projectRoot");
+  }
+
+  return unpublishSite({
+    projectRoot: assertProjectRoot(payload.projectRoot)
+  });
 }
 
 function startTerminal(webContents, payload) {
@@ -455,6 +535,18 @@ ipcMain.handle("wikiwise:saveFile", (_event, payload) => {
 ipcMain.handle("wikiwise:getDocumentInfo", (_event, payload) => {
   return getDocumentInfo(payload);
 });
+ipcMain.handle("wikiwise:getPublishConfig", (_event, payload) => {
+  return getPublishConfig(payload);
+});
+ipcMain.handle("wikiwise:checkPublishAvailability", (_event, payload) => {
+  return checkProjectPublishAvailability(payload);
+});
+ipcMain.handle("wikiwise:publishSite", (_event, payload) => {
+  return publishProject(payload);
+});
+ipcMain.handle("wikiwise:unpublishSite", (_event, payload) => {
+  return unpublishProject(payload);
+});
 ipcMain.handle("wikiwise:getDefaultWikiLocation", () => {
   return getDefaultWikiLocation();
 });
@@ -510,14 +602,18 @@ export {
   createProjectResult,
   chooseNewWikiLocation,
   closeTerminal,
+  checkProjectPublishAvailability,
   getDefaultWikiLocation,
   getDocumentInfo,
+  getPublishConfig,
   getResourceManifest,
   openExistingProject,
+  publishProject,
   saveFile,
   sendTerminalInput,
   startTerminal,
-  startProjectWatcher
+  startProjectWatcher,
+  unpublishProject
 };
 
 function isMarkdownFile(filePath) {

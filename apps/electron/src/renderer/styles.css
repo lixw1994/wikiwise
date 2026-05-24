@@ -179,6 +179,21 @@ button:disabled {
   color: #958a76;
 }
 
+.publish-button {
+  border: 1px solid rgba(80, 72, 54, 0.18);
+  border-radius: 6px;
+  padding: 6px 10px;
+  background: rgba(194, 169, 107, 0.16);
+  color: #332c22;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 11px;
+  letter-spacing: 0;
+}
+
+.publish-button:disabled {
+  color: #958a76;
+}
+
 .compact {
   padding-inline: 10px;
 }
@@ -396,6 +411,61 @@ button:disabled {
   margin-bottom: 4px;
 }
 
+.publish-dialog {
+  width: min(480px, 100%);
+}
+
+.compact-summary {
+  margin-bottom: 0;
+  font-size: 12px;
+}
+
+.publish-url-row {
+  display: grid;
+  grid-template-columns: auto minmax(80px, 1fr) auto;
+  align-items: center;
+  gap: 4px;
+  border: 1px solid rgba(80, 72, 54, 0.18);
+  border-radius: 6px;
+  padding: 8px;
+  background: #f3edde;
+  color: #5f5543;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 12px;
+}
+
+.publish-subdomain {
+  border: 0;
+  border-radius: 0;
+  padding: 2px 0;
+  background: transparent;
+  font-family: inherit;
+  font-size: inherit;
+}
+
+.publish-availability {
+  min-height: 18px;
+  margin: 0;
+  color: #6b6356;
+  font-size: 12px;
+}
+
+.publish-availability[data-state="available"],
+.publish-availability[data-state="owned"] {
+  color: #2f6f48;
+}
+
+.publish-availability[data-state="taken"],
+.publish-availability[data-state="invalid"] {
+  color: #9b2f2f;
+}
+
+.danger-action {
+  border: 1px solid rgba(143, 39, 39, 0.28);
+  background: transparent;
+  color: #8f2727;
+}
+
 .field-label {
   margin: 0;
   color: #5d523f;
@@ -484,6 +554,16 @@ button:disabled {
   padding: 10px 12px;
   background: rgba(143, 39, 39, 0.08);
   color: #8f2727;
+}
+
+.publish-result {
+  grid-column: 1 / -1;
+  margin: 0;
+  border: 1px solid rgba(47, 111, 72, 0.22);
+  border-radius: 8px;
+  padding: 10px 12px;
+  background: rgba(47, 111, 72, 0.08);
+  color: #2f6f48;
 }
 
 .eyebrow {

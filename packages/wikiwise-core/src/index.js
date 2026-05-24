@@ -14,6 +14,8 @@ const RESOURCE_NAMES = Object.freeze([
   "markdown-it.min.js",
   "style.css"
 ]);
+const PUBLISH_ENDPOINT = "https://publish.wiki-wise.com/_publish";
+const PUBLISH_CHECK_ENDPOINT = "https://publish.wiki-wise.com/_check";
 
 export function getBundledResourceNames() {
   return [...RESOURCE_NAMES];
@@ -89,6 +91,150 @@ export function summarizeDocumentInfo(filePath) {
     directions: extractDirections(content),
     wikilinks: extractWikilinks(content)
   };
+}
+
+export function loadPublishConfig(projectRoot) {
+  const configPath = path.join(path.resolve(projectRoot), "publish.json");
+  if (!fs.existsSync(configPath)) return null;
+
+  try {
+    const config = JSON.parse(readTextFile(configPath));
+    if (
+      typeof config.subdomain !== "string" ||
+      typeof config.token !== "string" ||
+      typeof config.url !== "string"
+    ) {
+      throw new Error("Missing publish config fields");
+    }
+    return config;
+  } catch {
+    throw publishError("corrupt_config", "publish.json exists but is malformed.");
+  }
+}
+
+export function randomPublishSubdomain(wikiName = "") {
+  const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
+  const suffix = Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
+  const slug = String(wikiName)
+    .toLowerCase()
+    .replace(/ /g, "-")
+    .replace(/[^\p{L}\p{N}-]/gu, "")
+    .slice(0, 20);
+
+  return slug ? `${slug}-${suffix}` : suffix;
+}
+
+export async function checkPublishAvailability(subdomain, options = {}) {
+  const requestFetch = resolveFetch(options.fetch);
+  const url = new URL(PUBLISH_CHECK_ENDPOINT);
+  url.searchParams.set("subdomain", String(subdomain));
+  const headers = {};
+  if (options.token) {
+    headers.Authorization = `Bearer ${options.token}`;
+  }
+
+  try {
+    const response = await requestFetch(url, { headers });
+    if (response.status !== 200) return "unknown";
+
+    const json = await response.json();
+    switch (json?.reason) {
+    case "free":
+      return "available";
+    case "owned":
+      return "owned";
+    case "taken":
+      return "taken";
+    case "invalid":
+      return "invalid";
+    default:
+      return "unknown";
+    }
+  } catch {
+    return "unknown";
+  }
+}
+
+export async function publishSite(options = {}) {
+  if (!options.projectRoot || !options.siteFolder) {
+    throw new Error("publishSite requires projectRoot and siteFolder");
+  }
+
+  const projectRoot = path.resolve(options.projectRoot);
+  const siteFolder = path.resolve(options.siteFolder);
+  const requestFetch = resolveFetch(options.fetch);
+  const now = options.now ?? (() => new Date());
+  const randomSubdomain = options.randomSubdomain ?? (() => randomPublishSubdomain(path.basename(projectRoot)));
+  const tokenGenerator = options.tokenGenerator ?? (() => `ww_${randomHex(32)}`);
+
+  const existingConfig = loadPublishConfig(projectRoot);
+  let config;
+  let isFirstPublish = false;
+
+  if (existingConfig) {
+    config = { ...existingConfig };
+    if (options.subdomain && options.subdomain !== config.subdomain) {
+      config.subdomain = options.subdomain;
+      config.url = `https://${options.subdomain}.wiki-wise.com`;
+    }
+  } else {
+    const subdomain = options.subdomain ?? randomSubdomain();
+    config = {
+      subdomain,
+      token: tokenGenerator(),
+      url: `https://${subdomain}.wiki-wise.com`
+    };
+    isFirstPublish = true;
+  }
+
+  const files = preparePublishFiles(enumeratePublishFiles(siteFolder));
+  const result = await uploadPublishFiles({
+    requestFetch,
+    config,
+    files,
+    isFirstPublish,
+    randomSubdomain,
+    attempt: 0
+  });
+
+  config.lastPublishedAt = now().toISOString();
+  writeTextFile(path.join(projectRoot, "publish.json"), `${JSON.stringify(sortPublishConfig(config), null, 2)}\n`);
+
+  return {
+    url: config.url,
+    isFirstPublish,
+    fileCount: result.fileCount
+  };
+}
+
+export async function unpublishSite(options = {}) {
+  if (!options.projectRoot) {
+    throw new Error("unpublishSite requires projectRoot");
+  }
+
+  const projectRoot = path.resolve(options.projectRoot);
+  const configPath = path.join(projectRoot, "publish.json");
+  const config = loadPublishConfig(projectRoot);
+  if (!config) {
+    throw publishError("corrupt_config", "publish.json exists but is malformed.");
+  }
+
+  const requestFetch = resolveFetch(options.fetch);
+  const response = await requestFetch(PUBLISH_ENDPOINT, {
+    method: "DELETE",
+    headers: publishHeaders(config)
+  });
+
+  switch (response.status) {
+  case 200:
+  case 404:
+    fs.rmSync(configPath, { force: true });
+    return { unpublished: true };
+  case 403:
+    throw publishError("token_mismatch", "Token does not match.", response.status);
+  default:
+    throw publishError("server_error", await responseText(response), response.status);
+  }
 }
 
 export function slugForWikiName(name) {
@@ -545,6 +691,149 @@ function scaffoldSettingsJson() {
 
 function currentISODate() {
   return new Date().toISOString().slice(0, 10);
+}
+
+function resolveFetch(fetchOption) {
+  const requestFetch = fetchOption ?? globalThis.fetch;
+  if (typeof requestFetch !== "function") {
+    throw new Error("Publishing requires a fetch implementation");
+  }
+  return requestFetch;
+}
+
+function publishError(code, message, status) {
+  const error = new Error(message);
+  error.code = code;
+  if (status) error.status = status;
+  return error;
+}
+
+function enumeratePublishFiles(folderPath) {
+  const entries = [];
+  const root = path.resolve(folderPath);
+
+  function visit(directoryPath) {
+    for (const entry of fs.readdirSync(directoryPath, { withFileTypes: true })) {
+      if (entry.name.startsWith(".")) continue;
+      const entryPath = path.join(directoryPath, entry.name);
+      if (entry.isDirectory()) {
+        visit(entryPath);
+      } else if (entry.isFile()) {
+        entries.push({
+          relativePath: path.relative(root, entryPath).split(path.sep).join("/"),
+          data: fs.readFileSync(entryPath)
+        });
+      }
+    }
+  }
+
+  visit(root);
+  return entries;
+}
+
+function preparePublishFiles(entries) {
+  if (!entries.some((entry) => entry.relativePath === "home.html")) {
+    return entries;
+  }
+
+  const prepared = entries.map((entry) => {
+    const data = entry.relativePath.endsWith(".html") ? rewriteIndexLinks(entry.data) : entry.data;
+    if (entry.relativePath === "index.html") {
+      return { relativePath: "catalog.html", data };
+    }
+    return { ...entry, data };
+  });
+  const home = entries.find((entry) => entry.relativePath === "home.html");
+  prepared.push({
+    relativePath: "index.html",
+    data: rewriteIndexLinks(home.data)
+  });
+  return prepared;
+}
+
+function rewriteIndexLinks(data) {
+  const html = data.toString("utf8");
+  const rewritten = html
+    .replaceAll('href="index.html"', 'href="catalog.html"')
+    .replaceAll('href="index.html#', 'href="catalog.html#');
+  return Buffer.from(rewritten, "utf8");
+}
+
+async function uploadPublishFiles({ requestFetch, config, files, isFirstPublish, randomSubdomain, attempt }) {
+  const payload = {
+    files: files.map((entry) => ({
+      path: entry.relativePath,
+      data: entry.data.toString("base64")
+    }))
+  };
+
+  const response = await requestFetch(PUBLISH_ENDPOINT, {
+    method: "PUT",
+    headers: {
+      ...publishHeaders(config),
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  switch (response.status) {
+  case 200:
+    return { fileCount: payload.files.length };
+  case 403:
+    throw publishError("token_mismatch", "Token does not match.", response.status);
+  case 409:
+    if (isFirstPublish && attempt < 3) {
+      config.subdomain = randomSubdomain();
+      config.url = `https://${config.subdomain}.wiki-wise.com`;
+      return uploadPublishFiles({
+        requestFetch,
+        config,
+        files,
+        isFirstPublish,
+        randomSubdomain,
+        attempt: attempt + 1
+      });
+    }
+    throw publishError("subdomain_taken", "That subdomain is already taken.", response.status);
+  case 413:
+    throw publishError("too_large", await responseText(response), response.status);
+  case 429:
+    throw publishError("rate_limited", "Too many publishes.", response.status);
+  default:
+    throw publishError("server_error", await responseText(response), response.status);
+  }
+}
+
+function publishHeaders(config) {
+  return {
+    Authorization: `Bearer ${config.token}`,
+    "X-Subdomain": config.subdomain
+  };
+}
+
+async function responseText(response) {
+  if (typeof response.text === "function") {
+    return response.text();
+  }
+  return "Unknown error";
+}
+
+function sortPublishConfig(config) {
+  const sorted = {
+    lastPublishedAt: config.lastPublishedAt,
+    subdomain: config.subdomain,
+    token: config.token,
+    url: config.url
+  };
+  if (!sorted.lastPublishedAt) {
+    delete sorted.lastPublishedAt;
+  }
+  return sorted;
+}
+
+function randomHex(length) {
+  const chars = "0123456789abcdef";
+  return Array.from({ length }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
 }
 
 function countWords(content) {

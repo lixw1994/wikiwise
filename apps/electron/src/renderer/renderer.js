@@ -7,6 +7,7 @@ const sourceEditor = document.querySelector("#source-editor");
 const previewFrame = document.querySelector("#preview-frame");
 const saveButton = document.querySelector("#save-file");
 const saveStatus = document.querySelector("#save-status");
+const publishButton = document.querySelector("#publish-wiki");
 const modeFileButton = document.querySelector("#mode-file");
 const modeWikiButton = document.querySelector("#mode-wiki");
 const rightSidebar = document.querySelector("#right-sidebar");
@@ -30,6 +31,16 @@ const newWikiLocationLabel = document.querySelector("#new-wiki-location");
 const chooseNewWikiLocationButton = document.querySelector("#choose-new-wiki-location");
 const cancelCreateNewButton = document.querySelector("#cancel-create-new");
 const confirmCreateNewButton = document.querySelector("#confirm-create-new");
+const publishDialog = document.querySelector("#publish-dialog");
+const publishSubdomainInput = document.querySelector("#publish-subdomain");
+const publishUrl = document.querySelector("#publish-url");
+const publishAvailability = document.querySelector("#publish-availability");
+const cancelPublishButton = document.querySelector("#cancel-publish");
+const confirmPublishButton = document.querySelector("#confirm-publish");
+const unpublishButton = document.querySelector("#unpublish-wiki");
+const publishResult = document.querySelector("#publish-result");
+const publishResultUrl = document.querySelector("#publish-result-url");
+const publishError = document.querySelector("#publish-error");
 const postCreateGuide = document.querySelector("#post-create-guide");
 const guideClaudeCommand = document.querySelector("#guide-claude-command");
 const guideCodexCommand = document.querySelector("#guide-codex-command");
@@ -49,6 +60,15 @@ const state = {
   terminalOutputCleanup: null,
   documentInfo: null,
   terminalTranscript: "",
+  publishConfig: null,
+  isPublishDialogOpen: false,
+  publishSubdomain: "",
+  publishAvailability: "unknown",
+  isPublishing: false,
+  isUnpublishing: false,
+  publishResult: null,
+  publishError: null,
+  availabilityCheckTimer: null,
   isNewWikiDialogOpen: false,
   newWikiName: "",
   newWikiLocation: "",
@@ -81,6 +101,8 @@ function renderApp() {
   welcome.hidden = hasProject;
   project.hidden = !hasProject;
   renderNewWikiDialog();
+  renderPublishDialog();
+  renderPublishStatus();
 
   if (hasProject) {
     projectName.textContent = state.currentProject.projectName;
@@ -218,6 +240,16 @@ function renderDetail() {
 
 function renderPreview() {
   previewFrame.src = state.selectedFile.compiled.fileUrl;
+}
+
+function renderPublishStatus() {
+  publishButton.disabled = !state.currentProject || state.isPublishing;
+  publishButton.textContent = state.isPublishing ? "PUBLISHING..." : "PUBLISH ↑";
+
+  publishResult.hidden = !state.publishResult;
+  publishResultUrl.textContent = state.publishResult?.url ?? "";
+  publishError.hidden = !state.publishError;
+  publishError.textContent = state.publishError ?? "";
 }
 
 function setRightSidebarTab(tab) {
@@ -383,6 +415,193 @@ async function startProjectServices() {
   await startProjectWatcher();
   await startTerminal();
   await refreshDocumentInfo();
+  await refreshPublishConfig();
+}
+
+async function refreshPublishConfig() {
+  if (!state.currentProject) {
+    state.publishConfig = null;
+    renderPublishStatus();
+    return null;
+  }
+
+  const config = await window.wikiwise.getPublishConfig({
+    projectRoot: state.currentProject.projectRoot
+  });
+  state.publishConfig = config;
+  renderPublishStatus();
+  return config;
+}
+
+async function openPublishDialog() {
+  if (!state.currentProject) return;
+
+  setError(null);
+  state.publishError = null;
+  const config = state.publishConfig ?? (await refreshPublishConfig());
+  state.publishSubdomain = config?.published ? config.subdomain : (config?.suggestedSubdomain ?? "");
+  state.publishAvailability = config?.published ? "owned" : "unknown";
+  state.isPublishDialogOpen = true;
+  renderPublishDialog();
+
+  if (!config?.published && state.publishSubdomain) {
+    scheduleAvailabilityCheck();
+  }
+}
+
+function closePublishDialog() {
+  if (state.isPublishing || state.isUnpublishing) return;
+
+  state.isPublishDialogOpen = false;
+  renderPublishDialog();
+}
+
+function renderPublishDialog() {
+  publishDialog.hidden = !state.isPublishDialogOpen;
+  if (!state.isPublishDialogOpen) return;
+
+  if (document.activeElement !== publishSubdomainInput) {
+    publishSubdomainInput.value = state.publishSubdomain;
+  }
+  publishUrl.textContent = `https://${state.publishSubdomain || "subdomain"}.wiki-wise.com`;
+  publishAvailability.textContent = availabilityMessage(state.publishAvailability);
+  publishAvailability.dataset.state = state.publishAvailability;
+  publishSubdomainInput.disabled = state.isPublishing || state.isUnpublishing;
+  cancelPublishButton.disabled = state.isPublishing || state.isUnpublishing;
+  confirmPublishButton.disabled = !canPublish();
+  confirmPublishButton.textContent = state.isPublishing
+    ? "Publishing"
+    : state.publishConfig?.published
+      ? "Update"
+      : "Publish";
+  unpublishButton.hidden = !state.publishConfig?.published;
+  unpublishButton.disabled = state.isPublishing || state.isUnpublishing;
+  unpublishButton.textContent = state.isUnpublishing ? "Unpublishing" : "Unpublish...";
+}
+
+function availabilityMessage(availability) {
+  switch (availability) {
+  case "available":
+    return "Available";
+  case "owned":
+    return "You already own this name.";
+  case "taken":
+    return "This name is already taken. Try another.";
+  case "invalid":
+    return "3-48 characters, letters, numbers, and hyphens only.";
+  case "checking":
+    return "Checking...";
+  default:
+    return "Anyone with this link can view your wiki.";
+  }
+}
+
+function canPublish() {
+  return (
+    state.currentProject &&
+    !state.isPublishing &&
+    !state.isUnpublishing &&
+    ["available", "owned"].includes(state.publishAvailability)
+  );
+}
+
+function sanitizePublishSubdomain(value) {
+  return String(value).toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 48);
+}
+
+function scheduleAvailabilityCheck() {
+  if (state.availabilityCheckTimer) {
+    clearTimeout(state.availabilityCheckTimer);
+    state.availabilityCheckTimer = null;
+  }
+
+  const subdomain = state.publishSubdomain;
+  if (!subdomain) {
+    state.publishAvailability = "unknown";
+    renderPublishDialog();
+    return;
+  }
+  if (subdomain.length < 3) {
+    state.publishAvailability = "invalid";
+    renderPublishDialog();
+    return;
+  }
+
+  state.publishAvailability = "checking";
+  renderPublishDialog();
+  state.availabilityCheckTimer = setTimeout(() => {
+    state.availabilityCheckTimer = null;
+    checkPublishAvailability(subdomain);
+  }, 400);
+}
+
+async function checkPublishAvailability(subdomain = state.publishSubdomain) {
+  if (!state.currentProject) return;
+
+  try {
+    const result = await window.wikiwise.checkPublishAvailability({
+      projectRoot: state.currentProject.projectRoot,
+      subdomain
+    });
+    if (state.publishSubdomain === subdomain) {
+      state.publishAvailability = result.availability;
+      renderPublishDialog();
+    }
+  } catch (error) {
+    state.publishAvailability = "unknown";
+    renderPublishDialog();
+    setError(error);
+  }
+}
+
+async function publishCurrentProject() {
+  if (!canPublish()) return;
+
+  state.isPublishing = true;
+  state.publishError = null;
+  state.publishResult = null;
+  renderPublishDialog();
+  renderPublishStatus();
+
+  try {
+    const result = await window.wikiwise.publishSite({
+      projectRoot: state.currentProject.projectRoot,
+      subdomain: state.publishSubdomain
+    });
+    state.publishResult = result;
+    state.isPublishDialogOpen = false;
+    await refreshPublishConfig();
+  } catch (error) {
+    state.publishError = error instanceof Error ? error.message : String(error);
+  } finally {
+    state.isPublishing = false;
+    renderPublishDialog();
+    renderPublishStatus();
+  }
+}
+
+async function unpublishCurrentProject() {
+  if (!state.currentProject || !state.publishConfig?.published) return;
+  if (!window.confirm("Unpublish wiki?")) return;
+
+  state.isUnpublishing = true;
+  state.publishError = null;
+  renderPublishDialog();
+
+  try {
+    await window.wikiwise.unpublishSite({
+      projectRoot: state.currentProject.projectRoot
+    });
+    state.publishConfig = await refreshPublishConfig();
+    state.publishAvailability = "unknown";
+    state.isPublishDialogOpen = false;
+  } catch (error) {
+    state.publishError = error instanceof Error ? error.message : String(error);
+  } finally {
+    state.isUnpublishing = false;
+    renderPublishDialog();
+    renderPublishStatus();
+  }
 }
 
 async function startProjectWatcher() {
@@ -716,6 +935,7 @@ document.addEventListener("keydown", (event) => {
 });
 modeFileButton.addEventListener("click", () => setDetailMode("file"));
 modeWikiButton.addEventListener("click", () => setDetailMode("wiki"));
+publishButton.addEventListener("click", openPublishDialog);
 rightTabInfoButton.addEventListener("click", () => setRightSidebarTab("info"));
 rightTabTerminalButton.addEventListener("click", () => setRightSidebarTab("terminal"));
 terminalSendButton.addEventListener("click", sendTerminalInput);
@@ -726,6 +946,17 @@ terminalInput.addEventListener("keydown", (event) => {
   }
 });
 createNewButton.addEventListener("click", openNewWikiDialog);
+publishSubdomainInput.addEventListener("input", () => {
+  const sanitized = sanitizePublishSubdomain(publishSubdomainInput.value);
+  if (publishSubdomainInput.value !== sanitized) {
+    publishSubdomainInput.value = sanitized;
+  }
+  state.publishSubdomain = sanitized;
+  scheduleAvailabilityCheck();
+});
+cancelPublishButton.addEventListener("click", closePublishDialog);
+confirmPublishButton.addEventListener("click", publishCurrentProject);
+unpublishButton.addEventListener("click", unpublishCurrentProject);
 newWikiNameInput.addEventListener("input", () => {
   state.newWikiName = newWikiNameInput.value;
   renderNewWikiDialog();

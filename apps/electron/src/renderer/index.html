@@ -52,6 +52,39 @@
         </div>
       </section>
 
+      <section id="publish-dialog" class="modal-backdrop" hidden>
+        <div class="modal-panel publish-dialog" role="dialog" aria-modal="true" aria-labelledby="publish-title">
+          <h2 id="publish-title">Publish your wiki</h2>
+          <p class="summary compact-summary">Your wiki will be available at:</p>
+          <div class="publish-url-row">
+            <span>https://</span>
+            <input
+              id="publish-subdomain"
+              class="text-input publish-subdomain"
+              type="text"
+              autocomplete="off"
+              spellcheck="false"
+            />
+            <span>.wiki-wise.com</span>
+          </div>
+          <p id="publish-url" class="location-path"></p>
+          <p id="publish-availability" class="publish-availability" data-state="unknown"></p>
+          <p class="summary compact-summary">
+            A publish.json file will be saved in your project. It contains your publish token.
+          </p>
+          <div class="modal-actions">
+            <button id="unpublish-wiki" class="danger-action" type="button" hidden>
+              Unpublish...
+            </button>
+            <span></span>
+            <button id="cancel-publish" class="secondary-action" type="button">Cancel</button>
+            <button id="confirm-publish" class="primary-action" type="button" disabled>
+              Publish
+            </button>
+          </div>
+        </div>
+      </section>
+
       <section id="project" class="project-shell" hidden>
         <aside class="sidebar">
           <p class="eyebrow">Files</p>
@@ -65,6 +98,9 @@
               <span id="save-status" class="save-status">Saved</span>
               <button id="save-file" class="save-button" type="button" disabled>
                 Save
+              </button>
+              <button id="publish-wiki" class="publish-button" type="button" disabled>
+                PUBLISH ↑
               </button>
               <div class="mode-switch" role="tablist" aria-label="Detail mode">
                 <button id="mode-file" class="mode-button selected" type="button">
@@ -193,6 +229,10 @@
         <ul id="resource-list" class="resource-list"></ul>
       </section>
 
+      <p id="publish-result" class="publish-result" hidden>
+        Published at <span id="publish-result-url"></span>
+      </p>
+      <p id="publish-error" class="error-message" hidden></p>
       <p id="error-message" class="error-message" hidden></p>
     </main>
 
