@@ -81,10 +81,31 @@ test("uses full-window shell layout instead of outer debug cards", () => {
   const projectShellBlock = cssBlock(".project-shell");
 
   assert.match(shellBlock, /min-height:\s*100vh/);
+  assert.match(shellBlock, /height:\s*100vh/);
+  assert.match(shellBlock, /overflow:\s*hidden/);
   assert.match(shellBlock, /padding:\s*0/);
   assert.doesNotMatch(styleSource, /\.shell:has/);
   assert.match(projectShellBlock, /min-height:\s*100vh/);
+  assert.match(projectShellBlock, /height:\s*100vh/);
+  assert.match(projectShellBlock, /max-height:\s*100vh/);
   assert.doesNotMatch(projectShellBlock, /border-radius/);
+});
+
+test("hides non-native detail save chrome while preserving save wiring", () => {
+  const detailBlock = cssBlock(".detail");
+  const sourceFrameBlock = cssBlock(".source-editor-frame");
+  const previewFrameBlock = cssBlock(".preview-frame");
+
+  assert.match(htmlSource, /<div class="detail-header" hidden>/);
+  assert.match(htmlSource, /id="selected-file"/);
+  assert.match(htmlSource, /id="save-status"/);
+  assert.match(htmlSource, /id="save-file"/);
+  assert.match(rendererSource, /saveSelectedFile/);
+  assert.match(rendererSource, /saveButton\.addEventListener\("click"/);
+  assert.match(detailBlock, /grid-template-rows:\s*minmax\(0,\s*1fr\)/);
+  assert.match(detailBlock, /overflow:\s*hidden/);
+  assert.match(sourceFrameBlock, /min-height:\s*0/);
+  assert.match(previewFrameBlock, /min-height:\s*0/);
 });
 
 test("keeps hidden dialogs and inactive panels out of the visual shell", () => {

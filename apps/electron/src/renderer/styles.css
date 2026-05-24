@@ -28,13 +28,17 @@
 body {
   margin: 0;
   min-width: 320px;
+  height: 100vh;
   min-height: 100vh;
+  overflow: hidden;
   background: #f9f6f0;
 }
 
 .shell {
   display: block;
+  height: 100vh;
   min-height: 100vh;
+  overflow: hidden;
   padding: 0;
   background: #f9f6f0;
 }
@@ -94,7 +98,9 @@ button:disabled {
   display: grid;
   grid-template-columns: 260px minmax(0, 1fr) 360px;
   grid-template-rows: auto 1fr;
+  height: 100vh;
   min-height: 100vh;
+  max-height: 100vh;
   overflow: hidden;
   background: rgba(255, 252, 244, 0.82);
 }
@@ -156,6 +162,7 @@ button:disabled {
 
 .sidebar {
   grid-column: 1;
+  min-height: 0;
   overflow: auto;
   border-right: 1px solid rgba(80, 72, 54, 0.18);
   padding: 16px 0;
@@ -237,8 +244,10 @@ button:disabled {
 .detail {
   grid-column: 2;
   display: grid;
-  grid-template-rows: auto 1fr;
+  grid-template-rows: minmax(0, 1fr);
+  min-height: 0;
   min-width: 0;
+  overflow: hidden;
   background: #fbfaf5;
 }
 
@@ -336,6 +345,7 @@ button:disabled {
 .file-content {
   width: 100%;
   height: 100%;
+  min-height: 0;
   border: 0;
   resize: none;
   overflow: auto;
@@ -350,6 +360,7 @@ button:disabled {
 }
 
 .source-editor-frame {
+  min-height: 0;
   padding: 0;
   display: block;
 }
@@ -362,6 +373,7 @@ button:disabled {
 .preview-frame {
   width: 100%;
   height: 100%;
+  min-height: 0;
   border: 0;
   background: #fff;
 }
@@ -374,6 +386,7 @@ button:disabled {
   grid-column: 3;
   display: grid;
   grid-template-rows: auto 1fr;
+  min-height: 0;
   min-width: 0;
   overflow: hidden;
   border-left: 1px solid rgba(80, 72, 54, 0.18);
@@ -603,6 +616,7 @@ button:disabled {
 }
 
 .post-create-guide {
+  min-height: 0;
   overflow: auto;
   padding: 36px 44px;
   background: #fbfaf5;

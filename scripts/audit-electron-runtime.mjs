@@ -415,6 +415,15 @@ async function readDomEvidence(window) {
 	        ).join("\\n").trim()
 	      : "";
 	    const treeButtons = [...document.querySelectorAll(".tree-row")];
+	    const detailHeader = document.querySelector(".detail-header");
+	    const detailHeaderRect = detailHeader?.getBoundingClientRect();
+	    const detailHeaderVisible = Boolean(
+	      detailHeader &&
+	      !detailHeader.hidden &&
+	      detailHeaderRect &&
+	      detailHeaderRect.width > 0 &&
+	      detailHeaderRect.height > 0
+	    );
 	    const expandedTreeEvidence = treeButtons.some((button) =>
 	      button.classList.contains("tree-folder-button") &&
 	      button.textContent.includes("wiki") &&
@@ -440,6 +449,13 @@ async function readDomEvidence(window) {
       projectName: textFor("#project-name"),
       toolbarProjectName: textFor("#toolbar-project-name"),
       selectedFileLabel: textFor("#selected-file"),
+      detailHeaderVisible,
+      detailSaveChromeTextVisible: /\\bSaved\\b\\s*\\n\\s*Save\\b/.test(document.body.innerText),
+      projectViewportBounded: !document.querySelector("#project") || (
+        Math.round(document.querySelector("#project").getBoundingClientRect().height) <= window.innerHeight + 1 &&
+        document.documentElement.scrollHeight <= window.innerHeight + 1 &&
+        document.body.scrollHeight <= window.innerHeight + 1
+      ),
       publishDialogHidden: Boolean(document.querySelector("#publish-dialog")?.hidden),
       newWikiDialogHidden: Boolean(document.querySelector("#new-wiki-dialog")?.hidden),
       sourceEditorFramePresent: Boolean(sourceEditorFrame),
@@ -533,8 +549,14 @@ function assertScenario(scenario, dom, screenshot) {
     if (dom.toolbarProjectName !== "runtime-audit-wiki") {
       failures.push(`Unexpected toolbar project name: ${dom.toolbarProjectName}`);
     }
+    if (!dom.projectViewportBounded) {
+      failures.push(`Project shell exceeds viewport: ${JSON.stringify(dom.projectRect)}`);
+    }
     if (dom.selectedFileLabel !== "home.md") {
       failures.push(`Unexpected selected document: ${dom.selectedFileLabel}`);
+    }
+    if (dom.detailHeaderVisible || dom.detailSaveChromeTextVisible) {
+      failures.push("Non-native detail save chrome is visible.");
     }
     if (!dom.sourceEditorFramePresent || !dom.sourceEditorFrameReady || !dom.codeMirrorEditorPresent) {
       failures.push("CodeMirror source editor did not render through the shared editor resource.");

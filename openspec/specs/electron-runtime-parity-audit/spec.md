@@ -2,7 +2,6 @@
 
 ## Purpose
 Define repeatable Electron runtime audit evidence for native shell parity checks.
-
 ## Requirements
 ### Requirement: Runtime Audit Command
 
@@ -61,3 +60,16 @@ The runtime audit SHALL retain generated evidence under the Electron output dire
 - **THEN** it writes `apps/electron/out/runtime-audit/report.json`
 - **AND** it writes screenshots under `apps/electron/out/runtime-audit/screenshots/`
 - **AND** it reports artifact locations in command output
+
+### Requirement: Viewport And Detail Chrome Evidence
+The Electron runtime parity audit SHALL retain evidence that project scenarios are bounded to the viewport and do not show non-native detail chrome.
+
+#### Scenario: Project runtime evidence is captured
+- **WHEN** the runtime audit captures an opened-project scenario
+- **THEN** the report includes project shell rectangle dimensions
+- **AND** the report includes detail header visibility evidence
+- **AND** the report includes whether selected filename/save status/Save button chrome appears in visible body text
+
+#### Scenario: Project runtime evidence fails parity
+- **WHEN** project shell height exceeds the viewport height or detail header chrome is visible
+- **THEN** runtime audit fails the scenario

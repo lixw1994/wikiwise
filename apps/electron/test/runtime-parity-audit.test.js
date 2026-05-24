@@ -61,6 +61,8 @@ test("runtime audit script covers native shell scenarios and assertions", () => 
     /Open Existing Folder/,
     /resource-panel|resources-panel/,
     /selectedFileLabel/,
+    /detailHeaderVisible/,
+    /projectViewportBounded/,
     /publishDialogHidden/,
     /newWikiDialogHidden/,
     /sourceEditorFramePresent/,
@@ -73,6 +75,8 @@ test("runtime audit script covers native shell scenarios and assertions", () => 
     /terminalInputObserved/,
     /rightSidebarHidden/,
     /previewFrameHidden/,
+    /Project shell exceeds viewport/,
+    /Non-native detail save chrome is visible/,
     /differentFromFirstPixelCount/
   ]);
 });
