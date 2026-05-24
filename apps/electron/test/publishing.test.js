@@ -51,12 +51,19 @@ test("renderer contains native publishing state and project service refresh", ()
   assert.match(rendererSource, /checkPublishAvailability/);
   assert.match(rendererSource, /sanitizePublishSubdomain/);
   assert.match(rendererSource, /publishCurrentProject/);
-  assert.match(rendererSource, /unpublishCurrentProject/);
   assert.match(rendererSource, /renderPublishDialog/);
+  assert.match(rendererSource, /renderPublishFeedback/);
+  assert.match(rendererSource, /openPublishedUrl/);
+  assert.match(rendererSource, /dismissPublishResult/);
+  assert.match(rendererSource, /dismissPublishError/);
+  assert.match(rendererSource, /openUnpublishConfirmation/);
+  assert.match(rendererSource, /confirmUnpublish/);
   assert.match(rendererSource, /wikiwise\.getPublishConfig/);
   assert.match(rendererSource, /wikiwise\.checkPublishAvailability/);
   assert.match(rendererSource, /wikiwise\.publishSite/);
   assert.match(rendererSource, /wikiwise\.unpublishSite/);
+  assert.match(rendererSource, /wikiwise\.openExternalUrl/);
+  assert.doesNotMatch(rendererSource, /window\.confirm/);
 });
 
 test("renderer markup and styles include publish dialog, status, and unpublish controls", () => {
@@ -72,15 +79,28 @@ test("renderer markup and styles include publish dialog, status, and unpublish c
     "cancel-publish",
     "confirm-publish",
     "unpublish-wiki",
-    "publish-result",
-    "publish-error"
+    "publish-result-dialog",
+    "publish-result-url",
+    "open-publish-result",
+    "dismiss-publish-result",
+    "publish-error-dialog",
+    "publish-error-message",
+    "dismiss-publish-error",
+    "unpublish-confirm-dialog",
+    "cancel-unpublish",
+    "confirm-unpublish"
   ]) {
     assert.match(htmlSource, new RegExp(`id="${id}"`));
   }
 
+  assert.match(htmlSource, /Published!/);
+  assert.match(htmlSource, /Open in Browser/);
+  assert.match(htmlSource, /Publish Error/);
+  assert.match(htmlSource, /Unpublish wiki\?/);
+  assert.match(htmlSource, /Your local files are not affected/);
   assert.match(cssSource, /\.publish-dialog/);
+  assert.match(cssSource, /\.publish-feedback-dialog/);
   assert.match(cssSource, /\.publish-url-row/);
   assert.match(cssSource, /\.publish-availability/);
-  assert.match(cssSource, /\.publish-result/);
   assert.match(cssSource, /\.danger-action/);
 });

@@ -623,6 +623,30 @@ body.resizing-right-sidebar * {
   width: min(480px, 100%);
 }
 
+.publish-feedback-dialog {
+  width: min(420px, 100%);
+}
+
+.publish-feedback-message {
+  margin: 0;
+  color: #625b4d;
+  line-height: 1.5;
+}
+
+.publish-feedback-url {
+  overflow: hidden;
+  margin: 0;
+  border: 1px solid rgba(80, 72, 54, 0.18);
+  border-radius: 6px;
+  padding: 8px 10px;
+  background: #f3edde;
+  color: #302b22;
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .compact-summary {
   margin-bottom: 0;
   font-size: 12px;
@@ -715,6 +739,10 @@ body.resizing-right-sidebar * {
   margin-top: 8px;
 }
 
+.modal-actions-end {
+  justify-content: flex-end;
+}
+
 .post-create-guide {
   min-height: 0;
   overflow: auto;
@@ -763,16 +791,6 @@ body.resizing-right-sidebar * {
   padding: 10px 12px;
   background: rgba(143, 39, 39, 0.08);
   color: #8f2727;
-}
-
-.publish-result {
-  grid-column: 1 / -1;
-  margin: 0;
-  border: 1px solid rgba(47, 111, 72, 0.22);
-  border-radius: 8px;
-  padding: 10px 12px;
-  background: rgba(47, 111, 72, 0.08);
-  color: #2f6f48;
 }
 
 .eyebrow {

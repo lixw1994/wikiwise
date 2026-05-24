@@ -89,6 +89,52 @@
         </div>
       </section>
 
+      <section id="publish-result-dialog" class="modal-backdrop" hidden>
+        <div class="modal-panel publish-feedback-dialog" role="dialog" aria-modal="true" aria-labelledby="publish-result-title">
+          <h2 id="publish-result-title">Published!</h2>
+          <p id="publish-result-message" class="summary compact-summary"></p>
+          <p id="publish-result-url" class="publish-feedback-url"></p>
+          <div class="modal-actions modal-actions-end">
+            <button id="open-publish-result" class="secondary-action" type="button">
+              Open in Browser
+            </button>
+            <button id="dismiss-publish-result" class="primary-action" type="button">
+              OK
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section id="publish-error-dialog" class="modal-backdrop" hidden>
+        <div class="modal-panel publish-feedback-dialog" role="dialog" aria-modal="true" aria-labelledby="publish-error-title">
+          <h2 id="publish-error-title">Publish Error</h2>
+          <p id="publish-error-message" class="publish-feedback-message"></p>
+          <div class="modal-actions modal-actions-end">
+            <button id="dismiss-publish-error" class="primary-action" type="button">
+              OK
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <section id="unpublish-confirm-dialog" class="modal-backdrop" hidden>
+        <div class="modal-panel publish-feedback-dialog" role="dialog" aria-modal="true" aria-labelledby="unpublish-confirm-title">
+          <h2 id="unpublish-confirm-title">Unpublish wiki?</h2>
+          <p class="publish-feedback-message">
+            This will take your wiki offline and delete it from wiki-wise.com.
+            Your local files are not affected.
+          </p>
+          <div class="modal-actions">
+            <button id="cancel-unpublish" class="secondary-action" type="button">
+              Cancel
+            </button>
+            <button id="confirm-unpublish" class="danger-action" type="button">
+              Unpublish
+            </button>
+          </div>
+        </div>
+      </section>
+
       <section id="project" class="project-shell" hidden>
         <div id="project-toolbar" class="project-toolbar">
           <div class="toolbar-group">
@@ -259,11 +305,6 @@
           </section>
         </aside>
       </section>
-
-      <p id="publish-result" class="publish-result" hidden>
-        Published at <span id="publish-result-url"></span>
-      </p>
-      <p id="publish-error" class="error-message" hidden></p>
       <p id="error-message" class="error-message" hidden></p>
     </main>
 

@@ -46,9 +46,17 @@ const publishAvailability = document.querySelector("#publish-availability");
 const cancelPublishButton = document.querySelector("#cancel-publish");
 const confirmPublishButton = document.querySelector("#confirm-publish");
 const unpublishButton = document.querySelector("#unpublish-wiki");
-const publishResult = document.querySelector("#publish-result");
+const publishResultDialog = document.querySelector("#publish-result-dialog");
+const publishResultMessage = document.querySelector("#publish-result-message");
 const publishResultUrl = document.querySelector("#publish-result-url");
-const publishError = document.querySelector("#publish-error");
+const openPublishResultButton = document.querySelector("#open-publish-result");
+const dismissPublishResultButton = document.querySelector("#dismiss-publish-result");
+const publishErrorDialog = document.querySelector("#publish-error-dialog");
+const publishErrorMessage = document.querySelector("#publish-error-message");
+const dismissPublishErrorButton = document.querySelector("#dismiss-publish-error");
+const unpublishConfirmDialog = document.querySelector("#unpublish-confirm-dialog");
+const cancelUnpublishButton = document.querySelector("#cancel-unpublish");
+const confirmUnpublishButton = document.querySelector("#confirm-unpublish");
 const postCreateGuide = document.querySelector("#post-create-guide");
 const guideClaudeCommand = document.querySelector("#guide-claude-command");
 const guideCodexCommand = document.querySelector("#guide-codex-command");
@@ -94,6 +102,7 @@ const state = {
   isUnpublishing: false,
   publishResult: null,
   publishError: null,
+  isUnpublishConfirmOpen: false,
   availabilityCheckTimer: null,
   isNewWikiDialogOpen: false,
   newWikiName: "",
@@ -173,6 +182,7 @@ function renderApp() {
   renderNewWikiDialog();
   renderPublishDialog();
   renderPublishStatus();
+  renderPublishFeedback();
 
   if (hasProject) {
     projectName.textContent = state.currentProject.projectName;
@@ -551,11 +561,26 @@ function renderPreview() {
 function renderPublishStatus() {
   publishButton.disabled = !state.currentProject || state.isPublishing;
   publishButton.textContent = state.isPublishing ? "PUBLISHING..." : "PUBLISH ↑";
+  renderPublishFeedback();
+}
 
-  publishResult.hidden = !state.publishResult;
-  publishResultUrl.textContent = state.publishResult?.url ?? "";
-  publishError.hidden = !state.publishError;
-  publishError.textContent = state.publishError ?? "";
+function renderPublishFeedback() {
+  const result = state.publishResult;
+  publishResultDialog.hidden = !result;
+  publishResultMessage.textContent = result
+    ? (result.isFirstPublish
+        ? "Your wiki is live at:"
+        : "Updated:")
+    : "";
+  publishResultUrl.textContent = result?.url ?? "";
+  openPublishResultButton.disabled = !result?.url;
+
+  publishErrorDialog.hidden = !state.publishError;
+  publishErrorMessage.textContent = state.publishError ?? "";
+
+  unpublishConfirmDialog.hidden = !state.isUnpublishConfirmOpen;
+  confirmUnpublishButton.disabled = state.isUnpublishing;
+  confirmUnpublishButton.textContent = state.isUnpublishing ? "Unpublishing" : "Unpublish";
 }
 
 function renderProjectToolbar() {
@@ -1246,6 +1271,29 @@ function closePublishDialog() {
   renderPublishDialog();
 }
 
+function dismissPublishResult() {
+  state.publishResult = null;
+  renderPublishFeedback();
+}
+
+function dismissPublishError() {
+  state.publishError = null;
+  renderPublishFeedback();
+  renderPublishStatus();
+}
+
+async function openPublishedUrl() {
+  const url = state.publishResult?.url;
+  if (!url) return;
+
+  try {
+    await window.wikiwise.openExternalUrl(url);
+    dismissPublishResult();
+  } catch (error) {
+    setError(error);
+  }
+}
+
 function renderPublishDialog() {
   publishDialog.hidden = !state.isPublishDialogOpen;
   if (!state.isPublishDialogOpen) return;
@@ -1370,13 +1418,28 @@ async function publishCurrentProject() {
   }
 }
 
-async function unpublishCurrentProject() {
+function openUnpublishConfirmation() {
   if (!state.currentProject || !state.publishConfig?.published) return;
-  if (!window.confirm("Unpublish wiki?")) return;
+
+  state.isPublishDialogOpen = false;
+  state.isUnpublishConfirmOpen = true;
+  renderPublishDialog();
+  renderPublishFeedback();
+}
+
+function closeUnpublishConfirmation() {
+  if (state.isUnpublishing) return;
+
+  state.isUnpublishConfirmOpen = false;
+  renderPublishFeedback();
+}
+
+async function confirmUnpublish() {
+  if (!state.currentProject || !state.publishConfig?.published) return;
 
   state.isUnpublishing = true;
   state.publishError = null;
-  renderPublishDialog();
+  renderPublishFeedback();
 
   try {
     await window.wikiwise.unpublishSite({
@@ -1385,12 +1448,14 @@ async function unpublishCurrentProject() {
     state.publishConfig = await refreshPublishConfig();
     state.publishAvailability = "unknown";
     state.isPublishDialogOpen = false;
+    state.isUnpublishConfirmOpen = false;
   } catch (error) {
     state.publishError = error instanceof Error ? error.message : String(error);
   } finally {
     state.isUnpublishing = false;
     renderPublishDialog();
     renderPublishStatus();
+    renderPublishFeedback();
   }
 }
 
@@ -1777,7 +1842,12 @@ publishSubdomainInput.addEventListener("input", () => {
 });
 cancelPublishButton.addEventListener("click", closePublishDialog);
 confirmPublishButton.addEventListener("click", publishCurrentProject);
-unpublishButton.addEventListener("click", unpublishCurrentProject);
+unpublishButton.addEventListener("click", openUnpublishConfirmation);
+openPublishResultButton.addEventListener("click", openPublishedUrl);
+dismissPublishResultButton.addEventListener("click", dismissPublishResult);
+dismissPublishErrorButton.addEventListener("click", dismissPublishError);
+cancelUnpublishButton.addEventListener("click", closeUnpublishConfirmation);
+confirmUnpublishButton.addEventListener("click", confirmUnpublish);
 newWikiNameInput.addEventListener("input", () => {
   state.newWikiName = newWikiNameInput.value;
   renderNewWikiDialog();
