@@ -34,6 +34,16 @@ test("main process compile IPC accepts invalidation and CSS reload refresh flags
   assert.match(mainSource, /reloadCSS/);
 });
 
+test("main process restarts background compilation after watcher compiler changes", () => {
+  const mainSource = read("src/main/main.js");
+
+  assert.match(mainSource, /applyWatchSummary/);
+  assert.match(mainSource, /summary\.kind === "rebuild"[\s\S]*startBackgroundCompilation\(projectRoot\)/);
+  assert.match(mainSource, /summary\.kind === "structure"[\s\S]*startBackgroundCompilation\(projectRoot\)/);
+  assert.match(mainSource, /summary\.cssChanged[\s\S]*startBackgroundCompilation\(projectRoot\)/);
+  assert.match(mainSource, /summary\.changedMarkdownPaths\.length > 0[\s\S]*startBackgroundCompilation\(projectRoot\)/);
+});
+
 test("preload exposes watcher APIs and cleans up project-change listeners", () => {
   const preloadSource = read("src/preload/preload.cjs");
 

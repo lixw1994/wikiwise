@@ -90,12 +90,14 @@ function createAuditProject() {
 
   compiler.scanPages();
   const compiled = compiler.compileMarkdownFile(selectedPath);
+  const backgroundCompilationEvidence = drainBackgroundCompilation(compiler);
   const auditPreviewPath = createAuditPreviewFile();
 
   return {
     projectRoot,
     projectName: path.basename(projectRoot),
     tree: scanOneLevel(projectRoot),
+    backgroundCompilationEvidence,
     selectedFile: {
       path: selectedPath,
       name: path.basename(selectedPath),
@@ -107,6 +109,29 @@ function createAuditProject() {
         fileUrl: pathToFileURL(auditPreviewPath).href
       }
     }
+  };
+}
+
+function drainBackgroundCompilation(compiler) {
+  const batchSize = 3;
+  const maxBatches = 200;
+  const observedRemaining = [];
+  let remaining = compiler.compileNextBatch(batchSize);
+  let batches = 1;
+  observedRemaining.push(remaining);
+
+  while (remaining > 0 && batches < maxBatches) {
+    remaining = compiler.compileNextBatch(batchSize);
+    batches += 1;
+    observedRemaining.push(remaining);
+  }
+
+  return {
+    batchSize,
+    batches,
+    remaining,
+    observedRemaining,
+    complete: remaining === 0
   };
 }
 
@@ -353,6 +378,11 @@ async function runScenario(window, scenario) {
   fs.writeFileSync(screenshotPath, image.toPNG());
 
   const dom = await readDomEvidence(window);
+  dom.backgroundCompilationEvidence = scenario.kind === "project"
+    ? auditProject?.backgroundCompilationEvidence ?? null
+    : null;
+  dom.backgroundCompilationComplete = scenario.kind !== "project"
+    || Boolean(dom.backgroundCompilationEvidence?.complete && dom.backgroundCompilationEvidence.remaining === 0);
   dom.terminalResizeObserved = terminalResizeObserved;
   dom.rightSidebarTerminalResizeObserved = rightSidebarTerminalResizeObserved;
   dom.terminalInputObserved = terminalInputObserved;
@@ -804,6 +834,9 @@ function assertScenario(scenario, dom, screenshot) {
   } else {
     if (!dom.welcomeHidden || dom.projectHidden) {
       failures.push("Project scenario did not render the opened-project state.");
+    }
+    if (!dom.backgroundCompilationComplete) {
+      failures.push("Background compilation did not complete.");
     }
     if (dom.projectName !== "runtime-audit-wiki") {
       failures.push(`Unexpected project name: ${dom.projectName}`);

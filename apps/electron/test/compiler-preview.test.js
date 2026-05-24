@@ -28,6 +28,20 @@ test("main process compiles wiki home when opening scaffolded folders", () => {
   assert.match(mainSource, /selectedFile/);
 });
 
+test("main process schedules native-style background compilation batches", () => {
+  const mainSource = read("src/main/main.js");
+
+  assert.match(mainSource, /backgroundCompilationJobsByProjectRoot/);
+  assert.match(mainSource, /backgroundCompilationBatchSize\s*=\s*3/);
+  assert.match(mainSource, /backgroundCompilationIntervalMs\s*=\s*100/);
+  assert.match(mainSource, /function startBackgroundCompilation/);
+  assert.match(mainSource, /function stopBackgroundCompilation/);
+  assert.match(mainSource, /compileNextBatch\(backgroundCompilationBatchSize\)/);
+  assert.match(mainSource, /setInterval/);
+  assert.match(mainSource, /clearInterval/);
+  assert.match(mainSource, /startBackgroundCompilation\(projectRoot\)/);
+});
+
 test("preload exposes compiler preview APIs", () => {
   const preloadSource = read("src/preload/preload.cjs");
 

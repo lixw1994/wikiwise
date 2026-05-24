@@ -66,3 +66,24 @@ test("WikiCompiler scans and compiles a scaffold-style wiki home page", () => {
   assert.match(fs.readFileSync(result.outputPath, "utf8"), /Home/);
   assert.equal(fs.existsSync(path.join(root, "site", "out", "search.json")), true);
 });
+
+test("WikiCompiler drains remaining pages with progressive background batches", () => {
+  const root = makeWikiFixture();
+  const compiler = new WikiCompiler({
+    sourceDir: root,
+    repositoryRoot
+  });
+
+  assert.equal(compiler.scanPages(), 3);
+  const home = compiler.compileMarkdownFile(path.join(root, "wiki", "home.md"));
+  assert.equal(home.success, true);
+
+  let remaining = compiler.compileNextBatch(1);
+  while (remaining > 0) {
+    remaining = compiler.compileNextBatch(1);
+  }
+
+  assert.equal(remaining, 0);
+  assert.equal(fs.existsSync(path.join(root, "site", "out", "second-page.html")), true);
+  assert.match(fs.readFileSync(path.join(root, "site", "out", "second-page.html"), "utf8"), /Second Page/);
+});

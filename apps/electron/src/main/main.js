@@ -30,7 +30,10 @@ const requireFromMain = createRequire(import.meta.url);
 const compilersByProjectRoot = new Map();
 const watchersByWebContents = new Map();
 const terminalSessionsByWebContents = new Map();
+const backgroundCompilationJobsByProjectRoot = new Map();
 const projectWatcherDebounceMs = 200;
+const backgroundCompilationBatchSize = 3;
+const backgroundCompilationIntervalMs = 100;
 const wikiHomeRelativePath = "wiki/home.md";
 const nativeResourcesRoot = path.join(repositoryRoot, "Sources", "Wikiwise", "Resources");
 const terminalRuntimeDependencies = Object.freeze(["node-pty", "@xterm/xterm", "@xterm/addon-fit"]);
@@ -54,6 +57,55 @@ function getCompiler(projectRoot) {
   return compiler;
 }
 
+function stopBackgroundCompilation(projectRoot) {
+  const resolvedRoot = path.resolve(projectRoot);
+  const job = backgroundCompilationJobsByProjectRoot.get(resolvedRoot);
+  if (!job) return false;
+
+  clearInterval(job.timer);
+  backgroundCompilationJobsByProjectRoot.delete(resolvedRoot);
+  return true;
+}
+
+function startBackgroundCompilation(projectRoot) {
+  const resolvedRoot = path.resolve(projectRoot);
+  if (!fs.existsSync(resolvedRoot) || !fs.statSync(resolvedRoot).isDirectory()) {
+    return { started: false, projectRoot: resolvedRoot };
+  }
+
+  const compiler = getCompiler(resolvedRoot);
+  stopBackgroundCompilation(resolvedRoot);
+
+  const job = {
+    projectRoot: resolvedRoot,
+    batches: 0,
+    remaining: null,
+    timer: null
+  };
+  job.timer = setInterval(() => {
+    try {
+      const remaining = compiler.compileNextBatch(backgroundCompilationBatchSize);
+      job.batches += 1;
+      job.remaining = remaining;
+      if (remaining <= 0) {
+        stopBackgroundCompilation(resolvedRoot);
+      }
+    } catch (error) {
+      console.error(error instanceof Error ? error.stack : String(error));
+      stopBackgroundCompilation(resolvedRoot);
+    }
+  }, backgroundCompilationIntervalMs);
+  job.timer.unref?.();
+  backgroundCompilationJobsByProjectRoot.set(resolvedRoot, job);
+
+  return {
+    started: true,
+    projectRoot: resolvedRoot,
+    batchSize: backgroundCompilationBatchSize,
+    intervalMs: backgroundCompilationIntervalMs
+  };
+}
+
 function compileMarkdownFile(projectRoot, filePath, options = {}) {
   const compiler = getCompiler(projectRoot);
 
@@ -65,6 +117,7 @@ function compileMarkdownFile(projectRoot, filePath, options = {}) {
     compiler.invalidatePage(slugForPath(filePath));
   }
   const result = compiler.compileMarkdownFile(filePath);
+  startBackgroundCompilation(projectRoot);
 
   return {
     ...result,
@@ -465,20 +518,24 @@ function applyWatchSummary(projectRoot, summary) {
     fs.rmSync(path.join(projectRoot, ".rebuild"), { force: true });
     compiler.rescan();
     compiler.invalidateAll();
+    startBackgroundCompilation(projectRoot);
     return;
   }
 
   if (summary.kind === "structure") {
     compiler.rescan();
+    startBackgroundCompilation(projectRoot);
     return;
   }
 
   if (summary.cssChanged) {
     compiler.reloadCSS();
     compiler.invalidateAll();
+    startBackgroundCompilation(projectRoot);
   }
   if (summary.changedMarkdownPaths.length > 0) {
     compiler.rescan();
+    startBackgroundCompilation(projectRoot);
   }
 }
 
@@ -813,6 +870,9 @@ function createProjectResult(targetPath) {
   const stat = fs.statSync(targetPath);
   const isDirectory = stat.isDirectory();
   const projectRoot = isDirectory ? targetPath : path.dirname(targetPath);
+  if (isDirectory) {
+    getCompiler(projectRoot).scanPages();
+  }
   const tree = scanOneLevel(projectRoot);
   const selectedFile = isDirectory
     ? compileWikiHomeIfPresent(projectRoot)
@@ -821,6 +881,9 @@ function createProjectResult(targetPath) {
         name: path.basename(targetPath),
         content: readTextFile(targetPath)
       };
+  if (isDirectory) {
+    startBackgroundCompilation(projectRoot);
+  }
 
   return {
     projectRoot,
@@ -1009,6 +1072,8 @@ export {
   applyWatchSummary,
   applyAppearanceMode,
   assertProjectPath,
+  backgroundCompilationBatchSize,
+  backgroundCompilationIntervalMs,
   closeProjectWatcher,
   compileMarkdownFile,
   createApplicationMenu,
@@ -1041,8 +1106,10 @@ export {
   sendTerminalInput,
   sendAppCommand,
   setAppearanceMode,
+  startBackgroundCompilation,
   startTerminal,
   startProjectWatcher,
+  stopBackgroundCompilation,
   unpublishProject,
   writeAppSettings
 };
