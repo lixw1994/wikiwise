@@ -20,6 +20,7 @@ const state = {
   selectedFile: null,
   detailMode: "file",
   autosaveTimer: null,
+  projectWatcherCleanup: null,
   tree: []
 };
 
@@ -95,6 +96,7 @@ async function openExisting() {
     setSelectedFile(result.project.selectedFile);
 
     renderApp();
+    await startProjectWatcher();
   } catch (error) {
     setError(error);
   } finally {
@@ -115,10 +117,7 @@ async function selectFile(node) {
 
     if (isMarkdownFile(node.path)) {
       try {
-        nextFile.compiled = await window.wikiwise.compilePage({
-          projectRoot: state.currentProject.projectRoot,
-          filePath: node.path
-        });
+        nextFile.compiled = await compileMarkdownPreview(node.path);
       } catch (error) {
         setError(error);
       }
@@ -180,6 +179,96 @@ function renderDetail() {
 
 function renderPreview() {
   previewFrame.src = state.selectedFile.compiled.fileUrl;
+}
+
+async function startProjectWatcher() {
+  if (state.projectWatcherCleanup) {
+    state.projectWatcherCleanup();
+    state.projectWatcherCleanup = null;
+  }
+  if (!state.currentProject) {
+    await window.wikiwise.stopProjectWatcher();
+    return;
+  }
+
+  const cleanup = window.wikiwise.onProjectChanged(handleProjectChanged);
+  try {
+    await window.wikiwise.startProjectWatcher({
+      projectRoot: state.currentProject.projectRoot
+    });
+    state.projectWatcherCleanup = cleanup;
+  } catch (error) {
+    cleanup();
+    throw error;
+  }
+}
+
+async function handleProjectChanged(change) {
+  if (!state.currentProject || change.projectRoot !== state.currentProject.projectRoot) {
+    return;
+  }
+
+  const currentFile = state.selectedFile;
+  const currentPath = currentFile?.path;
+  const currentMarkdownSelected = Boolean(currentPath && isMarkdownFile(currentPath));
+  const changedMarkdownPaths = change.changedMarkdownPaths ?? [];
+  const selectedMarkdownChanged =
+    currentMarkdownSelected && changedMarkdownPaths.includes(currentPath);
+
+  try {
+    if (change.kind === "structure" || change.kind === "rebuild") {
+      state.tree = await window.wikiwise.scanProject(state.currentProject.projectRoot);
+      renderTree(state.tree);
+    }
+
+    if (selectedMarkdownChanged && state.selectedFile && !state.selectedFile.isDirty) {
+      const content = await window.wikiwise.readFile(currentPath);
+      if (state.selectedFile?.path === currentPath) {
+        state.selectedFile.content = content;
+        state.selectedFile.draftContent = content;
+        state.selectedFile.lastSavedContent = content;
+        state.selectedFile.isDirty = false;
+        renderDetail();
+      }
+    }
+
+    if (
+      currentMarkdownSelected &&
+      (change.kind === "rebuild" || change.cssChanged || selectedMarkdownChanged)
+    ) {
+      await refreshSelectedMarkdown({
+        invalidate: true,
+        reloadCSS: Boolean(change.cssChanged)
+      });
+    }
+  } catch (error) {
+    setError(error);
+  }
+}
+
+async function refreshSelectedMarkdown(options = {}) {
+  const file = state.selectedFile;
+  if (!state.currentProject || !file || !isMarkdownFile(file.path)) return null;
+
+  const refreshedPath = file.path;
+  const compiled = await compileMarkdownPreview(refreshedPath, {
+    invalidate: Boolean(options.invalidate),
+    reloadCSS: Boolean(options.reloadCSS)
+  });
+  if (state.selectedFile?.path === refreshedPath) {
+    state.selectedFile.compiled = compiled;
+    renderDetail();
+  }
+  return compiled;
+}
+
+function compileMarkdownPreview(filePath, options = {}) {
+  return window.wikiwise.compilePage({
+    projectRoot: state.currentProject.projectRoot,
+    filePath,
+    invalidate: Boolean(options.invalidate),
+    reloadCSS: Boolean(options.reloadCSS)
+  });
 }
 
 function renderSaveState() {

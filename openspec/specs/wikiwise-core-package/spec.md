@@ -110,3 +110,15 @@ The core package SHALL expose an active-file tracking helper compatible with the
 - **WHEN** JavaScript records an active file for a project root
 - **THEN** `.claude/active-file` is written under the project root
 - **AND** its contents are the selected file path relative to the project root
+
+### Requirement: Watch Event Classification
+
+The core package SHALL expose helpers that classify and coalesce watched filesystem events according to native FileWatcher rules.
+
+#### Scenario: Watched events are summarized
+
+- **WHEN** JavaScript summarizes changed paths for a project root and output directory
+- **THEN** paths inside the output directory are ignored
+- **AND** root `.rebuild` events produce a rebuild summary
+- **AND** markdown create/delete/rename, support JS/map files, and `wiki/assets` changes produce a structure summary
+- **AND** CSS changes and markdown content changes produce a content summary

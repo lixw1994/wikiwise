@@ -21,7 +21,7 @@ The Electron migration SHALL provide a Node-backed compiler wrapper that can exe
 
 ### Requirement: Compiled Preview Mode
 
-The Electron renderer SHALL offer File and Wiki modes for markdown files once compiled HTML is available, and SHALL refresh that compiled HTML after markdown source saves.
+The Electron renderer SHALL offer File and Wiki modes for markdown files once compiled HTML is available, SHALL refresh that compiled HTML after markdown source saves, and SHALL refresh compiled HTML when watcher events affect the selected markdown page.
 
 #### Scenario: Markdown file has compiled HTML
 
@@ -34,6 +34,12 @@ The Electron renderer SHALL offer File and Wiki modes for markdown files once co
 - **WHEN** a markdown file save returns an updated compiled page result
 - **THEN** the renderer updates the selected file's compiled state
 - **AND** Wiki mode loads the updated compiled file URL
+
+#### Scenario: Watcher refresh affects selected markdown
+
+- **WHEN** CSS changes, rebuild changes, or selected markdown file changes are reported by the project watcher
+- **THEN** the renderer requests a compiled preview refresh
+- **AND** the main process invalidates or reloads compiler state as needed before returning the preview file URL
 
 ### Requirement: Open Wiki Home Preview
 

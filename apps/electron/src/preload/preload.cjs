@@ -6,5 +6,12 @@ contextBridge.exposeInMainWorld("wikiwise", {
   scanProject: (projectPath) => ipcRenderer.invoke("wikiwise:scanProject", projectPath),
   readFile: (filePath) => ipcRenderer.invoke("wikiwise:readFile", filePath),
   compilePage: (payload) => ipcRenderer.invoke("wikiwise:compilePage", payload),
-  saveFile: (payload) => ipcRenderer.invoke("wikiwise:saveFile", payload)
+  saveFile: (payload) => ipcRenderer.invoke("wikiwise:saveFile", payload),
+  startProjectWatcher: (payload) => ipcRenderer.invoke("wikiwise:startProjectWatcher", payload),
+  stopProjectWatcher: () => ipcRenderer.invoke("wikiwise:stopProjectWatcher"),
+  onProjectChanged: (callback) => {
+    const listener = (_event, payload) => callback(payload);
+    ipcRenderer.on("wikiwise:projectChanged", listener);
+    return () => ipcRenderer.removeListener("wikiwise:projectChanged", listener);
+  }
 });

@@ -68,6 +68,53 @@ export function writeActiveFile(projectRoot, filePath) {
   };
 }
 
+export function summarizeWatchEvents({ projectRoot, outputDir, events }) {
+  let cssChanged = false;
+  let rebuildTriggered = false;
+  let structureChanged = false;
+  const changedMarkdownPaths = new Set();
+
+  for (const event of events ?? []) {
+    const eventPath = path.resolve(event.path);
+    if (isPathInside(eventPath, outputDir)) continue;
+
+    const fileName = path.basename(eventPath);
+    const relativePath = path.relative(projectRoot, eventPath).split(path.sep).join("/");
+
+    if (relativePath === ".rebuild" && !event.removed) {
+      rebuildTriggered = true;
+    } else if (/\.css$/i.test(eventPath)) {
+      cssChanged = true;
+    } else if (/\.md$/i.test(eventPath)) {
+      if (event.eventType === "rename" || event.created || event.removed || event.renamed) {
+        structureChanged = true;
+      } else {
+        changedMarkdownPaths.add(eventPath);
+      }
+    } else if (["build.js", "app.js", "graph.js", "map.html"].includes(fileName)) {
+      structureChanged = true;
+    } else if (relativePath.startsWith("wiki/assets/")) {
+      structureChanged = true;
+    }
+  }
+
+  const sortedMarkdownPaths = [...changedMarkdownPaths].sort();
+
+  if (rebuildTriggered) {
+    return createWatchSummary("rebuild", false, [], false);
+  }
+
+  if (structureChanged) {
+    return createWatchSummary("structure", false, sortedMarkdownPaths, true);
+  }
+
+  if (cssChanged || sortedMarkdownPaths.length > 0) {
+    return createWatchSummary("content", cssChanged, sortedMarkdownPaths, false);
+  }
+
+  return null;
+}
+
 export function slugForPath(filePath) {
   const fileName = path.basename(filePath);
   let slug = fileName.replace(/\.md$/i, "").toLowerCase().replace(/ /g, "-");
@@ -156,6 +203,7 @@ export class WikiCompiler {
   }
 
   reloadCSS() {
+    this.setBundledString("bundledCSS", this.readProjectOrRepositoryResource("style.css"));
     this.callFunction("reloadCSS", this.sourceDir);
   }
 
@@ -322,6 +370,25 @@ export function scanOneLevel(rootPath) {
 
 function defaultRepositoryRoot() {
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+}
+
+function createWatchSummary(kind, cssChanged, changedMarkdownPaths, structureChanged) {
+  return {
+    kind,
+    cssChanged,
+    changedMarkdownPaths,
+    structureChanged
+  };
+}
+
+function isPathInside(filePath, directoryPath) {
+  const relativePath = path.relative(path.resolve(directoryPath), path.resolve(filePath));
+  return (
+    relativePath === "" ||
+    (relativePath !== ".." &&
+      !relativePath.startsWith(`..${path.sep}`) &&
+      !path.isAbsolute(relativePath))
+  );
 }
 
 function extension(fileName) {

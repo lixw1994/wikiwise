@@ -9,6 +9,7 @@ import {
   resolveRepositoryResourcePath,
   scanOneLevel,
   slugForPath,
+  summarizeWatchEvents,
   writeActiveFile,
   writeTextFile
 } from "@wikiwise/core";
@@ -18,6 +19,8 @@ const currentDir = path.dirname(currentFile);
 const packageRoot = path.resolve(currentDir, "..", "..");
 const repositoryRoot = path.resolve(packageRoot, "..", "..");
 const compilersByProjectRoot = new Map();
+const watchersByWebContents = new Map();
+const projectWatcherDebounceMs = 200;
 const wikiHomeRelativePath = "wiki/home.md";
 
 function getResourceManifest() {
@@ -43,6 +46,9 @@ function getCompiler(projectRoot) {
 function compileMarkdownFile(projectRoot, filePath, options = {}) {
   const compiler = getCompiler(projectRoot);
 
+  if (options.reloadCSS) {
+    compiler.reloadCSS();
+  }
   compiler.scanPages();
   if (options.invalidate) {
     compiler.invalidatePage(slugForPath(filePath));
@@ -53,6 +59,124 @@ function compileMarkdownFile(projectRoot, filePath, options = {}) {
     ...result,
     fileUrl: result.outputPath ? pathToFileURL(result.outputPath).href : null
   };
+}
+
+function startProjectWatcher(webContents, payload) {
+  const projectRoot = typeof payload === "string" ? payload : payload?.projectRoot;
+  if (!projectRoot) {
+    throw new Error("startProjectWatcher requires projectRoot");
+  }
+  if (!webContents || webContents.isDestroyed()) {
+    throw new Error("startProjectWatcher requires live webContents");
+  }
+
+  const resolvedRoot = path.resolve(projectRoot);
+  const compiler = getCompiler(resolvedRoot);
+  const webContentsId = webContents.id;
+  closeProjectWatcher(webContentsId);
+
+  const pendingEvents = [];
+  let debounceTimer = null;
+
+  function flushPendingEvents() {
+    debounceTimer = null;
+    const events = pendingEvents.splice(0);
+    const summary = summarizeWatchEvents({
+      projectRoot: resolvedRoot,
+      outputDir: compiler.outputDir,
+      events
+    });
+
+    if (!summary) return;
+
+    applyWatchSummary(resolvedRoot, summary);
+    if (!webContents.isDestroyed()) {
+      webContents.send("wikiwise:projectChanged", {
+        projectRoot: resolvedRoot,
+        ...summary
+      });
+    }
+  }
+
+  function scheduleFlush() {
+    if (debounceTimer) {
+      clearTimeout(debounceTimer);
+    }
+    debounceTimer = setTimeout(flushPendingEvents, projectWatcherDebounceMs);
+  }
+
+  const watcher = createProjectWatcher(resolvedRoot, (eventType, filename) => {
+    if (!filename) return;
+
+    const eventPath = path.join(resolvedRoot, filename.toString());
+    pendingEvents.push({
+      path: eventPath,
+      eventType,
+      removed: !fs.existsSync(eventPath)
+    });
+    scheduleFlush();
+  });
+
+  watchersByWebContents.set(webContentsId, {
+    projectRoot: resolvedRoot,
+    close: () => {
+      if (debounceTimer) {
+        clearTimeout(debounceTimer);
+        debounceTimer = null;
+      }
+      watcher.close();
+    }
+  });
+  webContents.once("destroyed", () => closeProjectWatcher(webContentsId));
+
+  return {
+    watching: true,
+    projectRoot: resolvedRoot
+  };
+}
+
+function createProjectWatcher(projectRoot, callback) {
+  try {
+    return fs.watch(projectRoot, { recursive: true }, callback);
+  } catch (error) {
+    if (error?.code !== "ERR_FEATURE_UNAVAILABLE_ON_PLATFORM") {
+      throw error;
+    }
+    return fs.watch(projectRoot, callback);
+  }
+}
+
+function applyWatchSummary(projectRoot, summary) {
+  const compiler = getCompiler(projectRoot);
+
+  if (summary.kind === "rebuild") {
+    fs.rmSync(path.join(projectRoot, ".rebuild"), { force: true });
+    compiler.rescan();
+    compiler.invalidateAll();
+    return;
+  }
+
+  if (summary.kind === "structure") {
+    compiler.rescan();
+    return;
+  }
+
+  if (summary.cssChanged) {
+    compiler.reloadCSS();
+    compiler.invalidateAll();
+  }
+  if (summary.changedMarkdownPaths.length > 0) {
+    compiler.rescan();
+  }
+}
+
+function closeProjectWatcher(webContentsId) {
+  const watcherRecord = watchersByWebContents.get(webContentsId);
+  if (!watcherRecord) return false;
+
+  watcherRecord.close();
+  watchersByWebContents.delete(webContentsId);
+  return true;
 }
 
 function assertProjectPath(projectRoot, filePath) {
@@ -184,10 +308,21 @@ ipcMain.handle("wikiwise:compilePage", (_event, payload) => {
     throw new Error("compilePage requires projectRoot and filePath");
   }
 
-  return compileMarkdownFile(payload.projectRoot, payload.filePath);
+  return compileMarkdownFile(payload.projectRoot, payload.filePath, {
+    invalidate: Boolean(payload.invalidate),
+    reloadCSS: Boolean(payload.reloadCSS)
+  });
 });
 ipcMain.handle("wikiwise:saveFile", (_event, payload) => {
   return saveFile(payload);
+});
+ipcMain.handle("wikiwise:startProjectWatcher", (event, payload) => {
+  return startProjectWatcher(event.sender, payload);
+});
+ipcMain.handle("wikiwise:stopProjectWatcher", (event) => {
+  return {
+    stopped: closeProjectWatcher(event.sender.id)
+  };
 });
 
 app.whenReady().then(() => {
@@ -207,13 +342,16 @@ app.on("window-all-closed", () => {
 });
 
 export {
+  applyWatchSummary,
   assertProjectPath,
+  closeProjectWatcher,
   compileMarkdownFile,
   createMainWindow,
   createProjectResult,
   getResourceManifest,
   openExistingProject,
-  saveFile
+  saveFile,
+  startProjectWatcher
 };
 
 function isMarkdownFile(filePath) {
