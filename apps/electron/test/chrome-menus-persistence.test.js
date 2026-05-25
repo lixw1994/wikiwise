@@ -232,6 +232,45 @@ test("project toolbar icon controls mirror native plain button chrome", () => {
   assert.match(publishButtonBlock, /border-radius:\s*3px/);
 });
 
+test("project toolbar icon controls mirror native intrinsic plain sizing", () => {
+  const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const cssSource = read("src/renderer/styles.css");
+  const toolbarIconBlock = cssBlock(cssSource, ".toolbar-icon-button");
+  const modeButtonBlock = cssBlock(cssSource, ".mode-button");
+  const publishButtonBlock = cssBlock(cssSource, ".publish-button");
+  const nativeProjectToolbar = swiftSource.match(
+    /private var navSplitContent[\s\S]*?\.toolbarBackground\(Color\.sidebarBg,\s*for:\s*\.windowToolbar\)/
+  )?.[0] ?? "";
+  const nativePlainIconBlocks = [
+    /Image\(systemName:\s*"sidebar\.left"\)[\s\S]*?\.buttonStyle\(\.plain\)/,
+    /Text\("\\u\{2190\}"\)[\s\S]*?\.buttonStyle\(\.plain\)/,
+    /Text\("\\u\{2192\}"\)[\s\S]*?\.buttonStyle\(\.plain\)/,
+    /Image\(systemName:\s*currentMode == \.dark \? "moon\.fill" : currentMode == \.light \? "sun\.max\.fill" : "circle\.lefthalf\.filled"\)[\s\S]*?\.buttonStyle\(\.plain\)/,
+    /Image\(systemName:\s*"map"\)[\s\S]*?\.buttonStyle\(\.plain\)/,
+    /Image\(systemName:\s*"sidebar\.right"\)[\s\S]*?\.buttonStyle\(\.plain\)/
+  ].map((pattern) => nativeProjectToolbar.match(pattern)?.[0] ?? "");
+
+  assert.notEqual(nativeProjectToolbar, "");
+  for (const nativeBlock of nativePlainIconBlocks) {
+    assert.notEqual(nativeBlock, "");
+    assert.doesNotMatch(nativeBlock, /\.frame\(/);
+    assert.doesNotMatch(nativeBlock, /\.padding\(/);
+  }
+  assert.match(swiftSource, /HStack\(spacing:\s*14\)/);
+  assert.match(swiftSource, /HStack\(spacing:\s*10\)/);
+
+  assert.match(toolbarIconBlock, /min-width:\s*0/);
+  assert.match(toolbarIconBlock, /inline-size:\s*auto/);
+  assert.match(toolbarIconBlock, /block-size:\s*auto/);
+  assert.match(toolbarIconBlock, /padding:\s*0/);
+  assert.doesNotMatch(toolbarIconBlock, /min-width:\s*34px/);
+  assert.doesNotMatch(toolbarIconBlock, /inline-size:\s*34px/);
+  assert.doesNotMatch(toolbarIconBlock, /block-size:\s*31px/);
+  assert.doesNotMatch(toolbarIconBlock, /padding:\s*6px 9px/);
+  assert.match(modeButtonBlock, /padding:\s*4px 10px/);
+  assert.match(publishButtonBlock, /padding:\s*4px 10px/);
+});
+
 test("project toolbar mode switch mirrors native segmented styling", () => {
   const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const cssSource = read("src/renderer/styles.css");

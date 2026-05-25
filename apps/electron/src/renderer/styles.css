@@ -220,12 +220,12 @@ button:disabled {
 }
 
 .toolbar-icon-button {
-  min-width: 34px;
-  inline-size: 34px;
-  block-size: 31px;
+  min-width: 0;
+  inline-size: auto;
+  block-size: auto;
   border: 0;
   border-radius: 0;
-  padding: 6px 9px;
+  padding: 0;
   background: transparent;
   color: var(--color-toolbar-text);
   font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
