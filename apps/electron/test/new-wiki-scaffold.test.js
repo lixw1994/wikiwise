@@ -196,6 +196,34 @@ test("renderer mirrors native new-wiki action button chrome", () => {
   assert.match(htmlSource, /id="confirm-publish" class="primary-action"/);
 });
 
+test("renderer mirrors native new-wiki location chooser button chrome", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const htmlSource = read("src/renderer/index.html");
+  const styleSource = read("src/renderer/styles.css");
+  const newWikiSheetSource =
+    nativeSource.match(/private var newWikiSheet: some View[\s\S]*?\.frame\(width:\s*400\)/)?.[0] ?? "";
+  const nativeChooseButtonSource = newWikiSheetSource.match(/Button\("Choose…"\)[\s\S]*?^\s*\}/m)?.[0] ?? "";
+  const newWikiButtonBlock = cssBlock(styleSource, ".new-wiki-button");
+  const newWikiChooseButtonBlock = cssBlock(styleSource, ".new-wiki-choose-button");
+
+  assert.notEqual(newWikiSheetSource, "");
+  assert.notEqual(nativeChooseButtonSource, "");
+  assert.match(nativeChooseButtonSource, /Button\("Choose…"\)/);
+  assert.doesNotMatch(nativeChooseButtonSource, /\.buttonStyle|\.foregroundStyle|\.background|\.clipShape/);
+
+  assert.match(
+    htmlSource,
+    /id="choose-new-wiki-location" class="new-wiki-button new-wiki-choose-button"[^>]*>[\s\S]*Choose…[\s\S]*<\/button>/
+  );
+  assert.doesNotMatch(htmlSource, /id="choose-new-wiki-location" class="secondary-action compact"/);
+  assert.match(rendererSource, /chooseNewWikiLocationButton\.addEventListener\("click", chooseNewWikiLocation\)/);
+  assert.match(newWikiButtonBlock, /border:\s*1px solid var\(--color-sidebar-rule\)/);
+  assert.match(newWikiChooseButtonBlock, /align-self:\s*end/);
+  assert.match(htmlSource, /id="open-existing" class="secondary-action welcome-action"/);
+  assert.match(htmlSource, /id="cancel-publish" class="secondary-action"/);
+});
+
 test("renderer mirrors native new-wiki and post-create guide copy", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");

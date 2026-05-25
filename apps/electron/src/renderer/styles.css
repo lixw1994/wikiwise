@@ -1182,6 +1182,10 @@ body.resizing-left-sidebar * {
   line-height: 1.3;
 }
 
+.new-wiki-choose-button {
+  align-self: end;
+}
+
 .new-wiki-default-button {
   border-color: var(--color-accent-primary);
   background: var(--color-accent-primary);
