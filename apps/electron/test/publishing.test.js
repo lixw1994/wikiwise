@@ -330,6 +330,22 @@ test("renderer mirrors native publish URL row font", () => {
   assert.match(availabilityIndicatorBlock, /height:\s*16px/);
 });
 
+test("renderer mirrors native publish subdomain plain input padding", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const cssSource = read("src/renderer/styles.css");
+  const publishUrlRowBlock = cssBlock(cssSource, ".publish-url-row");
+  const publishSubdomainBlock = cssBlock(cssSource, ".publish-subdomain");
+
+  assert.match(
+    nativeSource,
+    /TextField\("subdomain",\s*text:\s*\$pendingSubdomain\)[\s\S]*\.textFieldStyle\(\.plain\)/
+  );
+  assert.match(publishUrlRowBlock, /padding:\s*8px/);
+  assert.match(publishSubdomainBlock, /padding:\s*0/);
+  assert.match(publishSubdomainBlock, /border:\s*0/);
+  assert.match(publishSubdomainBlock, /background:\s*transparent/);
+});
+
 test("renderer mirrors native publish URL display without duplicate detail row", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const htmlSource = read("src/renderer/index.html");
