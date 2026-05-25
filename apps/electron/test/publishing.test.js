@@ -68,6 +68,7 @@ test("renderer contains native publishing state and project service refresh", ()
   assert.match(rendererSource, /dismissPublishError/);
   assert.match(rendererSource, /openUnpublishConfirmation/);
   assert.match(rendererSource, /confirmUnpublish/);
+  assert.match(rendererSource, /handleUnpublishConfirmationKeydown/);
   assert.match(rendererSource, /wikiwise\.getPublishConfig/);
   assert.match(rendererSource, /wikiwise\.checkPublishAvailability/);
   assert.match(rendererSource, /wikiwise\.publishSite/);
@@ -161,6 +162,27 @@ test("renderer markup and styles include publish dialog, status, and unpublish c
   assert.match(cssSource, /\.publish-url-row/);
   assert.match(cssSource, /\.publish-availability/);
   assert.match(cssSource, /\.danger-action/);
+});
+
+test("renderer mirrors native unpublish confirmation cancel keyboard behavior", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const handlerBody = rendererSource.match(
+    /function handleUnpublishConfirmationKeydown\(event\) \{([\s\S]*?)\n\}\n\nasync function confirmUnpublish/
+  )?.[1] ?? "";
+
+  assert.match(
+    nativeSource,
+    /\.alert\("Unpublish wiki\?",[\s\S]*Button\("Cancel", role: \.cancel\)/
+  );
+  assert.match(rendererSource, /function handleUnpublishConfirmationKeydown\(event\)/);
+  assert.match(rendererSource, /event\.key === "Escape"[\s\S]*closeUnpublishConfirmation\(\)/);
+  assert.doesNotMatch(handlerBody, /event\.key === "Enter"/);
+  assert.doesNotMatch(handlerBody, /confirmUnpublish\(\)/);
+  assert.match(
+    rendererSource,
+    /unpublishConfirmDialog\.addEventListener\("keydown", handleUnpublishConfirmationKeydown\)/
+  );
 });
 
 test("renderer mirrors native publish dialog copy", () => {

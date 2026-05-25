@@ -1637,6 +1637,15 @@ function closeUnpublishConfirmation() {
   renderPublishFeedback();
 }
 
+function handleUnpublishConfirmationKeydown(event) {
+  if (!state.isUnpublishConfirmOpen) return;
+
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeUnpublishConfirmation();
+  }
+}
+
 async function confirmUnpublish() {
   if (!state.currentProject || !state.publishConfig?.published) return;
 
@@ -2057,6 +2066,7 @@ dismissPublishResultButton.addEventListener("click", dismissPublishResult);
 dismissPublishErrorButton.addEventListener("click", dismissPublishError);
 cancelUnpublishButton.addEventListener("click", closeUnpublishConfirmation);
 confirmUnpublishButton.addEventListener("click", confirmUnpublish);
+unpublishConfirmDialog.addEventListener("keydown", handleUnpublishConfirmationKeydown);
 newWikiNameInput.addEventListener("input", () => {
   state.newWikiName = newWikiNameInput.value;
   renderNewWikiDialog();
