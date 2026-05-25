@@ -152,6 +152,36 @@ test("renderer linked info rows use native north-east marker", () => {
   assert.doesNotMatch(rendererSource, /item\.textContent = `-> \$\{target\}`/);
 });
 
+test("renderer directions info uses native gold callout styling", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
+  const htmlSource = read("src/renderer/index.html");
+  const cssSource = read("src/renderer/styles.css");
+  const directionsBlock = cssBlock(cssSource, ".info-directions-callout");
+  const directionsAccentBlock = cssBlock(cssSource, ".info-directions-callout::before");
+  const infoLinksBlock = cssBlock(cssSource, ".info-links");
+
+  assert.match(
+    nativeSource,
+    /Text\(directions\)[\s\S]*\.font\(\.custom\("Fraunces",\s*size:\s*12\)\)[\s\S]*\.italic\(\)[\s\S]*\.foregroundStyle\(Color\.infoValue\)[\s\S]*\.lineSpacing\(3\)[\s\S]*\.padding\(\.vertical,\s*10\)[\s\S]*\.padding\(\.horizontal,\s*12\)[\s\S]*\.background\(Color\.accentGold\.opacity\(0\.12\)\)[\s\S]*Rectangle\(\)[\s\S]*\.fill\(Color\.accentGold\)[\s\S]*\.frame\(width:\s*2\)/
+  );
+  assert.match(htmlSource, /<p id="info-directions" class="info-directions-callout">Select a markdown file<\/p>/);
+  assert.match(directionsBlock, /position:\s*relative/);
+  assert.match(directionsBlock, /margin:\s*0/);
+  assert.match(directionsBlock, /padding:\s*10px 12px/);
+  assert.match(directionsBlock, /background:\s*color-mix\(in srgb,\s*var\(--color-accent-gold\) 12%,\s*transparent\)/);
+  assert.match(directionsBlock, /color:\s*var\(--color-info-value\)/);
+  assert.match(directionsBlock, /font-family:\s*Georgia,\s*serif/);
+  assert.match(directionsBlock, /font-size:\s*12px/);
+  assert.match(directionsBlock, /font-style:\s*italic/);
+  assert.match(directionsBlock, /line-height:\s*calc\(1\.2em \+ 3px\)/);
+  assert.match(directionsAccentBlock, /position:\s*absolute/);
+  assert.match(directionsAccentBlock, /left:\s*0/);
+  assert.match(directionsAccentBlock, /width:\s*2px/);
+  assert.match(directionsAccentBlock, /background:\s*var\(--color-accent-gold\)/);
+  assert.doesNotMatch(infoLinksBlock, /background:\s*color-mix/);
+  assert.doesNotMatch(infoLinksBlock, /font-style:\s*italic/);
+});
+
 test("renderer info metadata mirrors native about document section", () => {
   const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
   const htmlSource = read("src/renderer/index.html");

@@ -741,6 +741,29 @@ body.resizing-left-sidebar * {
   margin-top: 0;
 }
 
+.info-directions-callout {
+  position: relative;
+  margin: 0;
+  padding: 10px 12px;
+  background: color-mix(in srgb, var(--color-accent-gold) 12%, transparent);
+  color: var(--color-info-value);
+  font-family: Georgia, serif;
+  font-size: 12px;
+  font-style: italic;
+  line-height: calc(1.2em + 3px);
+  overflow-wrap: anywhere;
+}
+
+.info-directions-callout::before {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 0;
+  width: 2px;
+  background: var(--color-accent-gold);
+  content: "";
+}
+
 .info-links {
   display: grid;
   gap: 7px;
