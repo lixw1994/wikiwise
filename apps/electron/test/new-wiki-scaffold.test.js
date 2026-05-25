@@ -112,6 +112,28 @@ test("renderer mirrors native new-wiki sheet layout and typography", () => {
   assert.match(htmlSource, /id="confirm-create-new"[\s\S]*?>\s*Create\s*<\/button>/);
 });
 
+test("renderer mirrors native new-wiki location middle truncation", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const styleSource = read("src/renderer/styles.css");
+  const locationPathBlock = cssBlock(styleSource, ".location-path");
+
+  assert.match(
+    nativeSource,
+    /Text\(newWikiLocation\?\.path \?\? "~\/wikis"\)[\s\S]*\.lineLimit\(1\)[\s\S]*\.truncationMode\(\.middle\)/
+  );
+
+  assert.match(rendererSource, /const newWikiLocationDisplayLimit = \d+/);
+  assert.match(rendererSource, /function middleTruncatePath\(pathValue/);
+  assert.match(rendererSource, /return `\$\{pathValue\.slice\(0,\s*headLength\)\}…\$\{pathValue\.slice\(-tailLength\)\}`/);
+  assert.match(rendererSource, /newWikiLocationLabel\.textContent = middleTruncatePath\(fullLocationPath\)/);
+  assert.match(rendererSource, /newWikiLocationLabel\.title = fullLocationPath/);
+  assert.match(rendererSource, /newWikiLocationLabel\.setAttribute\("aria-label", fullLocationPath\)/);
+  assert.match(rendererSource, /parentDir:\s*state\.newWikiLocation/);
+  assert.match(locationPathBlock, /white-space:\s*nowrap/);
+  assert.doesNotMatch(locationPathBlock, /text-overflow:\s*ellipsis/);
+});
+
 test("renderer mirrors native new-wiki and post-create guide copy", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");

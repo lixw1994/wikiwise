@@ -68,3 +68,13 @@ The Electron create-new-wiki dialog SHALL match the native SwiftUI new-wiki shee
 - **AND** its title uses 16px semibold typography
 - **AND** its field labels use 12px medium typography
 - **AND** the existing name, location, choose, cancel, and create controls keep their IDs and labels
+
+### Requirement: New Wiki Location Middle Truncation Parity
+The Electron create-new-wiki dialog SHALL mirror the native sheet's one-line middle truncation for the selected location path.
+
+#### Scenario: Long new-wiki location is displayed
+- **WHEN** the Electron create-new-wiki dialog displays a long selected location path
+- **THEN** the visible location text preserves the beginning and trailing folder name with an ellipsis in the middle
+- **AND** the full selected location remains available as label metadata
+- **AND** wiki creation continues to use the full selected location path
+- **AND** short selected location paths remain unchanged

@@ -1157,7 +1157,6 @@ body.resizing-left-sidebar * {
   color: var(--color-muted-text);
   font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
   font-size: 12px;
-  text-overflow: ellipsis;
   white-space: nowrap;
 }
 

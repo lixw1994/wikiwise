@@ -74,6 +74,7 @@ const LEFT_SIDEBAR_MIN_WIDTH = 110;
 const LEFT_SIDEBAR_MAX_WIDTH = 360;
 const RIGHT_SIDEBAR_DEFAULT_WIDTH = 360;
 const RIGHT_SIDEBAR_MIN_WIDTH = 200;
+const newWikiLocationDisplayLimit = 48;
 const toolbarSymbols = Object.freeze({
   Auto: {
     nativeSymbol: "circle.lefthalf.filled",
@@ -169,6 +170,16 @@ function setError(error) {
 
   errorMessage.hidden = false;
   errorMessage.textContent = error instanceof Error ? error.message : String(error);
+}
+
+function middleTruncatePath(pathValue, maxLength = newWikiLocationDisplayLimit) {
+  if (!pathValue || pathValue.length <= maxLength) return pathValue || "";
+  if (maxLength <= 1) return "…";
+
+  const availableLength = maxLength - 1;
+  const headLength = Math.ceil(availableLength / 2);
+  const tailLength = Math.floor(availableLength / 2);
+  return `${pathValue.slice(0, headLength)}…${pathValue.slice(-tailLength)}`;
 }
 
 function clearAutosave() {
@@ -1114,7 +1125,10 @@ function renderNewWikiDialog() {
   if (document.activeElement !== newWikiNameInput) {
     newWikiNameInput.value = state.newWikiName;
   }
-  newWikiLocationLabel.textContent = state.newWikiLocation || "";
+  const fullLocationPath = state.newWikiLocation || "";
+  newWikiLocationLabel.textContent = middleTruncatePath(fullLocationPath);
+  newWikiLocationLabel.title = fullLocationPath;
+  newWikiLocationLabel.setAttribute("aria-label", fullLocationPath);
   newWikiNameInput.disabled = state.isCreatingWiki;
   chooseNewWikiLocationButton.disabled = state.isCreatingWiki;
   cancelCreateNewButton.disabled = state.isCreatingWiki;
