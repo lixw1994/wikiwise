@@ -682,6 +682,10 @@ body.resizing-left-sidebar * {
   padding: 18px;
 }
 
+.info-panel {
+  padding: 14px;
+}
+
 .info-list {
   display: grid;
   gap: 6px;

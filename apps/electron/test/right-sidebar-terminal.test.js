@@ -203,6 +203,23 @@ test("renderer optional info sections mirror native divider spacing", () => {
   assert.doesNotMatch(infoListBlock, /margin:\s*0 0 24px/);
 });
 
+test("renderer info panel uses native content inset", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
+  const htmlSource = read("src/renderer/index.html");
+  const cssSource = read("src/renderer/styles.css");
+  const infoPanelBlock = cssBlock(cssSource, ".info-panel");
+  const terminalPanelBlock = cssBlock(cssSource, ".terminal-panel");
+
+  assert.match(
+    nativeSource,
+    /private var infoTab:[\s\S]*ScrollView[\s\S]*VStack\(alignment:\s*\.leading,\s*spacing:\s*0\)[\s\S]*\.padding\(14\)[\s\S]*\.frame\(maxWidth:\s*\.infinity,\s*alignment:\s*\.leading\)/
+  );
+  assert.match(htmlSource, /id="info-panel" class="right-panel info-panel" hidden/);
+  assert.match(infoPanelBlock, /padding:\s*14px/);
+  assert.match(terminalPanelBlock, /padding:\s*0/);
+  assert.doesNotMatch(infoPanelBlock, /padding:\s*18px/);
+});
+
 test("renderer directions info uses native gold callout styling", () => {
   const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
   const htmlSource = read("src/renderer/index.html");
