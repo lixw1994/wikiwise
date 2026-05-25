@@ -210,11 +210,12 @@ button:disabled {
 .toolbar-group {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 14px;
   min-width: 0;
 }
 
 .toolbar-group-end {
+  gap: 10px;
   justify-content: end;
 }
 

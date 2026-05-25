@@ -231,6 +231,25 @@ test("sidebar toolbar toggles mirror native plain icon color states", () => {
   assert.match(hiddenRightToggleBlock, /color:\s*var\(--color-toolbar-disabled\)/);
 });
 
+test("project toolbar groups mirror native horizontal spacing", () => {
+  const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const cssSource = read("src/renderer/styles.css");
+  const toolbarGroupBlock = cssBlock(cssSource, ".toolbar-group");
+  const toolbarGroupEndBlock = cssBlock(cssSource, ".toolbar-group-end");
+
+  assert.match(
+    swiftSource,
+    /ToolbarItem\(placement:\s*\.navigation\)[\s\S]*HStack\(spacing:\s*14\)/
+  );
+  assert.match(
+    swiftSource,
+    /ToolbarItem\(placement:\s*\.primaryAction\)[\s\S]*HStack\(spacing:\s*10\)/
+  );
+  assert.match(toolbarGroupBlock, /gap:\s*14px/);
+  assert.match(toolbarGroupEndBlock, /gap:\s*10px/);
+  assert.doesNotMatch(toolbarGroupBlock, /gap:\s*8px/);
+});
+
 test("renderer styles wire native adaptive palette tokens into visible shell surfaces", () => {
   const cssSource = read("src/renderer/styles.css");
 

@@ -109,3 +109,12 @@ The Electron opened-project toolbar SHALL render the File/Wiki mode switch with 
 - **THEN** the File/Wiki mode buttons use native monospaced 10px text, 0.8px tracking, 4px by 10px padding, selected foreground color, muted inactive foreground color, selected background fill, sidebar-rule stroke, and 3px outer segment corners
 - **AND** mode IDs, selected state, disabled state, and mode switching behavior are not changed for this requirement
 - **AND** publish and icon toolbar controls are not changed for this requirement
+
+### Requirement: Toolbar Group Spacing Parity
+The Electron opened-project toolbar SHALL match native SwiftUI horizontal spacing for the left navigation and right primary action groups.
+
+#### Scenario: Project toolbar groups use native spacing
+- **WHEN** a project toolbar is rendered
+- **THEN** the left navigation toolbar group uses 14px horizontal spacing between controls
+- **AND** the right primary action toolbar group uses 10px horizontal spacing between controls
+- **AND** toolbar controls, symbols, labels, disabled state, sidebar toggle state, project title offset behavior, menu command routing, and project layout are not changed for this requirement
