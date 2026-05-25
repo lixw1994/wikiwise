@@ -102,13 +102,30 @@ test("renderer mirrors native publish action labels", () => {
   assert.match(nativeSource, /Text\("PUBLISH \\u\{2191\}"\)/);
   assert.match(nativeSource, /Button\("Publish"\)/);
 
-  assert.match(rendererSource, /publishButton\.textContent = state\.isPublishing \? "PUBLISHING…" : "PUBLISH ↑"/);
+  assert.match(rendererSource, /const publishBusy = state\.isPublishing \|\| state\.isUnpublishing/);
+  assert.match(rendererSource, /publishButton\.textContent = publishBusy \? "PUBLISHING…" : "PUBLISH ↑"/);
   assert.match(
     rendererSource,
     /confirmPublishButton\.textContent = state\.isPublishing\s*\?\s*"Publishing"\s*:\s*"Publish"/
   );
   assert.doesNotMatch(rendererSource, /PUBLISHING\.\.\./);
   assert.doesNotMatch(rendererSource, /state\.publishConfig\?\.published\s*\?\s*"Update"\s*:\s*"Publish"/);
+});
+
+test("renderer mirrors native toolbar busy state during unpublish", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const confirmUnpublishBody = rendererSource.match(
+    /async function confirmUnpublish\(\) \{([\s\S]*?)\n\}\n\nasync function startProjectWatcher/
+  )?.[1] ?? "";
+
+  assert.match(
+    nativeSource,
+    /private func performUnpublish\(\) \{[\s\S]*isPublishing = true/
+  );
+  assert.match(nativeSource, /\.disabled\(isPublishing \|\| compiler == nil\)/);
+  assert.match(rendererSource, /publishButton\.disabled = !state\.currentProject \|\| publishBusy/);
+  assert.match(confirmUnpublishBody, /state\.isUnpublishing = true;[\s\S]*renderPublishStatus\(\)/);
 });
 
 test("renderer mirrors native publish dialog keyboard shortcuts", () => {

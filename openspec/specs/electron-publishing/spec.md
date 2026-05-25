@@ -12,8 +12,8 @@ The Electron app SHALL expose a publishing control for opened projects with nati
 - **WHEN** a project is opened in Electron
 - **THEN** the renderer displays a publish action
 - **AND** the normal publish action label is `PUBLISH ↑`
-- **AND** the action is disabled while publishing is already in progress
-- **AND** the busy publish action label is `PUBLISHING…`
+- **AND** the action is disabled while publishing or unpublishing is already in progress
+- **AND** the busy publish action label is `PUBLISHING…` while publishing or unpublishing is in progress
 - **AND** the action exposes the native unpublished help text `Publish wiki to wiki-wise.com` when no published config exists
 
 #### Scenario: Published project toolbar shows publish status help
