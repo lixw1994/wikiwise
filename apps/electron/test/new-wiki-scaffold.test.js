@@ -113,6 +113,13 @@ test("renderer mirrors native new-wiki and post-create guide copy", () => {
   assert.doesNotMatch(normalizedHtml, /Open your agent/);
   assert.doesNotMatch(normalizedHtml, /Seed your wiki/);
 
+  assert.match(nativeSource, /Text\("Once your agent is running, try:"\)/);
+  assert.match(normalizedHtml, /Once your agent is running, try:/);
+  assert.match(
+    normalizedHtml,
+    /<p class="eyebrow">SEED YOUR WIKI<\/p> <p>Once your agent is running, try:<\/p> <ul>/
+  );
+
   assert.match(
     nativeSource,
     /Text\("This is your project\. You can change anything about it with your agent — the styles, the structure of your wiki pages, the build pipeline\. Make it your own\."\)/
