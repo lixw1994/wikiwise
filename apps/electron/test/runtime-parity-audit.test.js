@@ -77,6 +77,7 @@ test("runtime audit script covers native shell scenarios and assertions", () => 
     /Open Existing Folder/,
     /resource-panel|resources-panel/,
     /selectedFileLabel/,
+    /projectName:\s*textFor\("#project-name"\)\s*\|\|\s*textFor\("#toolbar-project-name"\)/,
     /detailHeaderVisible/,
     /projectViewportBounded/,
     /publishDialogHidden/,
@@ -165,6 +166,28 @@ test("runtime audit script covers native shell scenarios and assertions", () => 
     /Right sidebar resize handle is missing/,
     /Right sidebar width did not change after drag/,
     /differentFromFirstPixelCount/
+  ]);
+});
+
+test("runtime audit script records compiled preview scroll restoration evidence", () => {
+  const script = read("scripts/audit-electron-runtime.mjs");
+
+  assertSourceContains(script, [
+    /capturePreviewScrollPreservationEvidence/,
+    /window\.__wikiwisePreviewScrollEvidence/,
+    /previewScrollEvidence/,
+    /previewScrollFrameScrollable/,
+    /previewScrollTargetFraction/,
+    /previewScrollRestoredFraction/,
+    /previewScrollWithinTolerance/,
+    /#preview-frame/,
+    /contentWindow/,
+    /scrollTo/,
+    /#mode-file/,
+    /#mode-wiki/,
+    /Preview scroll preservation evidence is missing/,
+    /Compiled preview frame could not scroll/,
+    /Compiled preview scroll was not restored/
   ]);
 });
 

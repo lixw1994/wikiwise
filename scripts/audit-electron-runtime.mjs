@@ -138,6 +138,12 @@ function drainBackgroundCompilation(compiler) {
 
 function createAuditPreviewFile() {
   const previewPath = path.join(runtimeAuditRoot, "audit-preview.html");
+  const scrollSections = Array.from({ length: 28 }, (_value, index) => (
+    `    <section class="audit-section">
+      <h2>Runtime audit section ${index + 1}</h2>
+      <p>Preview scroll preservation evidence block ${index + 1}.</p>
+    </section>`
+  )).join("\n");
   fs.writeFileSync(
     previewPath,
     `<!doctype html>
@@ -153,11 +159,17 @@ function createAuditPreviewFile() {
         color: #1a1714;
         font-family: Georgia, "Times New Roman", serif;
       }
+      .audit-section {
+        min-height: 180px;
+        border-top: 1px solid rgba(26, 23, 20, 0.16);
+        padding: 24px 0;
+      }
     </style>
   </head>
   <body>
     <h1>Runtime Audit Wiki</h1>
     <p>Static audit preview for Electron shell parity capture.</p>
+${scrollSections}
   </body>
 </html>
 `
@@ -359,6 +371,7 @@ async function runScenario(window, scenario) {
       `scenario ${scenario.name} default WIKI preview to render`
     );
     await captureDefaultWikiPreviewEvidence(window);
+    await capturePreviewScrollPreservationEvidence(window);
     await window.webContents.executeJavaScript(`document.querySelector("#mode-file")?.click()`, true);
     await waitForCondition(
       window,
@@ -778,6 +791,100 @@ async function captureDefaultWikiPreviewEvidence(window) {
   }));
 }
 
+async function capturePreviewScrollPreservationEvidence(window) {
+  return window.webContents.executeJavaScript(`(async () => {
+    const modeFile = document.querySelector("#mode-file");
+    const modeWiki = document.querySelector("#mode-wiki");
+    const previewFrame = document.querySelector("#preview-frame");
+    const previewScrollTargetFraction = 0.7;
+    const previewScrollTolerance = 0.08;
+    const nextFrame = () => new Promise((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(resolve));
+    });
+    const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+    const waitForPreviewLoad = () => new Promise((resolve) => {
+      if (!previewFrame) {
+        resolve(false);
+        return;
+      }
+      const timer = setTimeout(() => resolve(false), 1500);
+      previewFrame.addEventListener("load", () => {
+        clearTimeout(timer);
+        resolve(true);
+      }, { once: true });
+    });
+    const frameScroll = () => {
+      const previewWindow = previewFrame?.contentWindow;
+      const previewDocument = previewFrame?.contentDocument;
+      const scrollHeight = Math.max(
+        previewDocument?.documentElement?.scrollHeight ?? 0,
+        previewDocument?.body?.scrollHeight ?? 0
+      );
+      const viewportHeight = previewWindow?.innerHeight ?? 0;
+      const maxScroll = Math.max(1, scrollHeight - viewportHeight);
+      const scrollY = previewWindow?.scrollY ?? 0;
+      return {
+        scrollY,
+        scrollHeight,
+        viewportHeight,
+        maxScroll,
+        fraction: scrollY / maxScroll
+      };
+    };
+    const evidence = {
+      previewScrollEvidence: true,
+      previewScrollFrameScrollable: false,
+      previewScrollTargetFraction,
+      previewScrollCapturedFraction: null,
+      previewScrollRestoredFraction: null,
+      previewScrollWithinTolerance: false,
+      previewScrollTolerance,
+      previewScrollLoadedAfterReturn: false
+    };
+
+    await nextFrame();
+    const initial = frameScroll();
+    evidence.previewScrollInitialMaxScroll = initial.maxScroll;
+    evidence.previewScrollFrameScrollable = initial.maxScroll > 1;
+    if (!evidence.previewScrollFrameScrollable || !previewFrame?.contentWindow) {
+      window.__wikiwisePreviewScrollEvidence = evidence;
+      return evidence;
+    }
+
+    previewFrame.contentWindow.scrollTo(0, previewScrollTargetFraction * initial.maxScroll);
+    await nextFrame();
+    const captured = frameScroll();
+    evidence.previewScrollCapturedFraction = captured.fraction;
+
+    modeFile?.click();
+    await nextFrame();
+    const loadPromise = waitForPreviewLoad();
+    modeWiki?.click();
+    evidence.previewScrollLoadedAfterReturn = await loadPromise;
+    await nextFrame();
+    await delay(30);
+    const restored = frameScroll();
+    evidence.previewScrollRestoredFraction = restored.fraction;
+    evidence.previewScrollWithinTolerance =
+      Number.isFinite(evidence.previewScrollCapturedFraction) &&
+      Number.isFinite(evidence.previewScrollRestoredFraction) &&
+      Math.abs(evidence.previewScrollRestoredFraction - evidence.previewScrollCapturedFraction) <= previewScrollTolerance;
+
+    window.__wikiwisePreviewScrollEvidence = evidence;
+    return evidence;
+  })()`, true).catch((error) => ({
+    previewScrollEvidence: false,
+    previewScrollFrameScrollable: false,
+    previewScrollTargetFraction: 0.7,
+    previewScrollCapturedFraction: null,
+    previewScrollRestoredFraction: null,
+    previewScrollWithinTolerance: false,
+    previewScrollTolerance: 0.08,
+    previewScrollLoadedAfterReturn: false,
+    error: error instanceof Error ? error.message : String(error)
+  }));
+}
+
 async function waitForScenario(window, scenario) {
   const expression = scenario.kind === "project"
     ? `Boolean(
@@ -889,6 +996,7 @@ async function readDomEvidence(window) {
 	    const leftSidebarVisibilityEvidence = window.__wikiwiseLeftSidebarVisibilityEvidence ?? {};
 	    const infoOptionalEvidence = window.__wikiwiseInfoOptionalSectionEvidence ?? {};
 	    const defaultWikiPreviewEvidence = window.__wikiwiseDefaultWikiPreviewEvidence ?? {};
+	    const previewScrollEvidence = window.__wikiwisePreviewScrollEvidence ?? {};
 	    const treeButtons = [...document.querySelectorAll(".tree-row")];
 	    const detailHeader = document.querySelector(".detail-header");
 	    const detailHeaderRect = detailHeader?.getBoundingClientRect();
@@ -964,7 +1072,7 @@ async function readDomEvidence(window) {
       shellRect: rectFor(".shell"),
       welcomeRect: rectFor("#welcome"),
       projectRect: rectFor("#project"),
-      projectName: textFor("#project-name"),
+      projectName: textFor("#project-name") || textFor("#toolbar-project-name"),
       toolbarProjectName: textFor("#toolbar-project-name"),
       toolbarIconEvidence: Boolean(toolbarIconEvidence.toolbarIconEvidence),
       appearanceNativeSymbol: toolbarIconEvidence.appearanceNativeSymbol,
@@ -994,6 +1102,14 @@ async function readDomEvidence(window) {
       defaultWikiEditorHidden: Boolean(defaultWikiPreviewEvidence.defaultWikiEditorHidden),
       defaultWikiPreviewSrc: defaultWikiPreviewEvidence.defaultWikiPreviewSrc ?? "",
       defaultWikiSelectedFileLabel: defaultWikiPreviewEvidence.defaultWikiSelectedFileLabel ?? "",
+      previewScrollEvidence: Boolean(previewScrollEvidence.previewScrollEvidence),
+      previewScrollFrameScrollable: Boolean(previewScrollEvidence.previewScrollFrameScrollable),
+      previewScrollTargetFraction: previewScrollEvidence.previewScrollTargetFraction ?? null,
+      previewScrollCapturedFraction: previewScrollEvidence.previewScrollCapturedFraction ?? null,
+      previewScrollRestoredFraction: previewScrollEvidence.previewScrollRestoredFraction ?? null,
+      previewScrollWithinTolerance: Boolean(previewScrollEvidence.previewScrollWithinTolerance),
+      previewScrollTolerance: previewScrollEvidence.previewScrollTolerance ?? null,
+      previewScrollLoadedAfterReturn: Boolean(previewScrollEvidence.previewScrollLoadedAfterReturn),
       expandedTreeEvidence,
       nestedSelectionEvidence,
 	      fileTreeFolderIconPresent: Boolean(folderIcon),
@@ -1162,6 +1278,15 @@ function assertScenario(scenario, dom, screenshot) {
     }
     if (!dom.defaultWikiEditorHidden) {
       failures.push("Source editor is visible before switching to editor mode.");
+    }
+    if (!dom.previewScrollEvidence) {
+      failures.push("Preview scroll preservation evidence is missing.");
+    }
+    if (!dom.previewScrollFrameScrollable) {
+      failures.push("Compiled preview frame could not scroll.");
+    }
+    if (!dom.previewScrollWithinTolerance) {
+      failures.push("Compiled preview scroll was not restored.");
     }
     if (!dom.sourceEditorFramePresent || !dom.sourceEditorFrameReady || !dom.codeMirrorEditorPresent) {
       failures.push("CodeMirror source editor did not render through the shared editor resource.");
