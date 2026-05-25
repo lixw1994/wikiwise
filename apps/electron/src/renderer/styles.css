@@ -246,6 +246,22 @@ button:disabled {
   color: var(--color-toolbar-text);
 }
 
+#appearance-mode {
+  font-size: 13px;
+}
+
+#open-map {
+  font-size: 12px;
+}
+
+#toggle-left-sidebar {
+  font-size: 14px;
+}
+
+#toggle-right-sidebar {
+  font-size: 16px;
+}
+
 #go-back {
   color: var(--color-toolbar-text);
   font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;

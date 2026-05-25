@@ -160,6 +160,37 @@ test("project toolbar icon controls mirror native SwiftUI symbol semantics", () 
   assert.match(cssSource, /\.toolbar-symbol/);
 });
 
+test("project toolbar icon controls mirror native symbol font sizes", () => {
+  const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const cssSource = read("src/renderer/styles.css");
+  const appearanceBlock = cssBlock(cssSource, "#appearance-mode");
+  const mapBlock = cssBlock(cssSource, "#open-map");
+  const leftSidebarBlock = cssBlock(cssSource, "#toggle-left-sidebar");
+  const rightSidebarBlock = cssBlock(cssSource, "#toggle-right-sidebar");
+
+  assert.match(
+    swiftSource,
+    /Image\(systemName:\s*currentMode == \.dark \? "moon\.fill" : currentMode == \.light \? "sun\.max\.fill" : "circle\.lefthalf\.filled"\)[\s\S]*?\.font\(\.system\(size:\s*13\)\)/
+  );
+  assert.match(
+    swiftSource,
+    /Image\(systemName:\s*"map"\)[\s\S]*?\.font\(\.system\(size:\s*12\)\)/
+  );
+  assert.match(
+    swiftSource,
+    /Image\(systemName:\s*"sidebar\.left"\)[\s\S]*?\.font\(\.system\(size:\s*14\)\)/
+  );
+  assert.match(
+    swiftSource,
+    /Image\(systemName:\s*"sidebar\.right"\)[\s\S]*?\.font\(\.system\(size:\s*16\)\)/
+  );
+
+  assert.match(appearanceBlock, /font-size:\s*13px/);
+  assert.match(mapBlock, /font-size:\s*12px/);
+  assert.match(leftSidebarBlock, /font-size:\s*14px/);
+  assert.match(rightSidebarBlock, /font-size:\s*16px/);
+});
+
 test("project toolbar mode switch mirrors native segmented styling", () => {
   const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const cssSource = read("src/renderer/styles.css");
