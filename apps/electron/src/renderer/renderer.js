@@ -8,6 +8,8 @@ const generatedPreviewFrame = document.querySelector("#generated-preview-frame")
 const saveButton = document.querySelector("#save-file");
 const saveStatus = document.querySelector("#save-status");
 const publishButton = document.querySelector("#publish-wiki");
+const publishBusyIndicator = document.querySelector("#publish-busy-indicator");
+const publishLabel = document.querySelector("#publish-label");
 const modeFileButton = document.querySelector("#mode-file");
 const modeWikiButton = document.querySelector("#mode-wiki");
 const goBackButton = document.querySelector("#go-back");
@@ -612,7 +614,8 @@ function renderPublishStatus() {
   const publishHelpText = publishButtonHelpText();
   const publishBusy = state.isPublishing || state.isUnpublishing;
   publishButton.disabled = !state.currentProject || publishBusy;
-  publishButton.textContent = publishBusy ? "PUBLISHING…" : "PUBLISH ↑";
+  publishBusyIndicator.hidden = !publishBusy;
+  publishLabel.textContent = publishBusy ? "PUBLISHING…" : "PUBLISH ↑";
   publishButton.title = publishHelpText;
   publishButton.setAttribute("aria-label", publishHelpText);
   renderPublishFeedback();

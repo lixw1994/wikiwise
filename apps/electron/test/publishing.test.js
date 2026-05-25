@@ -108,7 +108,7 @@ test("renderer mirrors native publish action labels", () => {
   assert.match(nativeSource, /Button\("Publish"\)/);
 
   assert.match(rendererSource, /const publishBusy = state\.isPublishing \|\| state\.isUnpublishing/);
-  assert.match(rendererSource, /publishButton\.textContent = publishBusy \? "PUBLISHING…" : "PUBLISH ↑"/);
+  assert.match(rendererSource, /publishLabel\.textContent = publishBusy \? "PUBLISHING…" : "PUBLISH ↑"/);
   assert.match(rendererSource, /confirmPublishButton\.textContent = "Publish"/);
   assert.doesNotMatch(rendererSource, /confirmPublishButton\.textContent = state\.isPublishing/);
   assert.doesNotMatch(rendererSource, /"Publishing"/);
@@ -135,6 +135,37 @@ test("renderer mirrors native publish toolbar button style", () => {
   assert.match(publishButtonBlock, /border-radius:\s*3px/);
   assert.match(publishButtonBlock, /padding:\s*4px 10px/);
   assert.match(toolbarIconButtonBlock, /border-radius:\s*6px/);
+});
+
+test("renderer mirrors native publish toolbar busy indicator", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const htmlSource = read("src/renderer/index.html");
+  const normalizedHtml = normalized(htmlSource);
+  const rendererSource = read("src/renderer/renderer.js");
+  const cssSource = read("src/renderer/styles.css");
+  const busyIndicatorBlock = cssBlock(cssSource, ".publish-busy-indicator");
+  const publishButtonBlock = cssBlock(cssSource, ".publish-button");
+
+  assert.match(
+    nativeSource,
+    /if isPublishing \{[\s\S]*ProgressView\(\)[\s\S]*\.controlSize\(\.small\)[\s\S]*\.frame\(width:\s*12,\s*height:\s*12\)[\s\S]*Text\("PUBLISHING\\u\{2026\}"\)/
+  );
+  assert.match(
+    normalizedHtml,
+    /<button id="publish-wiki"[\s\S]*<span id="publish-busy-indicator" class="publish-busy-indicator" hidden aria-hidden="true"><\/span>\s*<span id="publish-label">PUBLISH ↑<\/span>[\s\S]*<\/button>/
+  );
+  assert.match(rendererSource, /const publishBusyIndicator = document\.querySelector\("#publish-busy-indicator"\)/);
+  assert.match(rendererSource, /const publishLabel = document\.querySelector\("#publish-label"\)/);
+  assert.match(rendererSource, /publishBusyIndicator\.hidden = !publishBusy/);
+  assert.match(rendererSource, /publishLabel\.textContent = publishBusy \? "PUBLISHING…" : "PUBLISH ↑"/);
+  assert.doesNotMatch(rendererSource, /publishButton\.textContent = publishBusy \? "PUBLISHING…" : "PUBLISH ↑"/);
+  assert.match(publishButtonBlock, /display:\s*inline-flex/);
+  assert.match(publishButtonBlock, /align-items:\s*center/);
+  assert.match(publishButtonBlock, /gap:\s*4px/);
+  assert.match(busyIndicatorBlock, /width:\s*12px/);
+  assert.match(busyIndicatorBlock, /height:\s*12px/);
+  assert.match(busyIndicatorBlock, /animation:\s*publish-busy-spin/);
+  assert.match(cssSource, /@keyframes publish-busy-spin/);
 });
 
 test("renderer mirrors native toolbar busy state during unpublish", () => {
