@@ -106,6 +106,13 @@ test("renderer mirrors native new-wiki and post-create guide copy", () => {
     /Use the built-in terminal, or open your own terminal:/
   );
 
+  assert.match(nativeSource, /Text\("OPEN YOUR AGENT"\)/);
+  assert.match(nativeSource, /Text\("SEED YOUR WIKI"\)/);
+  assert.match(normalizedHtml, /OPEN YOUR AGENT/);
+  assert.match(normalizedHtml, /SEED YOUR WIKI/);
+  assert.doesNotMatch(normalizedHtml, /Open your agent/);
+  assert.doesNotMatch(normalizedHtml, /Seed your wiki/);
+
   assert.match(
     nativeSource,
     /Text\("This is your project\. You can change anything about it with your agent — the styles, the structure of your wiki pages, the build pipeline\. Make it your own\."\)/
