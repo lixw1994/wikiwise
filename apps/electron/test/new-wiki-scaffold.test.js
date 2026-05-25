@@ -458,3 +458,31 @@ test("renderer mirrors native post-create guide title typography", () => {
   assert.match(guideTitleBlock, /color:\s*var\(--color-sidebar-selected-text\)/);
   assert.match(styleSource, /h2\s*\{[^}]*font-size:\s*18px/);
 });
+
+test("renderer mirrors native post-create guide summary text", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const htmlSource = read("src/renderer/index.html");
+  const styleSource = read("src/renderer/styles.css");
+  const postCreateGuideSource =
+    nativeSource.match(/private func postCreateGuide\(wikiURL: URL\) -> some View[\s\S]*?private func agentCommand/)?.[0] ??
+    "";
+  const summaryRule =
+    styleSource.match(/\.post-create-guide > \.guide-block:first-of-type p\s*\{([^}]+)\}/)?.[1] ?? "";
+  const sharedParagraphRule =
+    styleSource.match(/\.post-create-guide p,\s*\.post-create-guide li\s*\{([^}]+)\}/)?.[1] ?? "";
+
+  assert.notEqual(postCreateGuideSource, "");
+  assert.match(
+    postCreateGuideSource,
+    /Text\("WikiWise created the folder structure, build tools, and agent skills\. Now seed it with sources\."\)[\s\S]*\.font\(\.system\(size:\s*14\)\)[\s\S]*\.foregroundStyle\(Color\.sidebarText\)[\s\S]*\.lineSpacing\(3\)/
+  );
+  assert.match(
+    htmlSource,
+    /<div class="guide-block">\s*<h2>Your wiki is ready<\/h2>\s*<p>[\s\S]*WikiWise created the folder structure, build tools, and agent skills\.[\s\S]*Now seed it with sources\.[\s\S]*<\/p>\s*<\/div>/
+  );
+  assert.match(summaryRule, /font-size:\s*14px/);
+  assert.match(summaryRule, /color:\s*var\(--color-sidebar-text\)/);
+  assert.match(summaryRule, /line-height:\s*calc\(1\.2em \+ 3px\)/);
+  assert.match(sharedParagraphRule, /color:\s*var\(--color-linked-text\)/);
+  assert.match(sharedParagraphRule, /line-height:\s*1\.6/);
+});
