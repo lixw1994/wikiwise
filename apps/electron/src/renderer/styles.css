@@ -787,7 +787,7 @@ body.resizing-left-sidebar * {
   background: var(--color-sidebar-bg);
   color: var(--color-linked-text);
   font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
-  font-size: 12px;
+  font-size: 13px;
 }
 
 .publish-subdomain {

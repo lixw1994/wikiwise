@@ -309,6 +309,25 @@ test("renderer mirrors native publish URL row chrome", () => {
   assert.doesNotMatch(publishUrlRowBlock, /border-radius:\s*6px/);
 });
 
+test("renderer mirrors native publish URL row font", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const cssSource = read("src/renderer/styles.css");
+  const publishUrlRowBlock = cssBlock(cssSource, ".publish-url-row");
+  const publishSubdomainBlock = cssBlock(cssSource, ".publish-subdomain");
+  const availabilityIndicatorBlock = cssBlock(cssSource, ".publish-availability-indicator");
+
+  assert.match(
+    nativeSource,
+    /Text\("https:\/\/"\)[\s\S]*\.font\(\.system\(size:\s*13,\s*design:\s*\.monospaced\)\)[\s\S]*TextField\("subdomain"[\s\S]*\.font\(\.system\(size:\s*13,\s*design:\s*\.monospaced\)\)[\s\S]*Text\("\.wiki-wise\.com"\)[\s\S]*\.font\(\.system\(size:\s*13,\s*design:\s*\.monospaced\)\)/
+  );
+  assert.match(publishUrlRowBlock, /font-family:\s*ui-monospace,\s*"SFMono-Regular",\s*Menlo,\s*monospace/);
+  assert.match(publishUrlRowBlock, /font-size:\s*13px/);
+  assert.match(publishSubdomainBlock, /font-family:\s*inherit/);
+  assert.match(publishSubdomainBlock, /font-size:\s*inherit/);
+  assert.match(availabilityIndicatorBlock, /width:\s*16px/);
+  assert.match(availabilityIndicatorBlock, /height:\s*16px/);
+});
+
 test("renderer mirrors native publish URL display without duplicate detail row", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const htmlSource = read("src/renderer/index.html");
