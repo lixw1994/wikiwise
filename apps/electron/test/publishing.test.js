@@ -104,10 +104,9 @@ test("renderer mirrors native publish action labels", () => {
 
   assert.match(rendererSource, /const publishBusy = state\.isPublishing \|\| state\.isUnpublishing/);
   assert.match(rendererSource, /publishButton\.textContent = publishBusy \? "PUBLISHING…" : "PUBLISH ↑"/);
-  assert.match(
-    rendererSource,
-    /confirmPublishButton\.textContent = state\.isPublishing\s*\?\s*"Publishing"\s*:\s*"Publish"/
-  );
+  assert.match(rendererSource, /confirmPublishButton\.textContent = "Publish"/);
+  assert.doesNotMatch(rendererSource, /confirmPublishButton\.textContent = state\.isPublishing/);
+  assert.doesNotMatch(rendererSource, /"Publishing"/);
   assert.doesNotMatch(rendererSource, /PUBLISHING\.\.\./);
   assert.doesNotMatch(rendererSource, /state\.publishConfig\?\.published\s*\?\s*"Update"\s*:\s*"Publish"/);
 });

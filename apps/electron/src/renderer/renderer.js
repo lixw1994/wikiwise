@@ -1513,9 +1513,7 @@ function renderPublishDialog() {
   publishSubdomainInput.disabled = state.isPublishing || state.isUnpublishing;
   cancelPublishButton.disabled = state.isPublishing || state.isUnpublishing;
   confirmPublishButton.disabled = !canPublish();
-  confirmPublishButton.textContent = state.isPublishing
-    ? "Publishing"
-    : "Publish";
+  confirmPublishButton.textContent = "Publish";
   unpublishButton.hidden = !state.publishConfig?.published;
   unpublishButton.disabled = state.isPublishing || state.isUnpublishing;
   unpublishButton.textContent = state.isUnpublishing ? "Unpublishing" : "Unpublish…";

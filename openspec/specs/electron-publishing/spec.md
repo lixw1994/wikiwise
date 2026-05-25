@@ -34,6 +34,7 @@ The Electron app SHALL let users choose or edit the wiki subdomain before publis
 - **AND** the dialog shows the final `https://<subdomain>.wiki-wise.com` URL shape
 - **AND** the dialog shows the native `publish.json` token warning, including the password/lost-token sentence
 - **AND** publishing is disabled until the subdomain is available
+- **AND** the confirmation action remains labeled `Publish`
 - **AND** the dialog closes through the native cancel keyboard shortcut
 - **AND** the dialog submits through the native default keyboard shortcut when Publish is enabled
 - **AND** submitting Publish closes the dialog before the publish request begins
