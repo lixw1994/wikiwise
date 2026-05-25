@@ -295,8 +295,30 @@ test("renderer mirrors native publish URL intro font", () => {
   assert.match(compactSummaryBlock, /font-size:\s*12px/);
   assert.match(
     normalizedHtml,
-    /<p class="summary compact-summary">\s*A publish\.json file will be saved in your project — it contains your publish token/
+    /<p class="summary compact-summary publish-token-warning">\s*A publish\.json file will be saved in your project — it contains your publish token/
   );
+});
+
+test("renderer mirrors native publish token warning line spacing", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const htmlSource = read("src/renderer/index.html");
+  const normalizedHtml = normalized(htmlSource);
+  const cssSource = read("src/renderer/styles.css");
+  const publishTokenWarningBlock = cssBlock(cssSource, ".publish-token-warning");
+  const summaryBlock = cssBlock(cssSource, ".summary");
+  const compactSummaryBlock = cssBlock(cssSource, ".compact-summary");
+
+  assert.match(
+    nativeSource,
+    /Text\("A publish\.json file will be saved in your project \\u\{2014\} it contains your publish token[\s\S]*\.font\(\.system\(size:\s*12\)\)[\s\S]*\.foregroundStyle\(\.secondary\)[\s\S]*\.lineSpacing\(2\)/
+  );
+  assert.match(
+    normalizedHtml,
+    /<p class="summary compact-summary publish-token-warning">\s*A publish\.json file will be saved in your project — it contains your publish token/
+  );
+  assert.match(publishTokenWarningBlock, /line-height:\s*calc\(1\.2em \+ 2px\)/);
+  assert.match(compactSummaryBlock, /font-size:\s*12px/);
+  assert.match(summaryBlock, /line-height:\s*1\.6/);
 });
 
 test("renderer mirrors native publish URL row layout", () => {
