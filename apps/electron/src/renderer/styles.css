@@ -172,6 +172,68 @@ button:disabled {
   color: var(--color-control-text);
 }
 
+.welcome-action {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  width: 100%;
+  padding-block: 8px;
+}
+
+.welcome-action-symbol {
+  position: relative;
+  flex: 0 0 auto;
+  inline-size: 14px;
+  block-size: 14px;
+}
+
+.welcome-action-symbol[data-native-symbol="plus.circle"] {
+  border: 1.5px solid currentColor;
+  border-radius: 50%;
+}
+
+.welcome-action-symbol[data-native-symbol="plus.circle"]::before,
+.welcome-action-symbol[data-native-symbol="plus.circle"]::after {
+  position: absolute;
+  inset-block-start: 50%;
+  inset-inline-start: 50%;
+  display: block;
+  content: "";
+  background: currentColor;
+  transform: translate(-50%, -50%);
+}
+
+.welcome-action-symbol[data-native-symbol="plus.circle"]::before {
+  inline-size: 7px;
+  block-size: 1.5px;
+}
+
+.welcome-action-symbol[data-native-symbol="plus.circle"]::after {
+  inline-size: 1.5px;
+  block-size: 7px;
+}
+
+.welcome-action-symbol[data-native-symbol="folder"] {
+  inline-size: 15px;
+  block-size: 11px;
+  margin-block-start: 2px;
+  border: 1.4px solid currentColor;
+  border-radius: 2px;
+}
+
+.welcome-action-symbol[data-native-symbol="folder"]::before {
+  position: absolute;
+  inset-block-start: -4px;
+  inset-inline-start: -1.4px;
+  inline-size: 7px;
+  block-size: 4px;
+  border: 1.4px solid currentColor;
+  border-block-end: 0;
+  border-radius: 2px 2px 0 0;
+  content: "";
+}
+
 .project-shell {
   --toolbar-title-offset: 0px;
   display: grid;

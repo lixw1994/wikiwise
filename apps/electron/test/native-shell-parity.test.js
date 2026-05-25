@@ -41,6 +41,15 @@ function cssBlock(selector) {
   return styleSource.match(pattern)?.[1] ?? "";
 }
 
+function buttonBodyById(id) {
+  const match = htmlSource.match(
+    new RegExp(`<button\\b(?=[^>]*id="${id}")[^>]*>([\\s\\S]*?)<\\/button>`)
+  );
+
+  assert.ok(match, `Expected #${id} button to exist`);
+  return match[1];
+}
+
 test("uses product-facing shell title and native welcome copy", () => {
   const normalizedHtml = normalized(htmlSource);
 
@@ -60,6 +69,27 @@ test("uses product-facing shell title and native welcome copy", () => {
     normalizedHtml,
     /Don't have a wiki yet\? Create one above and use Claude Code, Codex, or Cursor to build it out\./
   );
+});
+
+test("matches native welcome action symbols and preserves entry labels", () => {
+  assert.match(
+    nativeContentViewSource,
+    /Image\(systemName:\s*"plus\.circle"\)[\s\S]*Text\("Create a New Wiki"\)/
+  );
+  assert.match(
+    nativeContentViewSource,
+    /Image\(systemName:\s*"folder"\)[\s\S]*Text\("Open Existing Folder"\)/
+  );
+
+  const createAction = buttonBodyById("create-new");
+  const openAction = buttonBodyById("open-existing");
+
+  assert.match(createAction, /data-native-symbol="plus\.circle"[\s\S]*Create a New Wiki/);
+  assert.match(openAction, /data-native-symbol="folder"[\s\S]*Open Existing Folder/);
+  assert.match(createAction, /aria-hidden="true"/);
+  assert.match(openAction, /aria-hidden="true"/);
+  assert.match(htmlSource, /id="create-new"/);
+  assert.match(htmlSource, /id="open-existing"/);
 });
 
 test("matches native macOS default and minimum window geometry", () => {
