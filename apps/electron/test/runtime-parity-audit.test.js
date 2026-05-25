@@ -215,6 +215,30 @@ test("runtime audit script records generated map toolbar flow evidence", () => {
   ]);
 });
 
+test("runtime audit script records watcher-driven selected preview refresh evidence", () => {
+  const script = read("scripts/audit-electron-runtime.mjs");
+
+  assertSourceContains(script, [
+    /captureWatcherRuntimeEvidence/,
+    /window\.__wikiwiseWatcherRuntimeEvidence/,
+    /watcherRuntimeEvidence/,
+    /watcherRuntimeStarted/,
+    /watcherRuntimeEventSent/,
+    /watcherRuntimeReadFileObserved/,
+    /watcherRuntimeCompileObserved/,
+    /watcherRuntimeCompileInvalidate/,
+    /watcherRuntimeCompileReloadCSS/,
+    /wikiwise:projectChanged/,
+    /changedMarkdownPaths/,
+    /cssChanged/,
+    /Watcher runtime evidence is missing/,
+    /Project watcher was not started through the preload bridge/,
+    /Runtime watcher event did not refresh the selected markdown preview/,
+    /Runtime watcher refresh did not use CSS reload semantics/,
+    /Runtime watcher refresh did not preserve selected markdown state/
+  ]);
+});
+
 test("runtime audit script creates scaffold project evidence through core helpers", () => {
   const script = read("scripts/audit-electron-runtime.mjs");
 

@@ -40,6 +40,12 @@ let terminalResizeCount = 0;
 let terminalInputObserved = false;
 let activeFileObserved = false;
 let rightSidebarTerminalResizeObserved = false;
+let projectWatcherStarted = false;
+let projectWatcherProjectRoot = "";
+let projectWatcherSender = null;
+let watcherRuntimeCaptureActive = false;
+let watcherRuntimeReadFilePaths = [];
+let watcherRuntimeCompilePayloads = [];
 const auditIpcChannels = Object.freeze([
   "wikiwise:getAppSettings",
   "wikiwise:setAppearanceMode",
@@ -221,8 +227,16 @@ function registerAuditIpcHandlers() {
   ipcMain.handle("wikiwise:restoreLastProject", () => {
     return activeScenario?.kind === "project" ? auditProject : null;
   });
-  ipcMain.handle("wikiwise:startProjectWatcher", () => ({ ok: true }));
-  ipcMain.handle("wikiwise:stopProjectWatcher", () => ({ ok: true }));
+  ipcMain.handle("wikiwise:startProjectWatcher", (event, payload) => {
+    projectWatcherStarted = true;
+    projectWatcherProjectRoot = payload?.projectRoot ?? "";
+    projectWatcherSender = event.sender;
+    return { ok: true, watching: true, projectRoot: projectWatcherProjectRoot };
+  });
+  ipcMain.handle("wikiwise:stopProjectWatcher", () => {
+    projectWatcherSender = null;
+    return { ok: true };
+  });
   ipcMain.handle("wikiwise:startTerminal", (event, payload) => {
     setTimeout(() => {
       if (!event.sender.isDestroyed()) {
@@ -259,8 +273,22 @@ function registerAuditIpcHandlers() {
   ipcMain.handle("wikiwise:expandTreeDirectory", (_event, payload) => {
     return expandTreeDirectory(payload.projectRoot, payload.directoryPath);
   });
-  ipcMain.handle("wikiwise:readFile", (_event, filePath) => readTextFile(filePath));
+  ipcMain.handle("wikiwise:readFile", (_event, filePath) => {
+    const resolvedFilePath = typeof filePath === "string" ? path.resolve(filePath) : "";
+    if (watcherRuntimeCaptureActive && resolvedFilePath) {
+      watcherRuntimeReadFilePaths.push(resolvedFilePath);
+    }
+    return readTextFile(filePath);
+  });
   ipcMain.handle("wikiwise:compilePage", (_event, payload) => {
+    if (watcherRuntimeCaptureActive) {
+      watcherRuntimeCompilePayloads.push({
+        projectRoot: typeof payload?.projectRoot === "string" ? path.resolve(payload.projectRoot) : "",
+        filePath: typeof payload?.filePath === "string" ? path.resolve(payload.filePath) : "",
+        invalidate: Boolean(payload?.invalidate),
+        reloadCSS: Boolean(payload?.reloadCSS)
+      });
+    }
     const compiler = new WikiCompiler({ projectRoot: payload.projectRoot, repositoryRoot });
     compiler.scanPages();
     const compiled = compiler.compileMarkdownFile(payload.filePath);
@@ -346,6 +374,12 @@ async function runScenario(window, scenario) {
   terminalInputObserved = false;
   activeFileObserved = false;
   rightSidebarTerminalResizeObserved = false;
+  projectWatcherStarted = false;
+  projectWatcherProjectRoot = "";
+  projectWatcherSender = null;
+  watcherRuntimeCaptureActive = false;
+  watcherRuntimeReadFilePaths = [];
+  watcherRuntimeCompilePayloads = [];
   nativeTheme.themeSource = scenario.appearanceMode.toLowerCase();
   console.log(`Running runtime audit scenario: ${scenario.name}`);
 
@@ -385,6 +419,7 @@ async function runScenario(window, scenario) {
     await captureDefaultWikiPreviewEvidence(window);
     await capturePreviewScrollPreservationEvidence(window);
     await captureGeneratedMapFlowEvidence(window);
+    await captureWatcherRuntimeEvidence(window);
     await window.webContents.executeJavaScript(`document.querySelector("#mode-file")?.click()`, true);
     await waitForCondition(
       window,
@@ -978,6 +1013,107 @@ async function captureGeneratedMapFlowEvidence(window) {
   }));
 }
 
+async function captureWatcherRuntimeEvidence(window) {
+  const selectedMarkdownPath = auditProject?.selectedFile?.path
+    ? path.resolve(auditProject.selectedFile.path)
+    : "";
+  const projectRoot = auditProject?.projectRoot
+    ? path.resolve(auditProject.projectRoot)
+    : "";
+  const watcherRuntimeEvent = {
+    projectRoot,
+    kind: "content",
+    cssChanged: true,
+    changedMarkdownPaths: [selectedMarkdownPath]
+  };
+  const watcherRuntimeStarted =
+    projectWatcherStarted &&
+    projectWatcherProjectRoot === projectRoot &&
+    Boolean(projectWatcherSender && !projectWatcherSender.isDestroyed());
+  let watcherRuntimeEventSent = false;
+
+  watcherRuntimeReadFilePaths = [];
+  watcherRuntimeCompilePayloads = [];
+  watcherRuntimeCaptureActive = true;
+  try {
+    if (watcherRuntimeStarted && selectedMarkdownPath) {
+      projectWatcherSender.send("wikiwise:projectChanged", watcherRuntimeEvent);
+      watcherRuntimeEventSent = true;
+      await waitForHostCondition(
+        () => watcherRuntimeCompilePayloads.some((payload) => (
+          payload.projectRoot === projectRoot &&
+          payload.filePath === selectedMarkdownPath &&
+          payload.invalidate === true &&
+          payload.reloadCSS === true
+        )),
+        "watcher runtime selected markdown refresh",
+        5000
+      ).catch(() => {});
+      await waitForCondition(
+        window,
+        `Boolean(
+          document.querySelector("#selected-file")?.textContent?.trim() === "home.md" &&
+          document.querySelector("#preview-frame") &&
+          !document.querySelector("#preview-frame")?.hidden
+        )`,
+        "watcher runtime selected markdown state",
+        3000
+      ).catch(() => {});
+    }
+  } finally {
+    watcherRuntimeCaptureActive = false;
+  }
+
+  const watcherRuntimeReadFileObserved = watcherRuntimeReadFilePaths.includes(selectedMarkdownPath);
+  const watcherRuntimeCompilePayload = watcherRuntimeCompilePayloads.find((payload) => (
+    payload.projectRoot === projectRoot &&
+    payload.filePath === selectedMarkdownPath
+  ));
+  const hostEvidence = {
+    watcherRuntimeEvidence: true,
+    watcherRuntimeStarted,
+    watcherRuntimeProjectRoot: projectRoot,
+    watcherRuntimeEventSent,
+    watcherRuntimeReadFileObserved,
+    watcherRuntimeCompileObserved: Boolean(watcherRuntimeCompilePayload),
+    watcherRuntimeCompileInvalidate: Boolean(watcherRuntimeCompilePayload?.invalidate),
+    watcherRuntimeCompileReloadCSS: Boolean(watcherRuntimeCompilePayload?.reloadCSS),
+    watcherRuntimeChangedMarkdownPath: selectedMarkdownPath,
+    watcherRuntimeChangedMarkdownFileName: selectedMarkdownPath ? path.basename(selectedMarkdownPath) : "",
+    watcherRuntimeReadFilePaths,
+    watcherRuntimeCompilePayloads
+  };
+
+  return window.webContents.executeJavaScript(`(() => {
+    const hostEvidence = ${JSON.stringify(hostEvidence)};
+    const previewFrame = document.querySelector("#preview-frame");
+    const selectedFileLabel = document.querySelector("#selected-file")?.textContent?.trim() ?? "";
+    const evidence = {
+      ...hostEvidence,
+      watcherRuntimeSelectedFileLabel: selectedFileLabel,
+      watcherRuntimePreviewVisible: Boolean(previewFrame && !previewFrame.hidden),
+      watcherRuntimePreviewSrc: previewFrame?.getAttribute("src") ?? ""
+    };
+    window.__wikiwiseWatcherRuntimeEvidence = evidence;
+    return evidence;
+  })()`, true).catch((error) => ({
+    watcherRuntimeEvidence: false,
+    watcherRuntimeStarted,
+    watcherRuntimeProjectRoot: projectRoot,
+    watcherRuntimeEventSent,
+    watcherRuntimeReadFileObserved,
+    watcherRuntimeCompileObserved: false,
+    watcherRuntimeCompileInvalidate: false,
+    watcherRuntimeCompileReloadCSS: false,
+    watcherRuntimeChangedMarkdownPath: selectedMarkdownPath,
+    watcherRuntimeChangedMarkdownFileName: selectedMarkdownPath ? path.basename(selectedMarkdownPath) : "",
+    watcherRuntimeSelectedFileLabel: "",
+    watcherRuntimePreviewVisible: false,
+    watcherRuntimePreviewSrc: "",
+    error: error instanceof Error ? error.message : String(error)
+  }));
+}
+
 async function waitForScenario(window, scenario) {
   const expression = scenario.kind === "project"
     ? `Boolean(
@@ -1091,6 +1227,7 @@ async function readDomEvidence(window) {
 	    const defaultWikiPreviewEvidence = window.__wikiwiseDefaultWikiPreviewEvidence ?? {};
 	    const previewScrollEvidence = window.__wikiwisePreviewScrollEvidence ?? {};
 	    const generatedMapEvidence = window.__wikiwiseGeneratedMapEvidence ?? {};
+	    const watcherRuntimeEvidence = window.__wikiwiseWatcherRuntimeEvidence ?? {};
 	    const treeButtons = [...document.querySelectorAll(".tree-row")];
 	    const detailHeader = document.querySelector(".detail-header");
 	    const detailHeaderRect = detailHeader?.getBoundingClientRect();
@@ -1214,6 +1351,19 @@ async function readDomEvidence(window) {
       generatedMapBackSelectedFileLabel: generatedMapEvidence.generatedMapBackSelectedFileLabel ?? "",
       generatedMapBackPreviewVisible: Boolean(generatedMapEvidence.generatedMapBackPreviewVisible),
       generatedMapBackGeneratedFrameHidden: Boolean(generatedMapEvidence.generatedMapBackGeneratedFrameHidden),
+      watcherRuntimeEvidence: Boolean(watcherRuntimeEvidence.watcherRuntimeEvidence),
+      watcherRuntimeStarted: Boolean(watcherRuntimeEvidence.watcherRuntimeStarted),
+      watcherRuntimeProjectRoot: watcherRuntimeEvidence.watcherRuntimeProjectRoot ?? "",
+      watcherRuntimeEventSent: Boolean(watcherRuntimeEvidence.watcherRuntimeEventSent),
+      watcherRuntimeReadFileObserved: Boolean(watcherRuntimeEvidence.watcherRuntimeReadFileObserved),
+      watcherRuntimeCompileObserved: Boolean(watcherRuntimeEvidence.watcherRuntimeCompileObserved),
+      watcherRuntimeCompileInvalidate: Boolean(watcherRuntimeEvidence.watcherRuntimeCompileInvalidate),
+      watcherRuntimeCompileReloadCSS: Boolean(watcherRuntimeEvidence.watcherRuntimeCompileReloadCSS),
+      watcherRuntimeChangedMarkdownPath: watcherRuntimeEvidence.watcherRuntimeChangedMarkdownPath ?? "",
+      watcherRuntimeChangedMarkdownFileName: watcherRuntimeEvidence.watcherRuntimeChangedMarkdownFileName ?? "",
+      watcherRuntimeSelectedFileLabel: watcherRuntimeEvidence.watcherRuntimeSelectedFileLabel ?? "",
+      watcherRuntimePreviewVisible: Boolean(watcherRuntimeEvidence.watcherRuntimePreviewVisible),
+      watcherRuntimePreviewSrc: watcherRuntimeEvidence.watcherRuntimePreviewSrc ?? "",
       expandedTreeEvidence,
       nestedSelectionEvidence,
 	      fileTreeFolderIconPresent: Boolean(folderIcon),
@@ -1407,6 +1557,26 @@ function assertScenario(scenario, dom, screenshot) {
     }
     if (!dom.generatedMapBackRestoredMarkdown || dom.generatedMapBackSelectedFileLabel !== "home.md") {
       failures.push("Generated map back navigation did not restore markdown.");
+    }
+    if (!dom.watcherRuntimeEvidence) {
+      failures.push("Watcher runtime evidence is missing.");
+    }
+    if (!dom.watcherRuntimeStarted) {
+      failures.push("Project watcher was not started through the preload bridge.");
+    }
+    if (
+      !dom.watcherRuntimeEventSent ||
+      !dom.watcherRuntimeReadFileObserved ||
+      !dom.watcherRuntimeCompileObserved ||
+      !dom.watcherRuntimeCompileInvalidate
+    ) {
+      failures.push("Runtime watcher event did not refresh the selected markdown preview.");
+    }
+    if (!dom.watcherRuntimeCompileReloadCSS) {
+      failures.push("Runtime watcher refresh did not use CSS reload semantics.");
+    }
+    if (dom.watcherRuntimeSelectedFileLabel !== "home.md" || !dom.watcherRuntimePreviewVisible) {
+      failures.push("Runtime watcher refresh did not preserve selected markdown state.");
     }
     if (!dom.sourceEditorFramePresent || !dom.sourceEditorFrameReady || !dom.codeMirrorEditorPresent) {
       failures.push("CodeMirror source editor did not render through the shared editor resource.");
