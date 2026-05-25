@@ -112,6 +112,25 @@ test("renderer mirrors native new-wiki sheet layout and typography", () => {
   assert.match(htmlSource, /id="confirm-create-new"[\s\S]*?>\s*Create\s*<\/button>/);
 });
 
+test("renderer mirrors native new-wiki field label color", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const styleSource = read("src/renderer/styles.css");
+  const newWikiSheetSource =
+    nativeSource.match(/private var newWikiSheet: some View[\s\S]*?\.frame\(width:\s*400\)/)?.[0] ?? "";
+  const globalFieldLabelBlock = styleSource.match(/\n\.field-label\s*\{([^}]+)\}/)?.[1] ?? "";
+  const newWikiFieldLabelBlock = cssBlock(styleSource, ".new-wiki-panel .field-label");
+
+  assert.notEqual(newWikiSheetSource, "");
+  assert.match(
+    newWikiSheetSource,
+    /Text\("Name"\)[\s\S]*\.font\(\.system\(size:\s*12,\s*weight:\s*\.medium\)\)[\s\S]*\.foregroundStyle\(Color\.sidebarText\)[\s\S]*Text\("Location"\)[\s\S]*\.font\(\.system\(size:\s*12,\s*weight:\s*\.medium\)\)[\s\S]*\.foregroundStyle\(Color\.sidebarText\)/
+  );
+  assert.match(globalFieldLabelBlock, /color:\s*var\(--color-toolbar-text\)/);
+  assert.match(newWikiFieldLabelBlock, /color:\s*var\(--color-sidebar-text\)/);
+  assert.match(newWikiFieldLabelBlock, /font-size:\s*12px/);
+  assert.match(newWikiFieldLabelBlock, /font-weight:\s*500/);
+});
+
 test("renderer mirrors native new-wiki location middle truncation", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");

@@ -968,6 +968,7 @@ body.resizing-left-sidebar * {
 }
 
 .new-wiki-panel .field-label {
+  color: var(--color-sidebar-text);
   font-size: 12px;
   font-weight: 500;
 }

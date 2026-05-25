@@ -138,3 +138,12 @@ The Electron create-new-wiki dialog SHALL mirror the native sheet's 6px spacing 
 - **AND** the path keeps native system-font styling, muted color, and middle truncation
 - **AND** the full selected path metadata remains available
 - **AND** wiki creation continues to use the full selected location path
+
+### Requirement: New Wiki Field Label Color Parity
+The Electron create-new-wiki dialog SHALL render its field labels with the same sidebar text color used by the native SwiftUI sheet.
+
+#### Scenario: New wiki field labels are inspected
+- **WHEN** the Electron create-new-wiki dialog is rendered
+- **THEN** the `Name` and `Location` labels use the native sidebar text color
+- **AND** the labels keep the native 12px medium typography
+- **AND** shared field label color remains available for non-new-wiki dialogs
