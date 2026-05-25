@@ -108,3 +108,13 @@ The Electron INFO tab SHALL render frontmatter directions with the native gold c
 - **THEN** the INFO tab shows the `DIRECTIONS` section with the existing directions text
 - **AND** the directions text uses native 12px serif italic typography, info-value text color, 3px line-spacing equivalent, 10px vertical and 12px horizontal padding, accent-gold translucent background, and a 2px leading accent-gold strip
 - **AND** directions parsing, directions section visibility, linked targets, metadata rows, tab switching, terminal behavior, and sidebar resizing behavior are not changed for this requirement
+
+### Requirement: Info Linked Rows Style Parity
+The Electron INFO tab SHALL render wikilink target rows with the native linked-row visual styling.
+
+#### Scenario: Linked section rows use native typography and spacing
+- **WHEN** a selected document contains wikilink targets
+- **THEN** the INFO tab shows the `LINKED` section with the existing linked target rows
+- **AND** each linked target keeps the native `↗ target` marker
+- **AND** linked rows use native 13px serif typography, linked-text color, and 4px row spacing
+- **AND** wikilink extraction, linked section visibility, directions callout, metadata rows, tab switching, terminal behavior, and sidebar resizing behavior are not changed for this requirement

@@ -152,6 +152,29 @@ test("renderer linked info rows use native north-east marker", () => {
   assert.doesNotMatch(rendererSource, /item\.textContent = `-> \$\{target\}`/);
 });
 
+test("renderer linked info rows mirror native typography and spacing", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
+  const cssSource = read("src/renderer/styles.css");
+  const infoLinksBlock = cssBlock(cssSource, ".info-links");
+
+  assert.match(
+    nativeSource,
+    /VStack\(alignment:\s*\.leading,\s*spacing:\s*4\)[\s\S]*Text\("\\u\{2197\} \\\(link\)"\)[\s\S]*\.font\(\.custom\("Fraunces",\s*size:\s*13\)\)[\s\S]*\.foregroundStyle\(Color\.linkedText\)/
+  );
+
+  assert.match(infoLinksBlock, /display:\s*grid/);
+  assert.match(infoLinksBlock, /gap:\s*4px/);
+  assert.match(infoLinksBlock, /margin:\s*0/);
+  assert.match(infoLinksBlock, /padding:\s*0/);
+  assert.match(infoLinksBlock, /color:\s*var\(--color-linked-text\)/);
+  assert.match(infoLinksBlock, /font-family:\s*Georgia,\s*serif/);
+  assert.match(infoLinksBlock, /font-size:\s*13px/);
+  assert.match(infoLinksBlock, /list-style:\s*none/);
+  assert.match(infoLinksBlock, /overflow-wrap:\s*anywhere/);
+  assert.doesNotMatch(infoLinksBlock, /ui-monospace/);
+  assert.doesNotMatch(infoLinksBlock, /color-info-value/);
+});
+
 test("renderer directions info uses native gold callout styling", () => {
   const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
   const htmlSource = read("src/renderer/index.html");

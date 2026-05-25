@@ -711,8 +711,7 @@ body.resizing-left-sidebar * {
   font-weight: 400;
 }
 
-.info-section p,
-.info-links {
+.info-section p {
   margin: 0;
   color: var(--color-info-value);
   font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
@@ -766,9 +765,14 @@ body.resizing-left-sidebar * {
 
 .info-links {
   display: grid;
-  gap: 7px;
+  gap: 4px;
+  margin: 0;
   padding: 0;
+  color: var(--color-linked-text);
+  font-family: Georgia, serif;
+  font-size: 13px;
   list-style: none;
+  overflow-wrap: anywhere;
 }
 
 .terminal-panel {
