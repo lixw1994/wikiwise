@@ -224,6 +224,34 @@ test("renderer mirrors native new-wiki location chooser button chrome", () => {
   assert.match(htmlSource, /id="cancel-publish" class="secondary-action"/);
 });
 
+test("renderer mirrors native new-wiki name field rounded border", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const htmlSource = read("src/renderer/index.html");
+  const styleSource = read("src/renderer/styles.css");
+  const newWikiSheetSource =
+    nativeSource.match(/private var newWikiSheet: some View[\s\S]*?\.frame\(width:\s*400\)/)?.[0] ?? "";
+  const textInputBlock = cssBlock(styleSource, ".text-input");
+  const newWikiNameInputBlock = cssBlock(styleSource, ".new-wiki-name-input");
+
+  assert.notEqual(newWikiSheetSource, "");
+  assert.match(
+    newWikiSheetSource,
+    /TextField\("My Wiki",\s*text:\s*\$newWikiName\)\s*\.textFieldStyle\(\.roundedBorder\)/
+  );
+
+  assert.match(
+    htmlSource,
+    /<input id="new-wiki-name" class="text-input new-wiki-name-input" type="text" placeholder="My Wiki" \/>/
+  );
+  assert.match(rendererSource, /newWikiNameInput\.addEventListener\("input",/);
+  assert.match(textInputBlock, /width:\s*100%/);
+  assert.match(newWikiNameInputBlock, /min-height:\s*24px/);
+  assert.match(newWikiNameInputBlock, /padding:\s*3px 6px/);
+  assert.match(newWikiNameInputBlock, /font-size:\s*13px/);
+  assert.match(htmlSource, /id="publish-subdomain"[\s\S]*class="text-input publish-subdomain"/);
+});
+
 test("renderer mirrors native new-wiki and post-create guide copy", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
