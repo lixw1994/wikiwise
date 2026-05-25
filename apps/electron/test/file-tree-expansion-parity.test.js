@@ -15,6 +15,11 @@ function readRepository(relativePath) {
   return fs.readFileSync(path.join(repositoryRoot, relativePath), "utf8");
 }
 
+function cssBlock(source, selector) {
+  const pattern = new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{([^}]+)\\}`);
+  return source.match(pattern)?.[1] ?? "";
+}
+
 test("main and preload expose path-safe tree expansion IPC", () => {
   const mainSource = read("src/main/main.js");
   const preloadSource = read("src/preload/preload.cjs");
@@ -146,4 +151,28 @@ test("renderer matches native left sidebar width constraints and resize affordan
   assert.match(rendererSource, /function updateLeftSidebarResize/);
   assert.match(rendererSource, /function endLeftSidebarResize/);
   assert.match(rendererSource, /project\.style\.setProperty\("--left-sidebar-width"/);
+});
+
+test("renderer left sidebar resize handle mirrors native quiet divider", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const styleSource = read("src/renderer/styles.css");
+  const sidebarBlock = cssBlock(styleSource, ".sidebar");
+  const handleBlock = cssBlock(styleSource, ".left-sidebar-resize-handle");
+  const hoverFocusMatch = styleSource.match(
+    /\.left-sidebar-resize-handle:hover,\s*\.left-sidebar-resize-handle:focus-visible\s*\{([^}]+)\}/
+  );
+
+  assert.match(
+    nativeSource,
+    /\.navigationSplitViewColumnWidth\(min:\s*110,\s*ideal:\s*200,\s*max:\s*360\)[\s\S]*\.overlay\(alignment:\s*\.trailing\)[\s\S]*Rectangle\(\)\.fill\(Color\.dividerGray\)\.frame\(width:\s*1\)/
+  );
+  assert.match(sidebarBlock, /border-right:\s*1px solid var\(--color-sidebar-rule\)/);
+  assert.match(handleBlock, /right:\s*0/);
+  assert.match(handleBlock, /width:\s*5px/);
+  assert.match(handleBlock, /background:\s*transparent/);
+  assert.match(handleBlock, /cursor:\s*col-resize/);
+  assert.ok(hoverFocusMatch, "Expected a left-sidebar resize handle hover/focus selector");
+  assert.match(hoverFocusMatch[1], /background:\s*transparent/);
+  assert.match(hoverFocusMatch[1], /outline:\s*none/);
+  assert.doesNotMatch(hoverFocusMatch[1], /var\(--color-resize-hover\)/);
 });

@@ -284,7 +284,7 @@ button:disabled {
 
 .left-sidebar-resize-handle:hover,
 .left-sidebar-resize-handle:focus-visible {
-  background: var(--color-resize-hover);
+  background: transparent;
   outline: none;
 }
 
