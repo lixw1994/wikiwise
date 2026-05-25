@@ -431,7 +431,7 @@ test("renderer mirrors native post-create guide container layout", () => {
   assert.match(guideBlock, /background:\s*var\(--color-content-bg\)/);
   assert.match(
     styleSource,
-    /\.post-create-guide > \.guide-block,\s*\.post-create-guide > p,\s*\.post-create-guide > button\s*\{[^}]*max-width:\s*560px/
+    /\.post-create-guide > \.guide-block,\s*\.post-create-guide > p,\s*\.post-create-guide > button,\s*\.post-create-guide > \.guide-divider\s*\{[^}]*max-width:\s*560px/
   );
   assert.match(styleSource, /\.post-create-guide p,\s*\.post-create-guide li\s*\{[^}]*color:\s*var\(--color-linked-text\)/);
   assert.match(htmlSource, /id="dismiss-post-create-guide" class="primary-action"/);
@@ -485,4 +485,36 @@ test("renderer mirrors native post-create guide summary text", () => {
   assert.match(summaryRule, /line-height:\s*calc\(1\.2em \+ 3px\)/);
   assert.match(sharedParagraphRule, /color:\s*var\(--color-linked-text\)/);
   assert.match(sharedParagraphRule, /line-height:\s*1\.6/);
+});
+
+test("renderer mirrors native post-create guide dividers", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const htmlSource = read("src/renderer/index.html");
+  const styleSource = read("src/renderer/styles.css");
+  const postCreateGuideSource =
+    nativeSource.match(/private func postCreateGuide\(wikiURL: URL\) -> some View[\s\S]*?private func agentCommand/)?.[0] ??
+    "";
+  const widthGroup =
+    styleSource.match(/\.post-create-guide > \.guide-block,[\s\S]*?\{[^}]+\}/)?.[0] ?? "";
+  const dividerRules = styleSource.match(/\.post-create-guide > \.guide-divider\s*\{[^}]+\}/g) ?? [];
+  const dividerRule = dividerRules[dividerRules.length - 1] ?? "";
+
+  assert.equal((postCreateGuideSource.match(/\bDivider\(\)/g) ?? []).length, 3);
+  assert.equal((htmlSource.match(/class="guide-divider"/g) ?? []).length, 3);
+  assert.match(
+    htmlSource,
+    /<\/div>\s*<hr class="guide-divider" aria-hidden="true" \/>\s*<div class="guide-block">\s*<p class="eyebrow">OPEN YOUR AGENT<\/p>/
+  );
+  assert.match(
+    htmlSource,
+    /id="guide-cursor-command"><\/code><\/pre>\s*<\/div>\s*<hr class="guide-divider" aria-hidden="true" \/>\s*<div class="guide-block">\s*<p class="eyebrow">SEED YOUR WIKI<\/p>/
+  );
+  assert.match(
+    htmlSource,
+    /<\/ul>\s*<\/div>\s*<hr class="guide-divider" aria-hidden="true" \/>\s*<p>\s*This is your project\./
+  );
+  assert.match(widthGroup, /\.post-create-guide > \.guide-divider/);
+  assert.match(widthGroup, /max-width:\s*560px/);
+  assert.match(dividerRule, /border-top:\s*1px solid var\(--color-sidebar-rule\)/);
+  assert.match(dividerRule, /margin:\s*0 0 24px/);
 });

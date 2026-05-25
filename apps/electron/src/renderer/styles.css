@@ -1217,7 +1217,8 @@ body.resizing-left-sidebar * {
 
 .post-create-guide > .guide-block,
 .post-create-guide > p,
-.post-create-guide > button {
+.post-create-guide > button,
+.post-create-guide > .guide-divider {
   max-width: 560px;
 }
 
@@ -1243,6 +1244,13 @@ body.resizing-left-sidebar * {
 
 .guide-block {
   margin-bottom: 24px;
+}
+
+.post-create-guide > .guide-divider {
+  width: 100%;
+  border: 0;
+  border-top: 1px solid var(--color-sidebar-rule);
+  margin: 0 0 24px;
 }
 
 .post-create-guide pre {
