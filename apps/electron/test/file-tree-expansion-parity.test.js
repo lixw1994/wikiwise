@@ -78,6 +78,25 @@ test("renderer includes native file tree visual affordances", () => {
   assert.match(styleSource, /width:\s*2px/);
 });
 
+test("renderer mirrors native file tree folder tooltip copy", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+
+  assert.match(nativeSource, /case "wiki": return "Wiki pages — your editable knowledge base"/);
+  assert.match(nativeSource, /case "sources": return "Source summaries — one page per ingested source"/);
+  assert.match(nativeSource, /case "raw": return "Raw source documents — read-only originals"/);
+  assert.match(nativeSource, /case "site": return "Build tooling and compiled HTML output"/);
+
+  assert.match(rendererSource, /case "wiki":[\s\S]*return "Wiki pages — your editable knowledge base"/);
+  assert.match(rendererSource, /case "sources":[\s\S]*return "Source summaries — one page per ingested source"/);
+  assert.match(rendererSource, /case "raw":[\s\S]*return "Raw source documents — read-only originals"/);
+  assert.match(rendererSource, /case "site":[\s\S]*return "Build tooling and compiled HTML output"/);
+
+  assert.doesNotMatch(rendererSource, /Wiki pages - your editable knowledge base/);
+  assert.doesNotMatch(rendererSource, /Source summaries - one page per ingested source/);
+  assert.doesNotMatch(rendererSource, /Raw source documents - read-only originals/);
+});
+
 test("renderer auto-expands native default folders and preserves expansion on refresh", () => {
   const rendererSource = read("src/renderer/renderer.js");
 

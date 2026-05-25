@@ -334,11 +334,11 @@ function normalizeTreeNodes(nodes) {
 function folderTooltip(name) {
   switch (name) {
   case "wiki":
-    return "Wiki pages - your editable knowledge base";
+    return "Wiki pages — your editable knowledge base";
   case "sources":
-    return "Source summaries - one page per ingested source";
+    return "Source summaries — one page per ingested source";
   case "raw":
-    return "Raw source documents - read-only originals";
+    return "Raw source documents — read-only originals";
   case "site":
     return "Build tooling and compiled HTML output";
   default:

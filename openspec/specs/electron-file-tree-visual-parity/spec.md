@@ -50,3 +50,12 @@ The Electron project sidebar SHALL match the native SwiftUI sidebar header struc
 - **AND** the file tree follows the header without an additional top margin
 - **AND** the sidebar does not display a project-name heading
 - **AND** the toolbar remains the project-name display location
+
+### Requirement: Native Folder Tooltip Copy
+The Electron file tree SHALL expose native folder help text for directory row tooltips.
+
+#### Scenario: Special top-level folders are displayed
+- **WHEN** the Electron project tree renders `wiki`, `sources`, `raw`, or `site` folder rows
+- **THEN** their row tooltips match the native SwiftUI `folderTooltip(_:)` strings
+- **AND** `wiki`, `sources`, and `raw` tooltip copy uses the native em dash punctuation
+- **AND** the `site` tooltip remains `Build tooling and compiled HTML output`
