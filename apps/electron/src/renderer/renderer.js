@@ -618,15 +618,20 @@ function renderPublishStatus() {
   renderPublishFeedback();
 }
 
+function publishResultMessageText(result) {
+  if (!result) return "";
+
+  return result.isFirstPublish
+    ? `Your wiki is live at ${result.url}\n\nA publish.json file has been saved to your project. Keep it safe — it’s your key to update this site.`
+    : `Updated ${result.url}`;
+}
+
 function renderPublishFeedback() {
   const result = state.publishResult;
   publishResultDialog.hidden = !result;
-  publishResultMessage.textContent = result
-    ? (result.isFirstPublish
-        ? "Your wiki is live at:"
-        : "Updated:")
-    : "";
-  publishResultUrl.textContent = result?.url ?? "";
+  publishResultMessage.textContent = publishResultMessageText(result);
+  publishResultUrl.hidden = true;
+  publishResultUrl.textContent = "";
   openPublishResultButton.disabled = !result?.url;
 
   publishErrorDialog.hidden = !state.publishError;

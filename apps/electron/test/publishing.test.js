@@ -174,6 +174,29 @@ test("renderer mirrors native publish dialog copy", () => {
   assert.doesNotMatch(rendererSource, /Unpublish\.\.\./);
 });
 
+test("renderer mirrors native publish result copy", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+
+  assert.match(
+    nativeSource,
+    /Your wiki is live at \\\(result\.url\.absoluteString\)\\n\\nA publish\.json file has been saved to your project\. Keep it safe \\u\{2014\} it\\u\{2019\}s your key to update this site\./
+  );
+  assert.match(nativeSource, /Updated \\\(result\.url\.absoluteString\)/);
+
+  assert.match(rendererSource, /function publishResultMessageText\(result\)/);
+  assert.match(
+    rendererSource,
+    /Your wiki is live at \$\{result\.url\}\\n\\nA publish\.json file has been saved to your project\. Keep it safe — it’s your key to update this site\./
+  );
+  assert.match(rendererSource, /Updated \$\{result\.url\}/);
+  assert.match(rendererSource, /publishResultMessage\.textContent = publishResultMessageText\(result\)/);
+  assert.match(rendererSource, /publishResultUrl\.hidden = true/);
+  assert.match(rendererSource, /publishResultUrl\.textContent = ""/);
+  assert.doesNotMatch(rendererSource, /Your wiki is live at:/);
+  assert.doesNotMatch(rendererSource, /Updated:/);
+});
+
 test("renderer mirrors native publish availability hint copy", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
