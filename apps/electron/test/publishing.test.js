@@ -116,6 +116,27 @@ test("renderer mirrors native publish action labels", () => {
   assert.doesNotMatch(rendererSource, /state\.publishConfig\?\.published\s*\?\s*"Update"\s*:\s*"Publish"/);
 });
 
+test("renderer mirrors native publish toolbar button style", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const cssSource = read("src/renderer/styles.css");
+  const publishButtonBlock = cssBlock(cssSource, ".publish-button");
+  const toolbarIconButtonBlock = cssBlock(cssSource, ".toolbar-icon-button");
+
+  assert.match(
+    nativeSource,
+    /Text\("PUBLISH \\u\{2191\}"\)[\s\S]*\.font\(\.system\(size:\s*10,\s*weight:\s*\.regular,\s*design:\s*\.monospaced\)\)[\s\S]*\.tracking\(0\.8\)[\s\S]*\.foregroundStyle\(Color\.sidebarSelectedText\)[\s\S]*\.padding\(\.horizontal,\s*10\)[\s\S]*\.padding\(\.vertical,\s*4\)[\s\S]*RoundedRectangle\(cornerRadius:\s*3\)[\s\S]*\.fill\(Color\.sidebarSelectedBg\)[\s\S]*\.strokeBorder\(Color\.sidebarRule,\s*lineWidth:\s*1\)/
+  );
+  assert.match(publishButtonBlock, /font-family:\s*ui-monospace,\s*"SFMono-Regular",\s*Menlo,\s*monospace/);
+  assert.match(publishButtonBlock, /font-size:\s*10px/);
+  assert.match(publishButtonBlock, /letter-spacing:\s*0\.8px/);
+  assert.match(publishButtonBlock, /color:\s*var\(--color-sidebar-selected-text\)/);
+  assert.match(publishButtonBlock, /background:\s*var\(--color-sidebar-selected-bg\)/);
+  assert.match(publishButtonBlock, /border:\s*1px solid var\(--color-sidebar-rule\)/);
+  assert.match(publishButtonBlock, /border-radius:\s*3px/);
+  assert.match(publishButtonBlock, /padding:\s*4px 10px/);
+  assert.match(toolbarIconButtonBlock, /border-radius:\s*6px/);
+});
+
 test("renderer mirrors native toolbar busy state during unpublish", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
