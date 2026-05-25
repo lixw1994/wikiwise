@@ -342,6 +342,20 @@ test("renderer mirrors native publish dialog panel padding", () => {
   assert.match(modalPanelBlock, /padding:\s*22px/);
 });
 
+test("renderer mirrors native publish dialog content spacing", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const cssSource = read("src/renderer/styles.css");
+  const publishDialogBlock = cssBlock(cssSource, ".publish-dialog");
+  const modalPanelBlock = cssBlock(cssSource, ".modal-panel");
+
+  assert.match(
+    nativeSource,
+    /private var publishConfirmSheet:[\s\S]*VStack\(alignment:\s*\.leading,\s*spacing:\s*16\)/
+  );
+  assert.match(publishDialogBlock, /gap:\s*16px/);
+  assert.match(modalPanelBlock, /gap:\s*12px/);
+});
+
 test("renderer mirrors native publish result copy", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
