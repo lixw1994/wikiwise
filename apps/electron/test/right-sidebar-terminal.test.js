@@ -371,6 +371,10 @@ test("renderer right sidebar tabs mirror native compact pill switcher", () => {
   assert.match(nativeSource, /private var tabBar:[\s\S]*HStack\(spacing:\s*0\)/);
   assert.match(
     nativeSource,
+    /VStack\(spacing:\s*0\) \{[\s\S]*Rectangle\(\)\.fill\(Color\.sidebarRule\)\.frame\(height:\s*1\)[\s\S]*tabBar[\s\S]*Rectangle\(\)\.fill\(Color\.sidebarRule\)\.frame\(height:\s*1\)/
+  );
+  assert.match(
+    nativeSource,
     /Text\(tab\.rawValue\)[\s\S]*\.font\(\.system\(size:\s*10,\s*weight:\s*\.regular,\s*design:\s*\.monospaced\)\)[\s\S]*\.tracking\(0\.8\)[\s\S]*\.foregroundStyle\(activeTab == tab \? Color\.tabActive : Color\.tabInactive\)[\s\S]*\.padding\(\.horizontal,\s*14\)[\s\S]*\.padding\(\.vertical,\s*3\)/
   );
   assert.match(
@@ -389,6 +393,8 @@ test("renderer right sidebar tabs mirror native compact pill switcher", () => {
   assert.match(rightTabsBlock, /display:\s*flex/);
   assert.match(rightTabsBlock, /align-items:\s*center/);
   assert.match(rightTabsBlock, /justify-content:\s*flex-start/);
+  assert.match(rightTabsBlock, /border-top:\s*1px solid var\(--color-sidebar-rule\)/);
+  assert.match(rightTabsBlock, /border-bottom:\s*1px solid var\(--color-sidebar-rule\)/);
   assert.match(rightTabsBlock, /padding:\s*8px 12px/);
   assert.match(rightTabsBlock, /background:\s*var\(--color-sidebar-bg\)/);
   assert.match(rightTabSwitchBlock, /display:\s*flex/);
