@@ -275,6 +275,30 @@ test("renderer mirrors native publish dialog copy", () => {
   );
 });
 
+test("renderer mirrors native publish URL intro font", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const htmlSource = read("src/renderer/index.html");
+  const normalizedHtml = normalized(htmlSource);
+  const cssSource = read("src/renderer/styles.css");
+  const publishUrlIntroBlock = cssBlock(cssSource, ".publish-url-intro");
+  const compactSummaryBlock = cssBlock(cssSource, ".compact-summary");
+
+  assert.match(
+    nativeSource,
+    /Text\("Your wiki will be available at:"\)[\s\S]*\.font\(\.system\(size:\s*13\)\)[\s\S]*\.foregroundStyle\(\.secondary\)/
+  );
+  assert.match(
+    normalizedHtml,
+    /<p class="summary compact-summary publish-url-intro">\s*Your wiki will be available at:\s*<\/p>/
+  );
+  assert.match(publishUrlIntroBlock, /font-size:\s*13px/);
+  assert.match(compactSummaryBlock, /font-size:\s*12px/);
+  assert.match(
+    normalizedHtml,
+    /<p class="summary compact-summary">\s*A publish\.json file will be saved in your project — it contains your publish token/
+  );
+});
+
 test("renderer mirrors native publish URL row layout", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const cssSource = read("src/renderer/styles.css");

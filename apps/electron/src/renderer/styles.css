@@ -776,6 +776,10 @@ body.resizing-left-sidebar * {
   font-size: 12px;
 }
 
+.publish-url-intro {
+  font-size: 13px;
+}
+
 .publish-url-row {
   display: grid;
   grid-template-columns: auto minmax(80px, 200px) auto minmax(0, 1fr) 16px;
