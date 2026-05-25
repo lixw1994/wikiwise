@@ -780,7 +780,7 @@ body.resizing-left-sidebar * {
   display: grid;
   grid-template-columns: auto minmax(80px, 200px) auto minmax(0, 1fr) 16px;
   align-items: center;
-  gap: 4px;
+  gap: 0;
   border: 0;
   border-radius: 4px;
   padding: 8px;

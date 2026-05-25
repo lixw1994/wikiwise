@@ -278,6 +278,7 @@ test("renderer mirrors native publish dialog copy", () => {
 test("renderer mirrors native publish URL row layout", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const cssSource = read("src/renderer/styles.css");
+  const publishUrlRowBlock = cssBlock(cssSource, ".publish-url-row");
 
   assert.match(
     nativeSource,
@@ -289,6 +290,7 @@ test("renderer mirrors native publish URL row layout", () => {
     /grid-template-columns:\s*auto minmax\(80px,\s*200px\) auto minmax\(0,\s*1fr\) 16px/
   );
   assert.doesNotMatch(cssSource, /grid-template-columns:\s*auto minmax\(80px,\s*1fr\) auto/);
+  assert.match(publishUrlRowBlock, /gap:\s*0/);
   assert.match(cssSource, /max-width:\s*200px/);
   assert.match(cssSource, /grid-column:\s*5/);
 });
