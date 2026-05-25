@@ -242,6 +242,27 @@ test("renderer terminal panel mirrors native top and leading inset", () => {
   assert.doesNotMatch(xtermBlock, /padding:\s*10px/);
 });
 
+test("renderer right sidebar resize handle mirrors native transparent overlay", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
+  const cssSource = read("src/renderer/styles.css");
+  const handleBlock = cssBlock(cssSource, ".right-sidebar-resize-handle");
+  const hoverFocusMatch = cssSource.match(
+    /\.right-sidebar-resize-handle:hover,\s*\.right-sidebar-resize-handle:focus-visible\s*\{([^}]+)\}/
+  );
+
+  assert.match(
+    nativeSource,
+    /\.overlay\(alignment:\s*\.leading\)[\s\S]*Rectangle\(\)[\s\S]*\.fill\(Color\.clear\)[\s\S]*\.frame\(width:\s*5\)[\s\S]*\.contentShape\(Rectangle\(\)\)[\s\S]*NSCursor\.resizeLeftRight/
+  );
+  assert.match(handleBlock, /width:\s*5px/);
+  assert.match(handleBlock, /background:\s*transparent/);
+  assert.match(handleBlock, /cursor:\s*col-resize/);
+  assert.ok(hoverFocusMatch, "Expected a right-sidebar resize handle hover/focus selector");
+  assert.match(hoverFocusMatch[1], /background:\s*transparent/);
+  assert.match(hoverFocusMatch[1], /outline:\s*none/);
+  assert.doesNotMatch(hoverFocusMatch[1], /var\(--color-resize-hover\)/);
+});
+
 test("renderer terminal CSS fallback mirrors native SwiftTerm palette", () => {
   const nativeSource = readRepository("Sources/Wikiwise/TerminalEmbed.swift");
   const rendererSource = read("src/renderer/renderer.js");
