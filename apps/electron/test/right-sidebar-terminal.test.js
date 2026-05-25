@@ -208,7 +208,6 @@ test("renderer info panel uses native content inset", () => {
   const htmlSource = read("src/renderer/index.html");
   const cssSource = read("src/renderer/styles.css");
   const infoPanelBlock = cssBlock(cssSource, ".info-panel");
-  const terminalPanelBlock = cssBlock(cssSource, ".terminal-panel");
 
   assert.match(
     nativeSource,
@@ -216,8 +215,26 @@ test("renderer info panel uses native content inset", () => {
   );
   assert.match(htmlSource, /id="info-panel" class="right-panel info-panel" hidden/);
   assert.match(infoPanelBlock, /padding:\s*14px/);
-  assert.match(terminalPanelBlock, /padding:\s*0/);
   assert.doesNotMatch(infoPanelBlock, /padding:\s*18px/);
+});
+
+test("renderer terminal panel mirrors native top and leading inset", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
+  const htmlSource = read("src/renderer/index.html");
+  const cssSource = read("src/renderer/styles.css");
+  const terminalPanelBlock = cssBlock(cssSource, ".terminal-panel");
+  const xtermBlock = cssBlock(cssSource, ".terminal-surface .xterm");
+
+  assert.match(
+    nativeSource,
+    /private var terminalTab:[\s\S]*TerminalEmbed\(session:\s*terminalSession\)[\s\S]*\.padding\(\.leading,\s*8\)[\s\S]*\.padding\(\.top,\s*4\)[\s\S]*\.frame\(maxWidth:\s*\.infinity,\s*maxHeight:\s*\.infinity\)/
+  );
+  assert.match(htmlSource, /id="terminal-panel" class="right-panel terminal-panel"/);
+  assert.match(terminalPanelBlock, /padding:\s*4px 0 0 8px/);
+  assert.match(terminalPanelBlock, /overflow:\s*hidden/);
+  assert.match(xtermBlock, /height:\s*100%/);
+  assert.match(xtermBlock, /padding:\s*0/);
+  assert.doesNotMatch(xtermBlock, /padding:\s*10px/);
 });
 
 test("renderer directions info uses native gold callout styling", () => {

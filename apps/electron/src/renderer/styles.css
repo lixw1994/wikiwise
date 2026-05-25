@@ -787,7 +787,7 @@ body.resizing-left-sidebar * {
 
 .terminal-panel {
   background: #161714;
-  padding: 0;
+  padding: 4px 0 0 8px;
   overflow: hidden;
 }
 
@@ -804,7 +804,7 @@ body.resizing-left-sidebar * {
 
 .terminal-surface .xterm {
   height: 100%;
-  padding: 10px;
+  padding: 0;
 }
 
 .terminal-surface .xterm-viewport {
