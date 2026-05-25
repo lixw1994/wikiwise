@@ -241,8 +241,16 @@ button:disabled {
 }
 
 .toolbar-icon-button.selected {
-  background: var(--color-sidebar-selected-bg);
-  color: var(--color-sidebar-selected-text);
+  background: transparent;
+  color: var(--color-toolbar-text);
+}
+
+#toggle-left-sidebar:not(.selected) {
+  color: var(--color-toolbar-disabled);
+}
+
+#toggle-right-sidebar:not(.selected) {
+  color: var(--color-toolbar-disabled);
 }
 
 .toolbar-project-title {

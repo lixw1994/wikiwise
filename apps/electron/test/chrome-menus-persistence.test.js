@@ -208,6 +208,29 @@ test("left sidebar toolbar control mirrors native restore help text", () => {
   assert.doesNotMatch(rendererSource, /label:\s*"Toggle left sidebar"/);
 });
 
+test("sidebar toolbar toggles mirror native plain icon color states", () => {
+  const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const cssSource = read("src/renderer/styles.css");
+  const selectedToolbarIconBlock = cssBlock(cssSource, ".toolbar-icon-button.selected");
+  const hiddenLeftToggleBlock = cssBlock(cssSource, "#toggle-left-sidebar:not(.selected)");
+  const hiddenRightToggleBlock = cssBlock(cssSource, "#toggle-right-sidebar:not(.selected)");
+
+  assert.match(
+    swiftSource,
+    /Image\(systemName:\s*"sidebar\.left"\)[\s\S]*\.font\(\.system\(size:\s*14\)\)[\s\S]*\.foregroundStyle\(Color\.toolbarDisabled\)[\s\S]*\.buttonStyle\(\.plain\)[\s\S]*\.help\("Show Sidebar"\)/
+  );
+  assert.match(
+    swiftSource,
+    /Image\(systemName:\s*"sidebar\.right"\)[\s\S]*\.font\(\.system\(size:\s*16\)\)[\s\S]*\.foregroundStyle\(showRightSidebar \? Color\.toolbarText : Color\.toolbarDisabled\)[\s\S]*\.buttonStyle\(\.plain\)/
+  );
+  assert.match(selectedToolbarIconBlock, /background:\s*transparent/);
+  assert.match(selectedToolbarIconBlock, /color:\s*var\(--color-toolbar-text\)/);
+  assert.doesNotMatch(selectedToolbarIconBlock, /var\(--color-sidebar-selected-bg\)/);
+  assert.doesNotMatch(selectedToolbarIconBlock, /var\(--color-sidebar-selected-text\)/);
+  assert.match(hiddenLeftToggleBlock, /color:\s*var\(--color-toolbar-disabled\)/);
+  assert.match(hiddenRightToggleBlock, /color:\s*var\(--color-toolbar-disabled\)/);
+});
+
 test("renderer styles wire native adaptive palette tokens into visible shell surfaces", () => {
   const cssSource = read("src/renderer/styles.css");
 
