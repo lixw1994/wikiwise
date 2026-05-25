@@ -161,6 +161,41 @@ test("renderer mirrors native new-wiki action row spacing", () => {
   assert.match(newWikiActionsBlock, /margin-top:\s*0/);
 });
 
+test("renderer mirrors native new-wiki action button chrome", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const htmlSource = read("src/renderer/index.html");
+  const styleSource = read("src/renderer/styles.css");
+  const newWikiSheetSource =
+    nativeSource.match(/private var newWikiSheet: some View[\s\S]*?\.frame\(width:\s*400\)/)?.[0] ?? "";
+  const nativeActionRowSource =
+    newWikiSheetSource.match(
+      /HStack\s*\{\s*Button\("Cancel"\)[\s\S]*?Spacer\(\)[\s\S]*?Button\("Create"\)[\s\S]*?\.disabled\(newWikiName\.trimmingCharacters\(in:\s*\.whitespaces\)\.isEmpty\)[\s\S]*?\n\s*\}/
+    )?.[0] ?? "";
+  const newWikiButtonBlock = cssBlock(styleSource, ".new-wiki-button");
+  const newWikiDefaultButtonBlock = cssBlock(styleSource, ".new-wiki-default-button");
+
+  assert.notEqual(newWikiSheetSource, "");
+  assert.notEqual(nativeActionRowSource, "");
+  assert.match(nativeActionRowSource, /Button\("Cancel"\)[\s\S]*\.keyboardShortcut\(\.cancelAction\)/);
+  assert.match(
+    nativeActionRowSource,
+    /Button\("Create"\)[\s\S]*\.keyboardShortcut\(\.defaultAction\)[\s\S]*\.disabled\(newWikiName\.trimmingCharacters\(in:\s*\.whitespaces\)\.isEmpty\)/
+  );
+  assert.doesNotMatch(nativeActionRowSource, /\.buttonStyle|\.foregroundStyle|\.background|\.clipShape/);
+
+  assert.match(htmlSource, /id="cancel-create-new" class="new-wiki-button"[^>]*>Cancel<\/button>/);
+  assert.match(
+    htmlSource,
+    /id="confirm-create-new" class="new-wiki-button new-wiki-default-button"[^>]*disabled>[\s\S]*Create[\s\S]*<\/button>/
+  );
+  assert.doesNotMatch(htmlSource, /id="cancel-create-new" class="secondary-action"/);
+  assert.doesNotMatch(htmlSource, /id="confirm-create-new" class="primary-action"/);
+  assert.match(newWikiButtonBlock, /border:\s*1px solid var\(--color-sidebar-rule\)/);
+  assert.match(newWikiDefaultButtonBlock, /background:\s*var\(--color-accent-primary\)/);
+  assert.match(htmlSource, /id="cancel-publish" class="secondary-action"/);
+  assert.match(htmlSource, /id="confirm-publish" class="primary-action"/);
+});
+
 test("renderer mirrors native new-wiki and post-create guide copy", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
