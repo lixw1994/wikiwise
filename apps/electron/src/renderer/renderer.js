@@ -416,6 +416,11 @@ function findTreeNodeByPath(nodes, targetPath) {
   return null;
 }
 
+function findWikiHomeNode() {
+  const wikiFolder = state.tree.find((node) => node.isDirectory && node.name === "wiki");
+  return wikiFolder?.children?.find((node) => !node.isDirectory && node.name === "home.md") ?? null;
+}
+
 function pruneExpandedTreePaths(nodes, expandedPaths) {
   const allDirectoryPaths = new Set();
   const visit = (entries) => {
@@ -1184,8 +1189,13 @@ function renderPostCreateGuide() {
   guideCursorCommand.textContent = `Open ${projectRoot} in Cursor`;
 }
 
-function dismissPostCreateGuide() {
+async function dismissPostCreateGuide() {
   state.showPostCreateGuide = false;
+  const homeNode = findWikiHomeNode();
+  if (homeNode) {
+    await selectFile(homeNode, { pushHistory: false });
+    return;
+  }
   renderDetail();
 }
 
@@ -2125,4 +2135,6 @@ chooseNewWikiLocationButton.addEventListener("click", chooseNewWikiLocation);
 cancelCreateNewButton.addEventListener("click", closeNewWikiDialog);
 confirmCreateNewButton.addEventListener("click", createNewWiki);
 newWikiDialog.addEventListener("keydown", handleNewWikiDialogKeydown);
-dismissPostCreateGuideButton.addEventListener("click", dismissPostCreateGuide);
+dismissPostCreateGuideButton.addEventListener("click", () => {
+  dismissPostCreateGuide().catch(setError);
+});

@@ -743,3 +743,28 @@ test("renderer mirrors native post-create guide seed option rows", () => {
   assert.match(seedCommandRule, /font-family:\s*ui-monospace,\s*"SFMono-Regular",\s*Menlo,\s*monospace/);
   assert.match(seedCommandRule, /font-size:\s*12px/);
 });
+
+test("renderer mirrors native post-create guide dismiss home selection", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const postCreateGuideSource =
+    nativeSource.match(/private func postCreateGuide\(wikiURL: URL\) -> some View[\s\S]*?private func agentCommand/)?.[0] ??
+    "";
+  const dismissFunctionSource =
+    rendererSource.match(/async function dismissPostCreateGuide\(\)[\s\S]*?\n\}/)?.[0] ?? "";
+
+  assert.notEqual(postCreateGuideSource, "");
+  assert.match(
+    postCreateGuideSource,
+    /Button\("Got it — start reading"\)[\s\S]*?showPostCreateGuide = false[\s\S]*?let home = root\.appendingPathComponent\("wiki\/home\.md"\)[\s\S]*?FileManager\.default\.fileExists\(atPath:\s*home\.path\)[\s\S]*?selectedFileURL = home[\s\S]*?loadFile\(home\)/
+  );
+  assert.match(rendererSource, /function findWikiHomeNode\(\)/);
+  assert.match(rendererSource, /state\.tree\.find\(\(node\) => node\.isDirectory && node\.name === "wiki"\)/);
+  assert.match(rendererSource, /wikiFolder\?\.children\?\.find\(\(node\) => !node\.isDirectory && node\.name === "home\.md"\)/);
+  assert.notEqual(dismissFunctionSource, "");
+  assert.match(dismissFunctionSource, /state\.showPostCreateGuide = false/);
+  assert.match(dismissFunctionSource, /const homeNode = findWikiHomeNode\(\)/);
+  assert.match(dismissFunctionSource, /if \(homeNode\) \{[\s\S]*?await selectFile\(homeNode,\s*\{\s*pushHistory:\s*false\s*\}\)[\s\S]*?return/);
+  assert.match(dismissFunctionSource, /renderDetail\(\)/);
+  assert.match(rendererSource, /dismissPostCreateGuideButton\.addEventListener\("click",\s*\(\) => \{[\s\S]*?dismissPostCreateGuide\(\)\.catch\(setError\)/);
+});
