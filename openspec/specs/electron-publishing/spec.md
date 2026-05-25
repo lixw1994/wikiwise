@@ -32,6 +32,8 @@ The Electron app SHALL let users choose or edit the wiki subdomain before publis
 - **WHEN** the user opens the publish dialog for a project without `publish.json`
 - **THEN** the dialog displays a generated subdomain candidate
 - **AND** the dialog shows the final `https://<subdomain>.wiki-wise.com` URL shape
+- **AND** the URL row constrains the editable subdomain field to the native maximum width
+- **AND** the URL row places a flexible spacer before the trailing availability indicator
 - **AND** the dialog shows the native `publish.json` token warning, including the password/lost-token sentence
 - **AND** publishing is disabled until the subdomain is available
 - **AND** the confirmation action remains labeled `Publish`
@@ -43,6 +45,8 @@ The Electron app SHALL let users choose or edit the wiki subdomain before publis
 
 - **WHEN** the user opens the publish dialog for a project with existing publish config
 - **THEN** the dialog displays the saved subdomain
+- **AND** the URL row constrains the editable subdomain field to the native maximum width
+- **AND** the URL row places a flexible spacer before the trailing availability indicator
 - **AND** the subdomain state is treated as owned unless an availability check says otherwise
 - **AND** the dialog shows the native `Unpublish…` action
 - **AND** the native `Unpublish…` action label remains unchanged while shown

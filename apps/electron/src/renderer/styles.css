@@ -769,7 +769,7 @@ body.resizing-left-sidebar * {
 
 .publish-url-row {
   display: grid;
-  grid-template-columns: auto minmax(80px, 1fr) auto;
+  grid-template-columns: auto minmax(80px, 200px) auto minmax(0, 1fr) 16px;
   align-items: center;
   gap: 4px;
   border: 1px solid var(--color-sidebar-rule);
@@ -782,6 +782,9 @@ body.resizing-left-sidebar * {
 }
 
 .publish-subdomain {
+  width: 100%;
+  max-width: 200px;
+  min-width: 0;
   border: 0;
   border-radius: 0;
   padding: 2px 0;
@@ -792,6 +795,7 @@ body.resizing-left-sidebar * {
 
 .publish-availability-indicator {
   display: inline-flex;
+  grid-column: 5;
   width: 16px;
   height: 16px;
   align-items: center;

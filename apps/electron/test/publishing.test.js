@@ -271,6 +271,24 @@ test("renderer mirrors native publish dialog copy", () => {
   );
 });
 
+test("renderer mirrors native publish URL row layout", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const cssSource = read("src/renderer/styles.css");
+
+  assert.match(
+    nativeSource,
+    /HStack\(spacing:\s*0\)[\s\S]*Text\("https:\/\/"\)[\s\S]*TextField\("subdomain"[\s\S]*\.frame\(maxWidth:\s*200\)[\s\S]*Text\("\.wiki-wise\.com"\)[\s\S]*Spacer\(\)[\s\S]*\.frame\(width:\s*16,\s*height:\s*16\)/
+  );
+
+  assert.match(
+    cssSource,
+    /grid-template-columns:\s*auto minmax\(80px,\s*200px\) auto minmax\(0,\s*1fr\) 16px/
+  );
+  assert.doesNotMatch(cssSource, /grid-template-columns:\s*auto minmax\(80px,\s*1fr\) auto/);
+  assert.match(cssSource, /max-width:\s*200px/);
+  assert.match(cssSource, /grid-column:\s*5/);
+});
+
 test("renderer mirrors native publish result copy", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
