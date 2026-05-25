@@ -356,6 +356,20 @@ test("renderer mirrors native publish dialog content spacing", () => {
   assert.match(modalPanelBlock, /gap:\s*12px/);
 });
 
+test("renderer mirrors native publish dialog title typography", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const cssSource = read("src/renderer/styles.css");
+  const publishTitleBlock = cssBlock(cssSource, ".publish-dialog h2");
+
+  assert.match(
+    nativeSource,
+    /Text\("Publish your wiki"\)[\s\S]*\.font\(\.system\(size:\s*18,\s*weight:\s*\.medium,\s*design:\s*\.serif\)\)/
+  );
+  assert.match(publishTitleBlock, /font-family:\s*Georgia,\s*serif/);
+  assert.match(publishTitleBlock, /font-size:\s*18px/);
+  assert.match(publishTitleBlock, /font-weight:\s*500/);
+});
+
 test("renderer mirrors native publish result copy", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");

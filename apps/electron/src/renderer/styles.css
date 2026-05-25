@@ -740,6 +740,12 @@ body.resizing-left-sidebar * {
   padding: 24px;
 }
 
+.publish-dialog h2 {
+  font-family: Georgia, serif;
+  font-size: 18px;
+  font-weight: 500;
+}
+
 .publish-feedback-dialog {
   width: min(420px, 100%);
 }
