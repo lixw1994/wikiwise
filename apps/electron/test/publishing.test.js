@@ -463,8 +463,23 @@ test("renderer mirrors native publish subdomain sanitizer length behavior", () =
     /let sanitized = newValue\.lowercased\(\)\s*\.filter \{ \$0\.isLetter \|\| \$0\.isNumber \|\| \$0 == "-" \}/
   );
   assert.doesNotMatch(nativePublishSheet, /prefix\(48\)|count\s*>\s*48/);
-  assert.match(sanitizeBody, /String\(value\)\.toLowerCase\(\)\.replace\(\/\[\^a-z0-9-\]\/g,\s*""\)/);
+  assert.match(sanitizeBody, /String\(value\)\.toLowerCase\(\)\.replace\(/);
   assert.doesNotMatch(sanitizeBody, /\.slice\(0,\s*48\)|\.substring\(0,\s*48\)|\.substr\(0,\s*48\)/);
+});
+
+test("renderer mirrors native publish subdomain sanitizer character behavior", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const nativePublishSheet = nativeSource.match(
+    /private var publishConfirmSheet:[\s\S]*?\n    private var canPublish/
+  )?.[0] ?? "";
+  const sanitizeBody = rendererSource.match(
+    /function sanitizePublishSubdomain\(value\) \{([\s\S]*?)\n\}/
+  )?.[1] ?? "";
+
+  assert.match(nativePublishSheet, /\$0\.isLetter \|\| \$0\.isNumber \|\| \$0 == "-"/);
+  assert.match(sanitizeBody, /replace\(\/\[\^\\p\{L\}\\p\{N\}-\]\/gu,\s*""\)/);
+  assert.doesNotMatch(sanitizeBody, /\[\^a-z0-9-\]/);
 });
 
 test("renderer mirrors native publish availability inline indicator", () => {
