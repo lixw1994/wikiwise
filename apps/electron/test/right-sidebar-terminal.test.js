@@ -152,6 +152,62 @@ test("renderer linked info rows use native north-east marker", () => {
   assert.doesNotMatch(rendererSource, /item\.textContent = `-> \$\{target\}`/);
 });
 
+test("renderer info metadata mirrors native about document section", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
+  const htmlSource = read("src/renderer/index.html");
+  const rendererSource = read("src/renderer/renderer.js");
+  const cssSource = read("src/renderer/styles.css");
+  const infoAboutSectionBlock = cssBlock(cssSource, ".info-about-section");
+  const infoListBlock = cssBlock(cssSource, ".info-list");
+  const infoRowBlock = cssBlock(cssSource, ".info-row");
+  const infoRowLabelBlock = cssBlock(cssSource, ".info-row dt");
+  const infoValueBlock = cssBlock(cssSource, ".info-value");
+  const infoSectionHeadingBlock = cssBlock(cssSource, ".info-section h3");
+
+  assert.match(nativeSource, /if let file = selectedFileURL \{\s*infoSection\("ABOUT THIS DOCUMENT"\)/);
+  assert.match(
+    nativeSource,
+    /infoSection\("ABOUT THIS DOCUMENT"\)[\s\S]*VStack\(alignment:\s*\.leading,\s*spacing:\s*6\)[\s\S]*infoRow\("PATH"[\s\S]*infoRow\("EDITED"[\s\S]*infoRow\("WORDS"/
+  );
+  assert.match(
+    nativeSource,
+    /private func infoSection[\s\S]*VStack\(alignment:\s*\.leading,\s*spacing:\s*8\)[\s\S]*sectionHeader\(title\)/
+  );
+  assert.match(
+    nativeSource,
+    /private func sectionHeader[\s\S]*\.font\(\.custom\("JetBrains Mono",\s*size:\s*9\)\)[\s\S]*\.tracking\(1\.6\)[\s\S]*\.textCase\(\.uppercase\)[\s\S]*\.foregroundStyle\(Color\.sidebarHeader\)/
+  );
+  assert.match(
+    nativeSource,
+    /private func infoRow[\s\S]*HStack \{[\s\S]*\.font\(\.custom\("JetBrains Mono",\s*size:\s*10\)\)[\s\S]*Spacer\(\)[\s\S]*\.font\(\.custom\("Fraunces",\s*size:\s*12\)\)/
+  );
+
+  assert.match(htmlSource, /id="info-about-section" class="info-section info-about-section" hidden/);
+  assert.match(htmlSource, /<h3>ABOUT THIS DOCUMENT<\/h3>[\s\S]*<dl class="info-list">/);
+  assert.match(htmlSource, /<div class="info-row">[\s\S]*<dt>PATH<\/dt>[\s\S]*<dd id="info-path" class="info-value"><\/dd>/);
+  assert.doesNotMatch(htmlSource, /id="info-path">No document<\/dd>/);
+  assert.match(rendererSource, /const infoAboutSection = document\.querySelector\("#info-about-section"\)/);
+  assert.match(rendererSource, /const hasDocument = Boolean\(file\)/);
+  assert.match(rendererSource, /infoAboutSection\.hidden = !hasDocument/);
+  assert.match(rendererSource, /infoPath\.textContent = hasDocument \? \(info\?\.name \?\? file\.name\) : ""/);
+  assert.match(rendererSource, /infoEdited\.textContent = hasDocument && info\?\.modifiedAt \? formatEditedTime\(info\.modifiedAt\) : ""/);
+  assert.match(rendererSource, /infoWords\.textContent = hasDocument && info \? String\(info\.wordCount\) : ""/);
+  assert.match(infoAboutSectionBlock, /gap:\s*8px/);
+  assert.match(infoListBlock, /gap:\s*6px/);
+  assert.match(infoListBlock, /margin:\s*0 0 24px/);
+  assert.match(infoRowBlock, /display:\s*flex/);
+  assert.match(infoRowBlock, /justify-content:\s*space-between/);
+  assert.match(infoRowBlock, /gap:\s*12px/);
+  assert.match(infoRowLabelBlock, /font-size:\s*10px/);
+  assert.match(infoRowLabelBlock, /font-weight:\s*400/);
+  assert.match(infoRowLabelBlock, /color:\s*var\(--color-sidebar-header\)/);
+  assert.match(infoValueBlock, /font-family:\s*Georgia,\s*serif/);
+  assert.match(infoValueBlock, /font-size:\s*12px/);
+  assert.match(infoValueBlock, /color:\s*var\(--color-info-value\)/);
+  assert.match(infoSectionHeadingBlock, /font-size:\s*9px/);
+  assert.match(infoSectionHeadingBlock, /letter-spacing:\s*1\.6px/);
+});
+
 test("renderer right sidebar tabs mirror native compact pill switcher", () => {
   const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
   const htmlSource = read("src/renderer/index.html");

@@ -281,20 +281,23 @@
           </div>
 
           <section id="info-panel" class="right-panel info-panel" hidden>
-            <dl class="info-list">
-              <div>
-                <dt>PATH</dt>
-                <dd id="info-path">No document</dd>
-              </div>
-              <div>
-                <dt>EDITED</dt>
-                <dd id="info-edited"></dd>
-              </div>
-              <div>
-                <dt>WORDS</dt>
-                <dd id="info-words"></dd>
-              </div>
-            </dl>
+            <section id="info-about-section" class="info-section info-about-section" hidden>
+              <h3>ABOUT THIS DOCUMENT</h3>
+              <dl class="info-list">
+                <div class="info-row">
+                  <dt>PATH</dt>
+                  <dd id="info-path" class="info-value"></dd>
+                </div>
+                <div class="info-row">
+                  <dt>EDITED</dt>
+                  <dd id="info-edited" class="info-value"></dd>
+                </div>
+                <div class="info-row">
+                  <dt>WORDS</dt>
+                  <dd id="info-words" class="info-value"></dd>
+                </div>
+              </dl>
+            </section>
             <section id="info-directions-section" class="info-section" hidden>
               <h3>DIRECTIONS</h3>
               <p id="info-directions">Select a markdown file</p>

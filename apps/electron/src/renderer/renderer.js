@@ -26,6 +26,7 @@ const rightSidebarResizeHandle = document.querySelector("#right-sidebar-resize-h
 const rightTabInfoButton = document.querySelector("#right-tab-info");
 const rightTabTerminalButton = document.querySelector("#right-tab-terminal");
 const infoPanel = document.querySelector("#info-panel");
+const infoAboutSection = document.querySelector("#info-about-section");
 const infoPath = document.querySelector("#info-path");
 const infoEdited = document.querySelector("#info-edited");
 const infoWords = document.querySelector("#info-words");
@@ -878,9 +879,11 @@ function renderInfoTab() {
   const file = state.selectedFile;
   const info = state.documentInfo;
 
-  infoPath.textContent = info?.name ?? file?.name ?? "No document";
-  infoEdited.textContent = info?.modifiedAt ? formatEditedTime(info.modifiedAt) : "";
-  infoWords.textContent = info ? String(info.wordCount) : "";
+  const hasDocument = Boolean(file);
+  infoAboutSection.hidden = !hasDocument;
+  infoPath.textContent = hasDocument ? (info?.name ?? file.name) : "";
+  infoEdited.textContent = hasDocument && info?.modifiedAt ? formatEditedTime(info.modifiedAt) : "";
+  infoWords.textContent = hasDocument && info ? String(info.wordCount) : "";
 
   const hasDirections = Boolean(info?.directions);
   infoDirectionsSection.hidden = !hasDirections;

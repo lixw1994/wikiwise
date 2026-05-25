@@ -84,3 +84,18 @@ The Electron right sidebar SHALL render the INFO/TERMINAL tabs with native compa
 - **THEN** the INFO/TERMINAL switcher is left-aligned within the sidebar header area
 - **AND** the switcher uses native 2px inner padding, tab-bar background fill, 5px container radius, 10px regular monospaced text, 0.8px tracking, 3px by 14px tab padding, inactive text color, active text color, active tab background, 4px active tab radius, and subtle active shadow
 - **AND** right tab IDs, selected state, default Terminal tab, panel switching behavior, and right sidebar resizing behavior are not changed for this requirement
+
+### Requirement: Info About Section Parity
+The Electron INFO tab SHALL render selected-document metadata with the native `ABOUT THIS DOCUMENT` grouping and row styling.
+
+#### Scenario: Metadata section is hidden without a selected document
+- **WHEN** no document is selected
+- **THEN** the INFO tab does not show the `ABOUT THIS DOCUMENT` section
+- **AND** it does not show a `No document` placeholder in the metadata section
+
+#### Scenario: Metadata section uses native grouping when a document is selected
+- **WHEN** a document is selected
+- **THEN** the INFO tab shows an `ABOUT THIS DOCUMENT` section above PATH, EDITED, and WORDS
+- **AND** the section header uses native uppercase monospaced 9px text with 1.6px tracking and sidebar-header color
+- **AND** metadata rows use native horizontal label/value layout with 10px monospaced labels, 12px serif values, sidebar-header label color, and info-value value color
+- **AND** document info IPC, formatted edited time, word count, directions, linked targets, tab switching, and sidebar resizing behavior are not changed for this requirement
