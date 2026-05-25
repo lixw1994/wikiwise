@@ -1564,7 +1564,7 @@ function canPublish() {
 }
 
 function sanitizePublishSubdomain(value) {
-  return String(value).toLowerCase().replace(/[^a-z0-9-]/g, "").slice(0, 48);
+  return String(value).toLowerCase().replace(/[^a-z0-9-]/g, "");
 }
 
 function scheduleAvailabilityCheck() {

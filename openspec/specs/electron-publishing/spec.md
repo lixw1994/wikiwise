@@ -175,3 +175,12 @@ The Electron publish dialog title SHALL not add spacing beyond the native publis
 - **WHEN** the publish dialog is rendered
 - **THEN** the title has no additional bottom margin beyond the dialog's native 16px content gap
 - **AND** the shared modal title margin for unrelated dialogs is not changed for this requirement
+
+### Requirement: Publish Subdomain Input Length Parity
+The Electron publish dialog SHALL preserve native subdomain input length behavior after sanitizing characters.
+
+#### Scenario: Sanitized subdomain input is not renderer-truncated
+- **WHEN** the user edits the publish subdomain field
+- **THEN** Electron lowercases the value and removes unsupported characters like the native publish sheet
+- **AND** Electron does not truncate the sanitized value to 48 characters in the renderer
+- **AND** availability feedback remains responsible for reporting invalid length
