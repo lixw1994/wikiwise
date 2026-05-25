@@ -175,6 +175,34 @@ test("renderer linked info rows mirror native typography and spacing", () => {
   assert.doesNotMatch(infoLinksBlock, /color-info-value/);
 });
 
+test("renderer optional info sections mirror native divider spacing", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
+  const htmlSource = read("src/renderer/index.html");
+  const cssSource = read("src/renderer/styles.css");
+  const infoSectionBlock = cssBlock(cssSource, ".info-section");
+  const infoOptionalSectionBlock = cssBlock(cssSource, ".info-optional-section");
+  const infoListBlock = cssBlock(cssSource, ".info-list");
+
+  assert.match(
+    nativeSource,
+    /if let file = selectedFileURL,\s*let directions = parseDirections\(from: file\)[\s\S]*\.padding\(\.top,\s*18\)[\s\S]*Rectangle\(\)\.fill\(Color\.sidebarRule\)\.frame\(height:\s*1\)/
+  );
+  assert.match(
+    nativeSource,
+    /if let file = selectedFileURL,\s*!wikilinkTargets\(in: file\)\.isEmpty[\s\S]*\.padding\(\.top,\s*18\)[\s\S]*Rectangle\(\)\.fill\(Color\.sidebarRule\)\.frame\(height:\s*1\)/
+  );
+
+  assert.match(htmlSource, /id="info-directions-section" class="info-section info-optional-section" hidden/);
+  assert.match(htmlSource, /id="info-links-section" class="info-section info-optional-section" hidden/);
+  assert.match(infoSectionBlock, /gap:\s*8px/);
+  assert.match(infoSectionBlock, /margin-top:\s*0/);
+  assert.match(infoOptionalSectionBlock, /border-top:\s*1px solid var\(--color-sidebar-rule\)/);
+  assert.match(infoOptionalSectionBlock, /padding-top:\s*18px/);
+  assert.match(infoOptionalSectionBlock, /margin-top:\s*0/);
+  assert.match(infoListBlock, /margin:\s*0/);
+  assert.doesNotMatch(infoListBlock, /margin:\s*0 0 24px/);
+});
+
 test("renderer directions info uses native gold callout styling", () => {
   const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
   const htmlSource = read("src/renderer/index.html");
@@ -247,7 +275,7 @@ test("renderer info metadata mirrors native about document section", () => {
   assert.match(rendererSource, /infoWords\.textContent = hasDocument && info \? String\(info\.wordCount\) : ""/);
   assert.match(infoAboutSectionBlock, /gap:\s*8px/);
   assert.match(infoListBlock, /gap:\s*6px/);
-  assert.match(infoListBlock, /margin:\s*0 0 24px/);
+  assert.match(infoListBlock, /margin:\s*0/);
   assert.match(infoRowBlock, /display:\s*flex/);
   assert.match(infoRowBlock, /justify-content:\s*space-between/);
   assert.match(infoRowBlock, /gap:\s*12px/);

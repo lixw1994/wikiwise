@@ -685,7 +685,7 @@ body.resizing-left-sidebar * {
 .info-list {
   display: grid;
   gap: 6px;
-  margin: 0 0 24px;
+  margin: 0;
 }
 
 .info-row {
@@ -732,12 +732,18 @@ body.resizing-left-sidebar * {
 .info-section {
   display: grid;
   gap: 8px;
-  margin-top: 20px;
+  margin-top: 0;
 }
 
 .info-about-section {
   gap: 8px;
   margin-top: 0;
+}
+
+.info-optional-section {
+  border-top: 1px solid var(--color-sidebar-rule);
+  margin-top: 0;
+  padding-top: 18px;
 }
 
 .info-directions-callout {
