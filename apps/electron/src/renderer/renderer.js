@@ -43,7 +43,6 @@ const cancelCreateNewButton = document.querySelector("#cancel-create-new");
 const confirmCreateNewButton = document.querySelector("#confirm-create-new");
 const publishDialog = document.querySelector("#publish-dialog");
 const publishSubdomainInput = document.querySelector("#publish-subdomain");
-const publishUrl = document.querySelector("#publish-url");
 const publishAvailability = document.querySelector("#publish-availability");
 const publishAvailabilityIndicator = document.querySelector("#publish-availability-indicator");
 const cancelPublishButton = document.querySelector("#cancel-publish");
@@ -1508,7 +1507,6 @@ function renderPublishDialog() {
   if (document.activeElement !== publishSubdomainInput) {
     publishSubdomainInput.value = state.publishSubdomain;
   }
-  publishUrl.textContent = `https://${state.publishSubdomain || "subdomain"}.wiki-wise.com`;
   publishAvailability.textContent = availabilityMessage(state.publishAvailability);
   publishAvailability.dataset.state = state.publishAvailability;
   publishAvailabilityIndicator.dataset.state = state.publishAvailability;

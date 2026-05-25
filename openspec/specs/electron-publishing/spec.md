@@ -134,3 +134,12 @@ The Electron publishing modal feedback SHALL reuse the app dialog surface instea
 - **THEN** the feedback is presented in a modal panel over the current app surface
 - **AND** the inactive publish dialog controls remain hidden or disabled as appropriate
 - **AND** the page does not show duplicate inline publish result or error text outside the modal
+
+### Requirement: Publish Dialog URL Display Parity
+The Electron publish dialog SHALL present the publish URL only through the native editable URL row.
+
+#### Scenario: Publish dialog renders URL shape without duplicate detail row
+- **WHEN** the publish dialog is shown
+- **THEN** the dialog shows the final `https://<subdomain>.wiki-wise.com` URL shape in the editable URL row
+- **AND** the dialog does not render a standalone duplicate URL paragraph below the editable URL row
+- **AND** the renderer does not update a separate publish URL text node outside the editable URL row

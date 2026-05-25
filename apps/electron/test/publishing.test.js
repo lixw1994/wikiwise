@@ -178,7 +178,6 @@ test("renderer markup and styles include publish dialog, status, and unpublish c
     "publish-wiki",
     "publish-dialog",
     "publish-subdomain",
-    "publish-url",
     "publish-availability",
     "cancel-publish",
     "confirm-publish",
@@ -308,6 +307,24 @@ test("renderer mirrors native publish URL row chrome", () => {
   assert.match(publishUrlRowBlock, /background:\s*var\(--color-sidebar-bg\)/);
   assert.doesNotMatch(publishUrlRowBlock, /border:\s*1px solid/);
   assert.doesNotMatch(publishUrlRowBlock, /border-radius:\s*6px/);
+});
+
+test("renderer mirrors native publish URL display without duplicate detail row", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const htmlSource = read("src/renderer/index.html");
+  const rendererSource = read("src/renderer/renderer.js");
+  const nativePublishSheet = nativeSource.match(
+    /private var publishConfirmSheet:[\s\S]*?\n    private var canPublish/
+  )?.[0] ?? "";
+
+  assert.match(
+    nativePublishSheet,
+    /HStack\(spacing:\s*0\)[\s\S]*Text\("https:\/\/"\)[\s\S]*TextField\("subdomain"[\s\S]*Text\("\.wiki-wise\.com"\)/
+  );
+  assert.doesNotMatch(htmlSource, /id="publish-url"/);
+  assert.doesNotMatch(rendererSource, /querySelector\("#publish-url"\)/);
+  assert.doesNotMatch(rendererSource, /publishUrl\.textContent/);
+  assert.match(htmlSource, /id="publish-result-url"/);
 });
 
 test("renderer mirrors native publish result copy", () => {
