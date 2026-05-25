@@ -87,3 +87,23 @@ test("WikiCompiler drains remaining pages with progressive background batches", 
   assert.equal(fs.existsSync(path.join(root, "site", "out", "second-page.html")), true);
   assert.match(fs.readFileSync(path.join(root, "site", "out", "second-page.html"), "utf8"), /Second Page/);
 });
+
+test("WikiCompiler can compile all pages after progressive cache is seeded", () => {
+  const root = makeWikiFixture();
+  const compiler = new WikiCompiler({
+    sourceDir: root,
+    repositoryRoot
+  });
+
+  assert.equal(compiler.scanPages(), 3);
+  const home = compiler.compileMarkdownFile(path.join(root, "wiki", "home.md"));
+  assert.equal(home.success, true);
+
+  const freshCompiler = new WikiCompiler({
+    sourceDir: root,
+    repositoryRoot
+  });
+  assert.equal(freshCompiler.compileAll(), 3);
+  assert.equal(fs.existsSync(path.join(root, "site", "out", "map-3d.html")), true);
+  assert.equal(fs.existsSync(path.join(root, "site", "out", "second-page.html")), true);
+});

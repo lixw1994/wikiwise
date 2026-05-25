@@ -556,7 +556,7 @@ function parseAllPages(markdownFiles, knownSlugs, cache) {
 
     // Reuse cached parse result if the source file hasn't changed
     var cached = cache[pageSlug];
-    if (cached && cached.mtime === mtime) {
+    if (cached && cached.mtime === mtime && cached.html !== null && cached.html !== undefined) {
       cached.isRaw = isRawPath(filePath);
       pages[pageSlug] = cached;
       cacheHits++;

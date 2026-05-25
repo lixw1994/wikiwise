@@ -278,7 +278,19 @@ function registerAuditIpcHandlers() {
     };
   });
   ipcMain.handle("wikiwise:getTerminalResource", () => getAuditTerminalResource());
-  ipcMain.handle("wikiwise:openGeneratedPage", () => null);
+  ipcMain.handle("wikiwise:openGeneratedPage", (_event, payload) => {
+    const projectRoot = path.resolve(payload.projectRoot);
+    const compiler = new WikiCompiler({ projectRoot, repositoryRoot });
+    compiler.compileAll();
+    const pagePath = path.join(compiler.outputDir, payload.pageName);
+    if (!fs.existsSync(pagePath)) return null;
+    return {
+      kind: "generated",
+      name: payload.pageName,
+      path: pagePath,
+      fileUrl: pathToFileURL(pagePath).href
+    };
+  });
   ipcMain.handle("wikiwise:resolvePreviewNavigation", () => null);
   ipcMain.handle("wikiwise:openExternalUrl", () => ({ ok: true }));
   ipcMain.handle("wikiwise:openExisting", () => ({ canceled: true }));
@@ -372,6 +384,7 @@ async function runScenario(window, scenario) {
     );
     await captureDefaultWikiPreviewEvidence(window);
     await capturePreviewScrollPreservationEvidence(window);
+    await captureGeneratedMapFlowEvidence(window);
     await window.webContents.executeJavaScript(`document.querySelector("#mode-file")?.click()`, true);
     await waitForCondition(
       window,
@@ -885,6 +898,86 @@ async function capturePreviewScrollPreservationEvidence(window) {
   }));
 }
 
+async function captureGeneratedMapFlowEvidence(window) {
+  return window.webContents.executeJavaScript(`(async () => {
+    const mapButton = document.querySelector("#open-map");
+    const backButton = document.querySelector("#go-back");
+    const generatedPreviewFrame = document.querySelector("#generated-preview-frame");
+    const previewFrame = document.querySelector("#preview-frame");
+    const selectedFileLabel = () => document.querySelector("#selected-file")?.textContent?.trim() ?? "";
+    const frameSrc = () => generatedPreviewFrame?.getAttribute("src") ?? "";
+    const nextFrame = () => new Promise((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(resolve));
+    });
+    const waitFor = async (predicate, timeoutMs = 2500) => {
+      const start = Date.now();
+      while (Date.now() - start < timeoutMs) {
+        if (predicate()) return true;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      return false;
+    };
+    const evidence = {
+      generatedMapEvidence: true,
+      generatedMapControlPresent: Boolean(mapButton),
+      generatedMapFrameVisible: false,
+      generatedMapFrameSrc: "",
+      generatedMapName: "",
+      generatedMapBackControlPresent: Boolean(backButton),
+      generatedMapBackRestoredMarkdown: false,
+      generatedMapBackSelectedFileLabel: "",
+      generatedMapBackPreviewVisible: false,
+      generatedMapBackGeneratedFrameHidden: false
+    };
+
+    if (!mapButton || !backButton || !generatedPreviewFrame) {
+      window.__wikiwiseGeneratedMapEvidence = evidence;
+      return evidence;
+    }
+
+    mapButton.click();
+    await waitFor(() => (
+      !generatedPreviewFrame.hidden &&
+      /map-3d\\.html(?:$|[?#])/.test(frameSrc()) &&
+      selectedFileLabel() === "map-3d.html"
+    ));
+    await nextFrame();
+    evidence.generatedMapFrameVisible = Boolean(!generatedPreviewFrame.hidden);
+    evidence.generatedMapFrameSrc = frameSrc();
+    evidence.generatedMapName = selectedFileLabel();
+
+    backButton.click();
+    await waitFor(() => (
+      selectedFileLabel() === "home.md" &&
+      Boolean(generatedPreviewFrame.hidden) &&
+      Boolean(previewFrame && !previewFrame.hidden)
+    ));
+    await nextFrame();
+    evidence.generatedMapBackSelectedFileLabel = selectedFileLabel();
+    evidence.generatedMapBackGeneratedFrameHidden = Boolean(generatedPreviewFrame.hidden);
+    evidence.generatedMapBackPreviewVisible = Boolean(previewFrame && !previewFrame.hidden);
+    evidence.generatedMapBackRestoredMarkdown =
+      evidence.generatedMapBackSelectedFileLabel === "home.md" &&
+      evidence.generatedMapBackGeneratedFrameHidden &&
+      evidence.generatedMapBackPreviewVisible;
+
+    window.__wikiwiseGeneratedMapEvidence = evidence;
+    return evidence;
+  })()`, true).catch((error) => ({
+    generatedMapEvidence: false,
+    generatedMapControlPresent: false,
+    generatedMapFrameVisible: false,
+    generatedMapFrameSrc: "",
+    generatedMapName: "",
+    generatedMapBackControlPresent: false,
+    generatedMapBackRestoredMarkdown: false,
+    generatedMapBackSelectedFileLabel: "",
+    generatedMapBackPreviewVisible: false,
+    generatedMapBackGeneratedFrameHidden: false,
+    error: error instanceof Error ? error.message : String(error)
+  }));
+}
+
 async function waitForScenario(window, scenario) {
   const expression = scenario.kind === "project"
     ? `Boolean(
@@ -997,6 +1090,7 @@ async function readDomEvidence(window) {
 	    const infoOptionalEvidence = window.__wikiwiseInfoOptionalSectionEvidence ?? {};
 	    const defaultWikiPreviewEvidence = window.__wikiwiseDefaultWikiPreviewEvidence ?? {};
 	    const previewScrollEvidence = window.__wikiwisePreviewScrollEvidence ?? {};
+	    const generatedMapEvidence = window.__wikiwiseGeneratedMapEvidence ?? {};
 	    const treeButtons = [...document.querySelectorAll(".tree-row")];
 	    const detailHeader = document.querySelector(".detail-header");
 	    const detailHeaderRect = detailHeader?.getBoundingClientRect();
@@ -1110,6 +1204,16 @@ async function readDomEvidence(window) {
       previewScrollWithinTolerance: Boolean(previewScrollEvidence.previewScrollWithinTolerance),
       previewScrollTolerance: previewScrollEvidence.previewScrollTolerance ?? null,
       previewScrollLoadedAfterReturn: Boolean(previewScrollEvidence.previewScrollLoadedAfterReturn),
+      generatedMapEvidence: Boolean(generatedMapEvidence.generatedMapEvidence),
+      generatedMapControlPresent: Boolean(generatedMapEvidence.generatedMapControlPresent),
+      generatedMapFrameVisible: Boolean(generatedMapEvidence.generatedMapFrameVisible),
+      generatedMapFrameSrc: generatedMapEvidence.generatedMapFrameSrc ?? "",
+      generatedMapName: generatedMapEvidence.generatedMapName ?? "",
+      generatedMapBackControlPresent: Boolean(generatedMapEvidence.generatedMapBackControlPresent),
+      generatedMapBackRestoredMarkdown: Boolean(generatedMapEvidence.generatedMapBackRestoredMarkdown),
+      generatedMapBackSelectedFileLabel: generatedMapEvidence.generatedMapBackSelectedFileLabel ?? "",
+      generatedMapBackPreviewVisible: Boolean(generatedMapEvidence.generatedMapBackPreviewVisible),
+      generatedMapBackGeneratedFrameHidden: Boolean(generatedMapEvidence.generatedMapBackGeneratedFrameHidden),
       expandedTreeEvidence,
       nestedSelectionEvidence,
 	      fileTreeFolderIconPresent: Boolean(folderIcon),
@@ -1287,6 +1391,22 @@ function assertScenario(scenario, dom, screenshot) {
     }
     if (!dom.previewScrollWithinTolerance) {
       failures.push("Compiled preview scroll was not restored.");
+    }
+    if (!dom.generatedMapEvidence) {
+      failures.push("Generated map runtime evidence is missing.");
+    }
+    if (!dom.generatedMapControlPresent || !dom.generatedMapBackControlPresent) {
+      failures.push("Generated map toolbar control is missing.");
+    }
+    if (
+      !dom.generatedMapFrameVisible ||
+      dom.generatedMapName !== "map-3d.html" ||
+      !/map-3d\.html(?:$|[?#])/.test(dom.generatedMapFrameSrc)
+    ) {
+      failures.push("Generated map page did not render.");
+    }
+    if (!dom.generatedMapBackRestoredMarkdown || dom.generatedMapBackSelectedFileLabel !== "home.md") {
+      failures.push("Generated map back navigation did not restore markdown.");
     }
     if (!dom.sourceEditorFramePresent || !dom.sourceEditorFrameReady || !dom.codeMirrorEditorPresent) {
       failures.push("CodeMirror source editor did not render through the shared editor resource.");

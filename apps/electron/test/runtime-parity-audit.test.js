@@ -191,6 +191,30 @@ test("runtime audit script records compiled preview scroll restoration evidence"
   ]);
 });
 
+test("runtime audit script records generated map toolbar flow evidence", () => {
+  const script = read("scripts/audit-electron-runtime.mjs");
+
+  assertSourceContains(script, [
+    /captureGeneratedMapFlowEvidence/,
+    /window\.__wikiwiseGeneratedMapEvidence/,
+    /generatedMapEvidence/,
+    /generatedMapControlPresent/,
+    /generatedMapFrameVisible/,
+    /generatedMapFrameSrc/,
+    /generatedMapName/,
+    /generatedMapBackRestoredMarkdown/,
+    /generatedMapBackSelectedFileLabel/,
+    /#open-map/,
+    /#generated-preview-frame/,
+    /#go-back/,
+    /map-3d\.html/,
+    /Generated map runtime evidence is missing/,
+    /Generated map toolbar control is missing/,
+    /Generated map page did not render/,
+    /Generated map back navigation did not restore markdown/
+  ]);
+});
+
 test("runtime audit script creates scaffold project evidence through core helpers", () => {
   const script = read("scripts/audit-electron-runtime.mjs");
 
