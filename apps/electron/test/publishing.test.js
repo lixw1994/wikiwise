@@ -142,6 +142,30 @@ test("renderer mirrors native publish dialog keyboard shortcuts", () => {
   assert.match(rendererSource, /publishDialog\.addEventListener\("keydown", handlePublishDialogKeydown\)/);
 });
 
+test("renderer mirrors native publish dialog dismissal before publishing", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const publishBody = rendererSource.match(
+    /async function publishCurrentProject\(\) \{([\s\S]*?)\n\}\n\nfunction openUnpublishConfirmation/
+  )?.[1] ?? "";
+
+  assert.match(
+    nativeSource,
+    /Button\("Publish"\)\s*\{[\s\S]*showPublishConfirm = false[\s\S]*performPublish\(subdomain: pendingSubdomain\)/
+  );
+
+  const closeIndex = publishBody.indexOf("state.isPublishDialogOpen = false;");
+  const renderIndex = publishBody.indexOf("renderPublishDialog();", closeIndex);
+  const requestIndex = publishBody.indexOf("await window.wikiwise.publishSite");
+
+  assert.notEqual(closeIndex, -1);
+  assert.notEqual(renderIndex, -1);
+  assert.notEqual(requestIndex, -1);
+  assert.ok(closeIndex < requestIndex, "publish dialog should close before publish request starts");
+  assert.ok(renderIndex < requestIndex, "publish dialog close should render before publish request starts");
+  assert.equal(publishBody.indexOf("state.isPublishDialogOpen = false;", requestIndex), -1);
+});
+
 test("renderer markup and styles include publish dialog, status, and unpublish controls", () => {
   const htmlSource = read("src/renderer/index.html");
   const cssSource = read("src/renderer/styles.css");

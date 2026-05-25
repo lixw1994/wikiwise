@@ -1602,6 +1602,7 @@ async function publishCurrentProject() {
   state.isPublishing = true;
   state.publishError = null;
   state.publishResult = null;
+  state.isPublishDialogOpen = false;
   renderPublishDialog();
   renderPublishStatus();
 
@@ -1611,7 +1612,6 @@ async function publishCurrentProject() {
       subdomain: state.publishSubdomain
     });
     state.publishResult = result;
-    state.isPublishDialogOpen = false;
     await refreshPublishConfig();
   } catch (error) {
     state.publishError = error instanceof Error ? error.message : String(error);
