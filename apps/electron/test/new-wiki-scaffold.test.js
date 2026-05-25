@@ -582,3 +582,30 @@ test("renderer mirrors native post-create guide intro copy", () => {
   assert.match(sharedParagraphRule, /color:\s*var\(--color-linked-text\)/);
   assert.match(sharedParagraphRule, /line-height:\s*1\.6/);
 });
+
+test("renderer mirrors native post-create guide final guidance", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const htmlSource = read("src/renderer/index.html");
+  const styleSource = read("src/renderer/styles.css");
+  const postCreateGuideSource =
+    nativeSource.match(/private func postCreateGuide\(wikiURL: URL\) -> some View[\s\S]*?private func agentCommand/)?.[0] ??
+    "";
+  const finalRule = cssBlock(styleSource, ".post-create-guide > p");
+  const sharedParagraphRule =
+    styleSource.match(/\.post-create-guide p,\s*\.post-create-guide li\s*\{([^}]+)\}/)?.[1] ?? "";
+
+  assert.notEqual(postCreateGuideSource, "");
+  assert.match(
+    postCreateGuideSource,
+    /Text\("This is your project\. You can change anything about it with your agent — the styles, the structure of your wiki pages, the build pipeline\. Make it your own\."\)[\s\S]*?\.font\(\.system\(size:\s*13\)\)[\s\S]*?\.foregroundStyle\(Color\.sidebarText\)[\s\S]*?\.lineSpacing\(2\)/
+  );
+  assert.match(
+    htmlSource,
+    /<hr class="guide-divider" aria-hidden="true" \/>\s*<p>\s*This is your project\. You can change anything about it with your agent[\s\S]*Make it your own\.\s*<\/p>\s*<button id="dismiss-post-create-guide"/
+  );
+  assert.match(finalRule, /font-size:\s*13px/);
+  assert.match(finalRule, /color:\s*var\(--color-sidebar-text\)/);
+  assert.match(finalRule, /line-height:\s*calc\(1\.2em \+ 2px\)/);
+  assert.match(sharedParagraphRule, /color:\s*var\(--color-linked-text\)/);
+  assert.match(sharedParagraphRule, /line-height:\s*1\.6/);
+});

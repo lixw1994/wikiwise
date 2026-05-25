@@ -1248,6 +1248,12 @@ body.resizing-left-sidebar * {
   line-height: 1.2;
 }
 
+.post-create-guide > p {
+  color: var(--color-sidebar-text);
+  font-size: 13px;
+  line-height: calc(1.2em + 2px);
+}
+
 .guide-block {
   margin-bottom: 24px;
 }
