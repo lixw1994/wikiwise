@@ -15,6 +15,11 @@ function readRepository(relativePath) {
   return fs.readFileSync(path.join(repositoryRoot, relativePath), "utf8");
 }
 
+function cssBlock(source, selector) {
+  const pattern = new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{([^}]+)\\}`);
+  return source.match(pattern)?.[1] ?? "";
+}
+
 test("main process owns app settings, appearance, restore, generated pages, and menu commands", () => {
   const mainSource = read("src/main/main.js");
 
@@ -153,6 +158,38 @@ test("project toolbar icon controls mirror native SwiftUI symbol semantics", () 
   assert.match(rendererSource, /button\.title\s*=\s*symbol\.label/);
 
   assert.match(cssSource, /\.toolbar-symbol/);
+});
+
+test("project toolbar mode switch mirrors native segmented styling", () => {
+  const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const cssSource = read("src/renderer/styles.css");
+  const modeSwitchBlock = cssBlock(cssSource, ".mode-switch");
+  const modeButtonBlock = cssBlock(cssSource, ".mode-button");
+  const selectedModeButtonBlock = cssBlock(cssSource, ".mode-button.selected");
+  const firstModeButtonBlock = cssBlock(cssSource, ".mode-button:first-child");
+  const lastModeButtonBlock = cssBlock(cssSource, ".mode-button:last-child");
+  const publishButtonBlock = cssBlock(cssSource, ".publish-button");
+
+  assert.match(swiftSource, /let fileShape = UnevenRoundedRectangle\([\s\S]*topLeadingRadius:\s*3[\s\S]*bottomLeadingRadius:\s*3/);
+  assert.match(swiftSource, /let wikiShape = UnevenRoundedRectangle\([\s\S]*bottomTrailingRadius:\s*3[\s\S]*topTrailingRadius:\s*3/);
+  assert.match(
+    swiftSource,
+    /Text\("FILE"\)[\s\S]*\.font\(\.system\(size:\s*10,\s*weight:\s*\.regular,\s*design:\s*\.monospaced\)\)[\s\S]*\.tracking\(0\.8\)[\s\S]*\.foregroundStyle\(detailMode == \.raw \? Color\.sidebarSelectedText : Color\.sidebarTextMuted\)[\s\S]*\.padding\(\.horizontal,\s*10\)[\s\S]*\.padding\(\.vertical,\s*4\)[\s\S]*\.background\(fileShape\.fill\(detailMode == \.raw \? Color\.sidebarSelectedBg : Color\.clear\)\)[\s\S]*\.overlay\(fileShape\.strokeBorder\(Color\.sidebarRule,\s*lineWidth:\s*1\)\)/
+  );
+  assert.match(modeSwitchBlock, /border:\s*0/);
+  assert.match(modeSwitchBlock, /border-radius:\s*0/);
+  assert.match(modeSwitchBlock, /background:\s*transparent/);
+  assert.match(modeButtonBlock, /border:\s*1px solid var\(--color-sidebar-rule\)/);
+  assert.match(modeButtonBlock, /font-family:\s*ui-monospace,\s*"SFMono-Regular",\s*Menlo,\s*monospace/);
+  assert.match(modeButtonBlock, /font-size:\s*10px/);
+  assert.match(modeButtonBlock, /letter-spacing:\s*0\.8px/);
+  assert.match(modeButtonBlock, /padding:\s*4px 10px/);
+  assert.match(modeButtonBlock, /color:\s*var\(--color-sidebar-text-muted\)/);
+  assert.match(selectedModeButtonBlock, /background:\s*var\(--color-sidebar-selected-bg\)/);
+  assert.match(selectedModeButtonBlock, /color:\s*var\(--color-sidebar-selected-text\)/);
+  assert.match(firstModeButtonBlock, /border-radius:\s*3px 0 0 3px/);
+  assert.match(lastModeButtonBlock, /border-radius:\s*0 3px 3px 0/);
+  assert.match(publishButtonBlock, /font-size:\s*10px/);
 });
 
 test("left sidebar toolbar control mirrors native restore help text", () => {

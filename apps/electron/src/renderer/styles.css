@@ -520,27 +520,38 @@ button:disabled {
   display: flex;
   flex: 0 0 auto;
   overflow: hidden;
-  border: 1px solid var(--color-sidebar-rule);
-  border-radius: 6px;
-  background: var(--color-tab-bar-bg);
+  border: 0;
+  border-radius: 0;
+  background: transparent;
 }
 
 .mode-button {
-  min-width: 58px;
+  min-width: 0;
+  border: 1px solid var(--color-sidebar-rule);
   border-radius: 0;
-  padding: 6px 10px;
+  padding: 4px 10px;
   background: transparent;
-  color: var(--color-tab-inactive);
-  font-size: 12px;
+  color: var(--color-sidebar-text-muted);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 10px;
+  letter-spacing: 0.8px;
 }
 
 .mode-button + .mode-button {
-  border-left: 1px solid var(--color-sidebar-rule);
+  border-left: 0;
+}
+
+.mode-button:first-child {
+  border-radius: 3px 0 0 3px;
+}
+
+.mode-button:last-child {
+  border-radius: 0 3px 3px 0;
 }
 
 .mode-button.selected {
-  background: var(--color-tab-active-bg);
-  color: var(--color-tab-active);
+  background: var(--color-sidebar-selected-bg);
+  color: var(--color-sidebar-selected-text);
 }
 
 .file-content {
