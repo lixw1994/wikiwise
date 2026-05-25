@@ -529,18 +529,26 @@ function renderDetail() {
   const hasGeneratedPage = Boolean(state.generatedPage);
   const wikiAvailable = hasCompiledPreview(file);
   const showGuide = Boolean(state.showPostCreateGuide && state.currentProject);
+  const shouldShowSourceEditor =
+    !showGuide &&
+    !hasGeneratedPage &&
+    hasFile &&
+    (state.detailMode === "file" || (state.detailMode === "wiki" && !wikiAvailable));
+  const shouldShowPreview =
+    !showGuide &&
+    !hasGeneratedPage &&
+    state.detailMode === "wiki" &&
+    wikiAvailable;
 
   selectedFileLabel.textContent = showGuide
     ? "Your wiki is ready"
     : (state.generatedPage?.name ?? file?.name ?? "Select a file to read");
 
-  modeFileButton.disabled = showGuide || hasGeneratedPage || !hasFile;
-  modeWikiButton.disabled = showGuide || hasGeneratedPage || !wikiAvailable;
   modeFileButton.classList.toggle("selected", state.detailMode === "file");
-  modeWikiButton.classList.toggle("selected", state.detailMode === "wiki" && wikiAvailable);
+  modeWikiButton.classList.toggle("selected", state.detailMode === "wiki");
 
-  sourceEditorFrame.hidden = showGuide || hasGeneratedPage || state.detailMode !== "file";
-  previewFrame.hidden = showGuide || hasGeneratedPage || state.detailMode !== "wiki" || !wikiAvailable;
+  sourceEditorFrame.hidden = !shouldShowSourceEditor;
+  previewFrame.hidden = !shouldShowPreview;
   generatedPreviewFrame.hidden = !hasGeneratedPage;
   postCreateGuide.hidden = !showGuide;
   renderSaveState();
@@ -552,7 +560,7 @@ function renderDetail() {
   } else if (hasGeneratedPage) {
     generatedPreviewFrame.src = state.generatedPage.fileUrl;
     previewFrame.removeAttribute("src");
-  } else if (state.detailMode === "wiki" && wikiAvailable) {
+  } else if (shouldShowPreview) {
     renderPreview();
     generatedPreviewFrame.removeAttribute("src");
   } else {

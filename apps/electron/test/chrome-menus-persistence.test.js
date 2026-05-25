@@ -303,6 +303,39 @@ test("project toolbar mode switch mirrors native segmented styling", () => {
   assert.match(publishButtonBlock, /font-size:\s*10px/);
 });
 
+test("project toolbar mode switch mirrors native enabled behavior", () => {
+  const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const htmlSource = read("src/renderer/index.html");
+  const rendererSource = read("src/renderer/renderer.js");
+  const nativeModeSwitch = swiftSource.match(
+    /HStack\(spacing:\s*0\)\s*\{[\s\S]*?\.fixedSize\(\)/
+  )?.[0] ?? "";
+
+  assert.notEqual(nativeModeSwitch, "");
+  assert.match(nativeModeSwitch, /Button\s*\{\s*captureScrollAndSwitch\(to:\s*\.raw\)/);
+  assert.match(nativeModeSwitch, /Button\s*\{\s*captureScrollAndSwitch\(to:\s*\.compiled\)/);
+  assert.doesNotMatch(nativeModeSwitch, /\.disabled\(/);
+  assert.match(
+    swiftSource,
+    /case \.compiled:[\s\S]*if let url = compiledFileURL[\s\S]*else if let url = selectedFileURL[\s\S]*EditorWebView/
+  );
+
+  assert.doesNotMatch(htmlSource, /id="mode-file"[^>]*\sdisabled\b/);
+  assert.doesNotMatch(htmlSource, /id="mode-wiki"[^>]*\sdisabled\b/);
+  assert.doesNotMatch(rendererSource, /modeFileButton\.disabled\s*=/);
+  assert.doesNotMatch(rendererSource, /modeWikiButton\.disabled\s*=/);
+  assert.match(rendererSource, /modeWikiButton\.classList\.toggle\("selected",\s*state\.detailMode === "wiki"\)/);
+  assert.doesNotMatch(rendererSource, /modeWikiButton\.classList\.toggle\("selected",\s*state\.detailMode === "wiki" && wikiAvailable\)/);
+  assert.match(rendererSource, /const shouldShowSourceEditor =/);
+  assert.match(rendererSource, /state\.detailMode === "wiki" && !wikiAvailable/);
+  assert.match(rendererSource, /sourceEditorFrame\.hidden = !shouldShowSourceEditor/);
+  assert.match(rendererSource, /previewFrame\.hidden = !shouldShowPreview/);
+  assert.match(
+    rendererSource,
+    /else if \(hasGeneratedPage\)[\s\S]*generatedPreviewFrame\.src = state\.generatedPage\.fileUrl/
+  );
+});
+
 test("left sidebar toolbar control mirrors native restore help text", () => {
   const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
