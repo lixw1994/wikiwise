@@ -867,14 +867,16 @@ body.resizing-left-sidebar * {
   font-size: 12px;
 }
 
-.publish-availability[data-state="available"],
 .publish-availability[data-state="owned"] {
-  color: #2f6f48;
+  color: #2d66b3;
 }
 
-.publish-availability[data-state="taken"],
+.publish-availability[data-state="taken"] {
+  color: #b23a3a;
+}
+
 .publish-availability[data-state="invalid"] {
-  color: #9b2f2f;
+  color: #b66b00;
 }
 
 .danger-action {

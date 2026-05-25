@@ -248,3 +248,14 @@ The Electron publish dialog SHALL render the editable URL row with the native fi
 - **THEN** the `https://` prefix and `.wiki-wise.com` suffix use secondary text coloring matching the native publish sheet
 - **AND** the editable subdomain input remains primary text rather than secondary text
 - **AND** the URL row layout, typography, and availability indicator are not changed for this requirement
+
+### Requirement: Publish Availability Hint Color Parity
+The Electron publish dialog SHALL render availability hint text with the native state-specific foreground styling.
+
+#### Scenario: Publish availability hint colors match native states
+- **WHEN** the publish dialog renders an availability hint
+- **THEN** available, checking, unknown, and fallback hints use secondary text coloring
+- **AND** the owned hint uses blue text coloring
+- **AND** the taken hint uses red text coloring
+- **AND** the invalid hint uses orange text coloring
+- **AND** availability hint copy, publish eligibility, and inline indicator styling are not changed for this requirement

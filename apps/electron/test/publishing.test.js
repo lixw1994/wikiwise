@@ -546,6 +546,46 @@ test("renderer mirrors native publish availability hint copy", () => {
   assert.match(rendererSource, /\["available", "owned"\]\.includes\(state\.publishAvailability\)/);
 });
 
+test("renderer mirrors native publish availability hint colors", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const cssSource = read("src/renderer/styles.css");
+  const nativePublishSheet = nativeSource.match(
+    /private var publishConfirmSheet:[\s\S]*?\n    private var canPublish/
+  )?.[0] ?? "";
+  const publishAvailabilityBlock = cssBlock(cssSource, ".publish-availability");
+  const ownedHintBlock = cssBlock(cssSource, '.publish-availability[data-state="owned"]');
+  const takenHintBlock = cssBlock(cssSource, '.publish-availability[data-state="taken"]');
+  const invalidHintBlock = cssBlock(cssSource, '.publish-availability[data-state="invalid"]');
+  const ownedIndicatorBlock = cssBlock(cssSource, '.publish-availability-indicator[data-state="owned"]');
+  const invalidIndicatorBlock = cssBlock(cssSource, '.publish-availability-indicator[data-state="invalid"]');
+
+  assert.match(
+    nativePublishSheet,
+    /case \.taken:\s*Text\("This name is already taken\. Try another\."\)[\s\S]*?\.foregroundStyle\(\.red\)/
+  );
+  assert.match(
+    nativePublishSheet,
+    /case \.invalid:\s*Text\("3\\u\{2013\}48 characters, letters, numbers, and hyphens only\."\)[\s\S]*?\.foregroundStyle\(\.orange\)/
+  );
+  assert.match(
+    nativePublishSheet,
+    /case \.owned:\s*Text\("You already own this name\."\)[\s\S]*?\.foregroundStyle\(\.blue\)/
+  );
+  assert.match(
+    nativePublishSheet,
+    /default:\s*Text\("Anyone with this link can view your wiki\."\)[\s\S]*?\.foregroundStyle\(\.secondary\)/
+  );
+
+  assert.match(publishAvailabilityBlock, /color:\s*var\(--color-muted-text\)/);
+  assert.doesNotMatch(cssSource, /\.publish-availability\[data-state="available"\]\s*\{/);
+  assert.doesNotMatch(cssSource, /\.publish-availability\[data-state="available"\],/);
+  assert.match(ownedHintBlock, /color:\s*#2d66b3/);
+  assert.match(takenHintBlock, /color:\s*#b23a3a/);
+  assert.match(invalidHintBlock, /color:\s*#b66b00/);
+  assert.match(ownedIndicatorBlock, /color:\s*#2d66b3/);
+  assert.match(invalidIndicatorBlock, /color:\s*#b66b00/);
+});
+
 test("renderer mirrors native publish subdomain sanitizer length behavior", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
