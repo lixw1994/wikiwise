@@ -1210,9 +1210,15 @@ body.resizing-left-sidebar * {
 .post-create-guide {
   min-height: 0;
   overflow: auto;
-  padding: 36px 44px;
-  background: var(--color-detail-bg);
+  padding: 40px;
+  background: var(--color-content-bg);
   color: var(--color-info-value);
+}
+
+.post-create-guide > .guide-block,
+.post-create-guide > p,
+.post-create-guide > button {
+  max-width: 560px;
 }
 
 .post-create-guide h2 {

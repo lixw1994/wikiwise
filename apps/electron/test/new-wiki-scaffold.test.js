@@ -411,3 +411,28 @@ test("renderer mirrors native new-wiki and post-create guide copy", () => {
   assert.match(normalizedHtml, /Got it — start reading/);
   assert.doesNotMatch(normalizedHtml, /Got it - start reading/);
 });
+
+test("renderer mirrors native post-create guide container layout", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const htmlSource = read("src/renderer/index.html");
+  const styleSource = read("src/renderer/styles.css");
+  const postCreateGuideSource =
+    nativeSource.match(/private func postCreateGuide\(wikiURL: URL\) -> some View[\s\S]*?private func agentCommand/)?.[0] ??
+    "";
+  const guideBlock = cssBlock(styleSource, ".post-create-guide");
+
+  assert.notEqual(postCreateGuideSource, "");
+  assert.match(
+    postCreateGuideSource,
+    /\.padding\(40\)[\s\S]*\.frame\(maxWidth:\s*560,\s*alignment:\s*\.leading\)[\s\S]*\.background\(Color\.contentBg\)/
+  );
+  assert.match(htmlSource, /id="post-create-guide" class="post-create-guide"/);
+  assert.match(guideBlock, /padding:\s*40px/);
+  assert.match(guideBlock, /background:\s*var\(--color-content-bg\)/);
+  assert.match(
+    styleSource,
+    /\.post-create-guide > \.guide-block,\s*\.post-create-guide > p,\s*\.post-create-guide > button\s*\{[^}]*max-width:\s*560px/
+  );
+  assert.match(styleSource, /\.post-create-guide p,\s*\.post-create-guide li\s*\{[^}]*color:\s*var\(--color-linked-text\)/);
+  assert.match(htmlSource, /id="dismiss-post-create-guide" class="primary-action"/);
+});
