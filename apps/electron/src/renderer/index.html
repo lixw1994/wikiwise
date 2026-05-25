@@ -36,18 +36,22 @@
       </section>
 
       <section id="new-wiki-dialog" class="modal-backdrop" hidden>
-        <div class="modal-panel" role="dialog" aria-modal="true" aria-labelledby="new-wiki-title">
+        <div class="modal-panel new-wiki-panel" role="dialog" aria-modal="true" aria-labelledby="new-wiki-title">
           <h2 id="new-wiki-title">Create a New Wiki</h2>
-          <label class="field-label" for="new-wiki-name">Name</label>
-          <input id="new-wiki-name" class="text-input" type="text" placeholder="My Wiki" />
-          <div class="location-row">
-            <div>
-              <p class="field-label">Location</p>
-              <p id="new-wiki-location" class="location-path"></p>
+          <div class="new-wiki-form-field">
+            <label class="field-label" for="new-wiki-name">Name</label>
+            <input id="new-wiki-name" class="text-input" type="text" placeholder="My Wiki" />
+          </div>
+          <div class="new-wiki-form-field">
+            <div class="location-row">
+              <div>
+                <p class="field-label">Location</p>
+                <p id="new-wiki-location" class="location-path"></p>
+              </div>
+              <button id="choose-new-wiki-location" class="secondary-action compact" type="button">
+                Choose…
+              </button>
             </div>
-            <button id="choose-new-wiki-location" class="secondary-action compact" type="button">
-              Choose…
-            </button>
           </div>
           <div class="modal-actions">
             <button id="cancel-create-new" class="secondary-action" type="button">Cancel</button>

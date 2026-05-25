@@ -947,6 +947,31 @@ body.resizing-left-sidebar * {
   margin-bottom: 4px;
 }
 
+.new-wiki-panel {
+  gap: 20px;
+  width: min(400px, 100%);
+  padding: 24px;
+}
+
+.new-wiki-panel h2 {
+  margin: 0;
+  color: var(--color-tab-active);
+  font-size: 16px;
+  font-weight: 600;
+  line-height: 1.25;
+  text-align: center;
+}
+
+.new-wiki-form-field {
+  display: grid;
+  gap: 6px;
+}
+
+.new-wiki-panel .field-label {
+  font-size: 12px;
+  font-weight: 500;
+}
+
 .publish-dialog {
   width: min(480px, 100%);
   gap: 16px;

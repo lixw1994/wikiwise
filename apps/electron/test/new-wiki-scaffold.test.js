@@ -19,6 +19,11 @@ function normalized(source) {
   return source.replace(/\s+/g, " ").trim();
 }
 
+function cssBlock(source, selector) {
+  const pattern = new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{([^}]+)\\}`);
+  return source.match(pattern)?.[1] ?? "";
+}
+
 test("main process exposes new-wiki scaffold IPC through main-owned filesystem work", () => {
   const mainSource = read("src/main/main.js");
 
@@ -73,6 +78,38 @@ test("renderer contains new-wiki dialog state, create flow, and post-create guid
   assert.match(htmlSource, /id="confirm-create-new"/);
   assert.match(htmlSource, /id="post-create-guide"/);
   assert.doesNotMatch(htmlSource, /later OpenSpec phase/);
+});
+
+test("renderer mirrors native new-wiki sheet layout and typography", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const htmlSource = read("src/renderer/index.html");
+  const styleSource = read("src/renderer/styles.css");
+  const panelBlock = cssBlock(styleSource, ".new-wiki-panel");
+  const titleBlock = cssBlock(styleSource, ".new-wiki-panel h2");
+  const fieldBlock = cssBlock(styleSource, ".new-wiki-form-field");
+  const fieldLabelBlock = cssBlock(styleSource, ".new-wiki-panel .field-label");
+
+  assert.match(nativeSource, /private var newWikiSheet: some View/);
+  assert.match(nativeSource, /VStack\(spacing:\s*20\)/);
+  assert.match(nativeSource, /Text\("Create a New Wiki"\)\s*\.font\(\.system\(size:\s*16,\s*weight:\s*\.semibold\)\)/);
+  assert.match(nativeSource, /Text\("Name"\)\s*\.font\(\.system\(size:\s*12,\s*weight:\s*\.medium\)\)/);
+  assert.match(nativeSource, /\.padding\(24\)\s*\.frame\(width:\s*400\)/);
+
+  assert.match(htmlSource, /<div class="modal-panel new-wiki-panel"[^>]*>/);
+  assert.match(panelBlock, /width:\s*min\(400px,\s*100%\)/);
+  assert.match(panelBlock, /padding:\s*24px/);
+  assert.match(panelBlock, /gap:\s*20px/);
+  assert.match(titleBlock, /font-size:\s*16px/);
+  assert.match(titleBlock, /font-weight:\s*600/);
+  assert.match(fieldBlock, /gap:\s*6px/);
+  assert.match(fieldLabelBlock, /font-size:\s*12px/);
+  assert.match(fieldLabelBlock, /font-weight:\s*500/);
+
+  assert.match(htmlSource, /id="new-wiki-name"/);
+  assert.match(htmlSource, /id="new-wiki-location"/);
+  assert.match(htmlSource, /id="choose-new-wiki-location"[\s\S]*?>\s*Choose…\s*<\/button>/);
+  assert.match(htmlSource, /id="cancel-create-new"[\s\S]*?>Cancel<\/button>/);
+  assert.match(htmlSource, /id="confirm-create-new"[\s\S]*?>\s*Create\s*<\/button>/);
 });
 
 test("renderer mirrors native new-wiki and post-create guide copy", () => {
