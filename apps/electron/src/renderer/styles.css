@@ -223,8 +223,8 @@ button:disabled {
   min-width: 34px;
   inline-size: 34px;
   block-size: 31px;
-  border: 1px solid var(--color-sidebar-rule);
-  border-radius: 6px;
+  border: 0;
+  border-radius: 0;
   padding: 6px 9px;
   background: transparent;
   color: var(--color-toolbar-text);

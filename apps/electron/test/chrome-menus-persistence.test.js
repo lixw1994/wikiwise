@@ -191,6 +191,47 @@ test("project toolbar icon controls mirror native symbol font sizes", () => {
   assert.match(rightSidebarBlock, /font-size:\s*16px/);
 });
 
+test("project toolbar icon controls mirror native plain button chrome", () => {
+  const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const cssSource = read("src/renderer/styles.css");
+  const toolbarIconBlock = cssBlock(cssSource, ".toolbar-icon-button");
+  const modeButtonBlock = cssBlock(cssSource, ".mode-button");
+  const publishButtonBlock = cssBlock(cssSource, ".publish-button");
+
+  assert.match(
+    swiftSource,
+    /Button\s*\{[\s\S]*?Image\(systemName:\s*"sidebar\.left"\)[\s\S]*?\.buttonStyle\(\.plain\)/
+  );
+  assert.match(
+    swiftSource,
+    /Button\s*\{[\s\S]*?Text\("\\u\{2190\}"\)[\s\S]*?\.buttonStyle\(\.plain\)/
+  );
+  assert.match(
+    swiftSource,
+    /Button\s*\{[\s\S]*?Text\("\\u\{2192\}"\)[\s\S]*?\.buttonStyle\(\.plain\)/
+  );
+  assert.match(
+    swiftSource,
+    /Image\(systemName:\s*currentMode == \.dark \? "moon\.fill" : currentMode == \.light \? "sun\.max\.fill" : "circle\.lefthalf\.filled"\)[\s\S]*?\.buttonStyle\(\.plain\)/
+  );
+  assert.match(
+    swiftSource,
+    /Image\(systemName:\s*"map"\)[\s\S]*?\.buttonStyle\(\.plain\)/
+  );
+  assert.match(
+    swiftSource,
+    /Image\(systemName:\s*"sidebar\.right"\)[\s\S]*?\.buttonStyle\(\.plain\)/
+  );
+
+  assert.match(toolbarIconBlock, /border:\s*0/);
+  assert.match(toolbarIconBlock, /border-radius:\s*0/);
+  assert.doesNotMatch(toolbarIconBlock, /border:\s*1px solid/);
+  assert.doesNotMatch(toolbarIconBlock, /border-radius:\s*6px/);
+  assert.match(modeButtonBlock, /border:\s*1px solid var\(--color-sidebar-rule\)/);
+  assert.match(publishButtonBlock, /border:\s*1px solid var\(--color-sidebar-rule\)/);
+  assert.match(publishButtonBlock, /border-radius:\s*3px/);
+});
+
 test("project toolbar mode switch mirrors native segmented styling", () => {
   const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const cssSource = read("src/renderer/styles.css");

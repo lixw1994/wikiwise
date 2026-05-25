@@ -120,7 +120,6 @@ test("renderer mirrors native publish toolbar button style", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const cssSource = read("src/renderer/styles.css");
   const publishButtonBlock = cssBlock(cssSource, ".publish-button");
-  const toolbarIconButtonBlock = cssBlock(cssSource, ".toolbar-icon-button");
 
   assert.match(
     nativeSource,
@@ -134,7 +133,6 @@ test("renderer mirrors native publish toolbar button style", () => {
   assert.match(publishButtonBlock, /border:\s*1px solid var\(--color-sidebar-rule\)/);
   assert.match(publishButtonBlock, /border-radius:\s*3px/);
   assert.match(publishButtonBlock, /padding:\s*4px 10px/);
-  assert.match(toolbarIconButtonBlock, /border-radius:\s*6px/);
 });
 
 test("renderer mirrors native publish toolbar busy indicator", () => {
