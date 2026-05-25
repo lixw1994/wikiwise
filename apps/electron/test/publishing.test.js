@@ -60,6 +60,7 @@ test("renderer contains native publishing state and project service refresh", ()
   assert.match(rendererSource, /checkPublishAvailability/);
   assert.match(rendererSource, /sanitizePublishSubdomain/);
   assert.match(rendererSource, /publishCurrentProject/);
+  assert.match(rendererSource, /handlePublishDialogKeydown/);
   assert.match(rendererSource, /renderPublishDialog/);
   assert.match(rendererSource, /renderPublishFeedback/);
   assert.match(rendererSource, /openPublishedUrl/);
@@ -107,6 +108,20 @@ test("renderer mirrors native publish action labels", () => {
   );
   assert.doesNotMatch(rendererSource, /PUBLISHING\.\.\./);
   assert.doesNotMatch(rendererSource, /state\.publishConfig\?\.published\s*\?\s*"Update"\s*:\s*"Publish"/);
+});
+
+test("renderer mirrors native publish dialog keyboard shortcuts", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+
+  assert.match(
+    nativeSource,
+    /private var publishConfirmSheet[\s\S]*Button\("Cancel"\)\s*\{[\s\S]*showPublishConfirm = false[\s\S]*\.keyboardShortcut\(\.cancelAction\)[\s\S]*Button\("Publish"\)\s*\{[\s\S]*performPublish\(subdomain: pendingSubdomain\)[\s\S]*\.keyboardShortcut\(\.defaultAction\)/
+  );
+  assert.match(rendererSource, /function handlePublishDialogKeydown\(event\)/);
+  assert.match(rendererSource, /event\.key === "Escape"[\s\S]*closePublishDialog\(\)/);
+  assert.match(rendererSource, /event\.key === "Enter"[\s\S]*confirmPublishButton\.disabled[\s\S]*publishCurrentProject\(\)/);
+  assert.match(rendererSource, /publishDialog\.addEventListener\("keydown", handlePublishDialogKeydown\)/);
 });
 
 test("renderer markup and styles include publish dialog, status, and unpublish controls", () => {

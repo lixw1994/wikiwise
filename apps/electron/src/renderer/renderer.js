@@ -1458,6 +1458,24 @@ function closePublishDialog() {
   renderPublishDialog();
 }
 
+function handlePublishDialogKeydown(event) {
+  if (!state.isPublishDialogOpen) return;
+
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closePublishDialog();
+    return;
+  }
+
+  if (event.key === "Enter") {
+    if (event.target instanceof HTMLButtonElement) return;
+    if (confirmPublishButton.disabled) return;
+
+    event.preventDefault();
+    publishCurrentProject();
+  }
+}
+
 function dismissPublishResult() {
   state.publishResult = null;
   renderPublishFeedback();
@@ -2032,6 +2050,7 @@ publishSubdomainInput.addEventListener("input", () => {
 });
 cancelPublishButton.addEventListener("click", closePublishDialog);
 confirmPublishButton.addEventListener("click", publishCurrentProject);
+publishDialog.addEventListener("keydown", handlePublishDialogKeydown);
 unpublishButton.addEventListener("click", openUnpublishConfirmation);
 openPublishResultButton.addEventListener("click", openPublishedUrl);
 dismissPublishResultButton.addEventListener("click", dismissPublishResult);
