@@ -95,6 +95,19 @@ test("renderer mirrors native new-wiki and post-create guide copy", () => {
 
   assert.match(
     nativeSource,
+    /Text\("Use the built-in terminal in the right sidebar, or open your own terminal:"\)/
+  );
+  assert.match(
+    normalizedHtml,
+    /Use the built-in terminal in the right sidebar, or open your own terminal:/
+  );
+  assert.doesNotMatch(
+    normalizedHtml,
+    /Use the built-in terminal, or open your own terminal:/
+  );
+
+  assert.match(
+    nativeSource,
     /Text\("This is your project\. You can change anything about it with your agent — the styles, the structure of your wiki pages, the build pipeline\. Make it your own\."\)/
   );
   assert.match(
