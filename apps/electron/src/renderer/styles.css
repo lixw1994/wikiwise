@@ -1302,6 +1302,54 @@ body.resizing-left-sidebar * {
   font-size: 12px;
 }
 
+.guide-seed-options {
+  display: grid;
+  gap: 10px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.post-create-guide .guide-seed-option {
+  display: grid;
+  grid-template-columns: 20px minmax(0, 1fr);
+  align-items: start;
+  column-gap: 10px;
+  max-width: 70ch;
+  color: var(--color-sidebar-selected-text);
+  line-height: 1.2;
+}
+
+.guide-seed-icon {
+  display: inline-grid;
+  place-items: start center;
+  width: 20px;
+  color: var(--color-accent-primary);
+  font-size: 13px;
+  line-height: 1.2;
+}
+
+.guide-seed-copy {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.guide-seed-title {
+  color: var(--color-sidebar-selected-text);
+  font-size: 13px;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.guide-seed-command {
+  color: var(--color-sidebar-text-muted);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 12px;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+}
+
 .error-message {
   grid-column: 1 / -1;
   margin: 0;

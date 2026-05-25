@@ -394,7 +394,7 @@ test("renderer mirrors native new-wiki and post-create guide copy", () => {
   assert.match(normalizedHtml, /Once your agent is running, try:/);
   assert.match(
     normalizedHtml,
-    /<p class="eyebrow">SEED YOUR WIKI<\/p> <p>Once your agent is running, try:<\/p> <ul>/
+    /<p class="eyebrow">SEED YOUR WIKI<\/p> <p>Once your agent is running, try:<\/p> <ul class="guide-seed-options">/
   );
 
   assert.match(
@@ -682,4 +682,64 @@ test("renderer mirrors native post-create guide agent command chrome", () => {
   assert.match(rendererSource, /guideClaudeCommand\.textContent = `cd \$\{projectRoot\} && claude`/);
   assert.match(rendererSource, /guideCodexCommand\.textContent = `cd \$\{projectRoot\} && codex`/);
   assert.match(rendererSource, /guideCursorCommand\.textContent = `Open \$\{projectRoot\} in Cursor`/);
+});
+
+test("renderer mirrors native post-create guide seed option rows", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const htmlSource = read("src/renderer/index.html");
+  const styleSource = read("src/renderer/styles.css");
+  const seedOptionSource = nativeSource.match(/private func seedOption\(icon: String, title: String, command: String\) -> some View[\s\S]*?\n\s*\}\n\}/)?.[0] ?? "";
+  const seedListRule = cssBlock(styleSource, ".guide-seed-options");
+  const seedOptionRule = cssBlock(styleSource, ".post-create-guide .guide-seed-option");
+  const seedIconRule = cssBlock(styleSource, ".guide-seed-icon");
+  const seedCopyRule = cssBlock(styleSource, ".guide-seed-copy");
+  const seedTitleRule = cssBlock(styleSource, ".guide-seed-title");
+  const seedCommandRule = cssBlock(styleSource, ".guide-seed-command");
+
+  assert.notEqual(seedOptionSource, "");
+  assert.match(
+    seedOptionSource,
+    /HStack\(alignment:\s*\.top,\s*spacing:\s*10\)[\s\S]*?Image\(systemName:\s*icon\)[\s\S]*?\.font\(\.system\(size:\s*13\)\)[\s\S]*?\.foregroundStyle\(Color\.accentPrimary\)[\s\S]*?\.frame\(width:\s*20\)[\s\S]*?VStack\(alignment:\s*\.leading,\s*spacing:\s*2\)[\s\S]*?Text\(title\)[\s\S]*?\.font\(\.system\(size:\s*13,\s*weight:\s*\.medium\)\)[\s\S]*?\.foregroundStyle\(Color\.sidebarSelectedText\)[\s\S]*?Text\(command\)[\s\S]*?\.font\(\.system\(size:\s*12,\s*design:\s*\.monospaced\)\)[\s\S]*?\.foregroundStyle\(Color\.sidebarTextMuted\)/
+  );
+  assert.match(nativeSource, /seedOption\(\s*icon:\s*"book",\s*title:\s*"Import from Readwise",\s*command:\s*"\/import-readwise"/);
+  assert.match(nativeSource, /seedOption\(\s*icon:\s*"link",\s*title:\s*"Ingest an article",\s*command:\s*"Ingest this article: \[paste URL\]"/);
+  assert.match(nativeSource, /seedOption\(\s*icon:\s*"folder",\s*title:\s*"Import existing files",\s*command:\s*"Ingest the files in ~\/my-notes\/ into this wiki"/);
+  assert.match(nativeSource, /seedOption\(\s*icon:\s*"text\.bubble",\s*title:\s*"Start from a topic",\s*command:\s*"Start a wiki about \[your topic\]"/);
+
+  assert.match(htmlSource, /<ul class="guide-seed-options">/);
+  assert.match(
+    htmlSource,
+    /<li class="guide-seed-option">\s*<span class="guide-seed-icon" data-native-symbol="book" aria-hidden="true">[\s\S]*?<\/span>\s*<div class="guide-seed-copy">\s*<span class="guide-seed-title">Import from Readwise<\/span>\s*<code class="guide-seed-command">\/import-readwise<\/code>\s*<\/div>\s*<\/li>/
+  );
+  assert.match(
+    htmlSource,
+    /<li class="guide-seed-option">\s*<span class="guide-seed-icon" data-native-symbol="link" aria-hidden="true">[\s\S]*?<\/span>\s*<div class="guide-seed-copy">\s*<span class="guide-seed-title">Ingest an article<\/span>\s*<code class="guide-seed-command">Ingest this article: \[paste URL\]<\/code>\s*<\/div>\s*<\/li>/
+  );
+  assert.match(
+    htmlSource,
+    /<li class="guide-seed-option">\s*<span class="guide-seed-icon" data-native-symbol="folder" aria-hidden="true">[\s\S]*?<\/span>\s*<div class="guide-seed-copy">\s*<span class="guide-seed-title">Import existing files<\/span>\s*<code class="guide-seed-command">Ingest the files in ~\/my-notes\/ into this wiki<\/code>\s*<\/div>\s*<\/li>/
+  );
+  assert.match(
+    htmlSource,
+    /<li class="guide-seed-option">\s*<span class="guide-seed-icon" data-native-symbol="text\.bubble" aria-hidden="true">[\s\S]*?<\/span>\s*<div class="guide-seed-copy">\s*<span class="guide-seed-title">Start from a topic<\/span>\s*<code class="guide-seed-command">Start a wiki about \[your topic\]<\/code>\s*<\/div>\s*<\/li>/
+  );
+  assert.doesNotMatch(htmlSource, /<li><strong>Import from Readwise:/);
+
+  assert.match(seedListRule, /display:\s*grid/);
+  assert.match(seedListRule, /gap:\s*10px/);
+  assert.match(seedListRule, /list-style:\s*none/);
+  assert.match(seedOptionRule, /grid-template-columns:\s*20px minmax\(0,\s*1fr\)/);
+  assert.match(seedOptionRule, /column-gap:\s*10px/);
+  assert.match(seedOptionRule, /align-items:\s*start/);
+  assert.match(seedIconRule, /width:\s*20px/);
+  assert.match(seedIconRule, /color:\s*var\(--color-accent-primary\)/);
+  assert.match(seedIconRule, /font-size:\s*13px/);
+  assert.match(seedCopyRule, /display:\s*grid/);
+  assert.match(seedCopyRule, /gap:\s*2px/);
+  assert.match(seedTitleRule, /color:\s*var\(--color-sidebar-selected-text\)/);
+  assert.match(seedTitleRule, /font-size:\s*13px/);
+  assert.match(seedTitleRule, /font-weight:\s*500/);
+  assert.match(seedCommandRule, /color:\s*var\(--color-sidebar-text-muted\)/);
+  assert.match(seedCommandRule, /font-family:\s*ui-monospace,\s*"SFMono-Regular",\s*Menlo,\s*monospace/);
+  assert.match(seedCommandRule, /font-size:\s*12px/);
 });
