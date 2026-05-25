@@ -436,3 +436,25 @@ test("renderer mirrors native post-create guide container layout", () => {
   assert.match(styleSource, /\.post-create-guide p,\s*\.post-create-guide li\s*\{[^}]*color:\s*var\(--color-linked-text\)/);
   assert.match(htmlSource, /id="dismiss-post-create-guide" class="primary-action"/);
 });
+
+test("renderer mirrors native post-create guide title typography", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const htmlSource = read("src/renderer/index.html");
+  const styleSource = read("src/renderer/styles.css");
+  const postCreateGuideSource =
+    nativeSource.match(/private func postCreateGuide\(wikiURL: URL\) -> some View[\s\S]*?private func agentCommand/)?.[0] ??
+    "";
+  const guideTitleBlock = cssBlock(styleSource, ".post-create-guide h2");
+
+  assert.notEqual(postCreateGuideSource, "");
+  assert.match(
+    postCreateGuideSource,
+    /Text\("Your wiki is ready"\)[\s\S]*\.font\(\.system\(size:\s*20,\s*weight:\s*\.medium,\s*design:\s*\.serif\)\)[\s\S]*\.foregroundStyle\(Color\.sidebarSelectedText\)/
+  );
+  assert.match(htmlSource, /<h2>Your wiki is ready<\/h2>/);
+  assert.match(guideTitleBlock, /font-family:\s*Georgia,\s*serif/);
+  assert.match(guideTitleBlock, /font-size:\s*20px/);
+  assert.match(guideTitleBlock, /font-weight:\s*500/);
+  assert.match(guideTitleBlock, /color:\s*var\(--color-sidebar-selected-text\)/);
+  assert.match(styleSource, /h2\s*\{[^}]*font-size:\s*18px/);
+});

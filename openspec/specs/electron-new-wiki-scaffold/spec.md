@@ -166,3 +166,12 @@ The Electron post-create guide SHALL match the native SwiftUI guide surface back
 - **AND** the guide content uses the native 40px inset
 - **AND** direct guide content is constrained to the native 560px leading-aligned column
 - **AND** existing guide copy, command rendering, and dismiss behavior are preserved
+
+### Requirement: Post-Create Guide Title Parity
+The Electron post-create guide SHALL render its title with the same native SwiftUI typography and selected text color.
+
+#### Scenario: Post-create guide title is inspected
+- **WHEN** Electron shows the post-create guide after creating a wiki
+- **THEN** the `Your wiki is ready` title uses native 20px medium serif typography
+- **AND** the title uses the native selected sidebar text color
+- **AND** existing guide copy, container layout, command rendering, and dismiss behavior are preserved

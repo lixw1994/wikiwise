@@ -1222,8 +1222,9 @@ body.resizing-left-sidebar * {
 }
 
 .post-create-guide h2 {
+  color: var(--color-sidebar-selected-text);
   font-family: Georgia, serif;
-  font-size: 22px;
+  font-size: 20px;
   font-weight: 500;
 }
 
