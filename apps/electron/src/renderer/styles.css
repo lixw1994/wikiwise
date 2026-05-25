@@ -1242,6 +1242,12 @@ body.resizing-left-sidebar * {
   line-height: calc(1.2em + 3px);
 }
 
+.post-create-guide .guide-block:not(:first-of-type) > p:not(.eyebrow) {
+  color: var(--color-sidebar-text);
+  font-size: 13px;
+  line-height: 1.2;
+}
+
 .guide-block {
   margin-bottom: 24px;
 }

@@ -548,3 +548,37 @@ test("renderer mirrors native post-create guide section headings", () => {
   assert.match(globalEyebrowRule, /font-size:\s*12px/);
   assert.match(globalEyebrowRule, /font-weight:\s*700/);
 });
+
+test("renderer mirrors native post-create guide intro copy", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const htmlSource = read("src/renderer/index.html");
+  const styleSource = read("src/renderer/styles.css");
+  const postCreateGuideSource =
+    nativeSource.match(/private func postCreateGuide\(wikiURL: URL\) -> some View[\s\S]*?private func agentCommand/)?.[0] ??
+    "";
+  const introRule =
+    styleSource.match(/\.post-create-guide \.guide-block:not\(:first-of-type\) > p:not\(\.eyebrow\)\s*\{([^}]+)\}/)?.[1] ??
+    "";
+  const sharedParagraphRule =
+    styleSource.match(/\.post-create-guide p,\s*\.post-create-guide li\s*\{([^}]+)\}/)?.[1] ?? "";
+
+  assert.notEqual(postCreateGuideSource, "");
+  assert.match(
+    postCreateGuideSource,
+    /Text\("Use the built-in terminal in the right sidebar, or open your own terminal:"\)[\s\S]*?\.font\(\.system\(size:\s*13\)\)[\s\S]*?\.foregroundStyle\(Color\.sidebarText\)/
+  );
+  assert.match(
+    postCreateGuideSource,
+    /Text\("Once your agent is running, try:"\)[\s\S]*?\.font\(\.system\(size:\s*13\)\)[\s\S]*?\.foregroundStyle\(Color\.sidebarText\)/
+  );
+  assert.match(
+    htmlSource,
+    /<p class="eyebrow">OPEN YOUR AGENT<\/p>\s*<p>Use the built-in terminal in the right sidebar, or open your own terminal:<\/p>/
+  );
+  assert.match(htmlSource, /<p class="eyebrow">SEED YOUR WIKI<\/p>\s*<p>Once your agent is running, try:<\/p>/);
+  assert.match(introRule, /font-size:\s*13px/);
+  assert.match(introRule, /color:\s*var\(--color-sidebar-text\)/);
+  assert.match(introRule, /line-height:\s*1\.2/);
+  assert.match(sharedParagraphRule, /color:\s*var\(--color-linked-text\)/);
+  assert.match(sharedParagraphRule, /line-height:\s*1\.6/);
+});
