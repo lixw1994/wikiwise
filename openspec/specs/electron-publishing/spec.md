@@ -99,6 +99,7 @@ The Electron app SHALL support unpublishing an already published wiki with nativ
 - **THEN** the renderer shows an app-owned confirmation titled `Unpublish wiki?`
 - **AND** the confirmation explains that the wiki will be taken offline and local files are not affected
 - **AND** the confirmation offers `Cancel` and destructive `Unpublish` actions
+- **AND** the destructive confirmation action remains labeled `Unpublish` while unpublishing is in progress
 - **AND** the confirmation closes through the native cancel keyboard behavior
 - **AND** the renderer does not use the browser `window.confirm` dialog
 

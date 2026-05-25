@@ -638,7 +638,7 @@ function renderPublishFeedback() {
 
   unpublishConfirmDialog.hidden = !state.isUnpublishConfirmOpen;
   confirmUnpublishButton.disabled = state.isUnpublishing;
-  confirmUnpublishButton.textContent = state.isUnpublishing ? "Unpublishing" : "Unpublish";
+  confirmUnpublishButton.textContent = "Unpublish";
 }
 
 function renderProjectToolbar() {

@@ -185,6 +185,22 @@ test("renderer mirrors native unpublish confirmation cancel keyboard behavior", 
   );
 });
 
+test("renderer mirrors native unpublish confirmation action label", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+
+  assert.match(
+    nativeSource,
+    /\.alert\("Unpublish wiki\?",[\s\S]*Button\("Unpublish", role: \.destructive\)/
+  );
+  assert.match(rendererSource, /confirmUnpublishButton\.disabled = state\.isUnpublishing/);
+  assert.match(rendererSource, /confirmUnpublishButton\.textContent = "Unpublish"/);
+  assert.doesNotMatch(
+    rendererSource,
+    /confirmUnpublishButton\.textContent = state\.isUnpublishing \? "Unpublishing" : "Unpublish"/
+  );
+});
+
 test("renderer mirrors native publish dialog copy", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const htmlSource = read("src/renderer/index.html");
