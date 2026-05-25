@@ -15,6 +15,11 @@ function readRepository(relativePath) {
   return fs.readFileSync(path.join(repositoryRoot, relativePath), "utf8");
 }
 
+function cssBlock(source, selector) {
+  const pattern = new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{([^}]+)\\}`);
+  return source.match(pattern)?.[1] ?? "";
+}
+
 test("main process exposes document info IPC with project path validation", () => {
   const mainSource = read("src/main/main.js");
 
@@ -145,6 +150,55 @@ test("renderer linked info rows use native north-east marker", () => {
   assert.match(nativeSource, /Text\("\\u\{2197\} \\\(link\)"\)/);
   assert.match(rendererSource, /item\.textContent = `↗ \$\{target\}`/);
   assert.doesNotMatch(rendererSource, /item\.textContent = `-> \$\{target\}`/);
+});
+
+test("renderer right sidebar tabs mirror native compact pill switcher", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
+  const htmlSource = read("src/renderer/index.html");
+  const cssSource = read("src/renderer/styles.css");
+  const rightTabsBlock = cssBlock(cssSource, ".right-tabs");
+  const rightTabSwitchBlock = cssBlock(cssSource, ".right-tab-switch");
+  const rightTabBlock = cssBlock(cssSource, ".right-tab");
+  const selectedRightTabBlock = cssBlock(cssSource, ".right-tab.selected");
+
+  assert.match(nativeSource, /private var tabBar:[\s\S]*HStack\(spacing:\s*0\)/);
+  assert.match(
+    nativeSource,
+    /Text\(tab\.rawValue\)[\s\S]*\.font\(\.system\(size:\s*10,\s*weight:\s*\.regular,\s*design:\s*\.monospaced\)\)[\s\S]*\.tracking\(0\.8\)[\s\S]*\.foregroundStyle\(activeTab == tab \? Color\.tabActive : Color\.tabInactive\)[\s\S]*\.padding\(\.horizontal,\s*14\)[\s\S]*\.padding\(\.vertical,\s*3\)/
+  );
+  assert.match(
+    nativeSource,
+    /RoundedRectangle\(cornerRadius:\s*4\)[\s\S]*\.fill\(Color\.tabActiveBg\)[\s\S]*\.shadow\(color:\s*\.black\.opacity\(0\.1\),\s*radius:\s*0\.5,\s*y:\s*0\.5\)/
+  );
+  assert.match(
+    nativeSource,
+    /\.padding\(2\)[\s\S]*RoundedRectangle\(cornerRadius:\s*5\)[\s\S]*\.fill\(Color\.tabBarBg\)[\s\S]*\.padding\(\.horizontal,\s*12\)[\s\S]*\.padding\(\.vertical,\s*8\)/
+  );
+
+  assert.match(
+    htmlSource,
+    /<div class="right-tabs">\s*<div class="right-tab-switch" role="tablist" aria-label="Right sidebar">[\s\S]*id="right-tab-info"[\s\S]*id="right-tab-terminal"[\s\S]*<\/div>\s*<\/div>/
+  );
+  assert.match(rightTabsBlock, /display:\s*flex/);
+  assert.match(rightTabsBlock, /align-items:\s*center/);
+  assert.match(rightTabsBlock, /justify-content:\s*flex-start/);
+  assert.match(rightTabsBlock, /padding:\s*8px 12px/);
+  assert.match(rightTabsBlock, /background:\s*var\(--color-sidebar-bg\)/);
+  assert.match(rightTabSwitchBlock, /display:\s*flex/);
+  assert.match(rightTabSwitchBlock, /padding:\s*2px/);
+  assert.match(rightTabSwitchBlock, /border-radius:\s*5px/);
+  assert.match(rightTabSwitchBlock, /background:\s*var\(--color-tab-bar-bg\)/);
+  assert.match(rightTabBlock, /padding:\s*3px 14px/);
+  assert.match(rightTabBlock, /font-size:\s*10px/);
+  assert.match(rightTabBlock, /font-weight:\s*400/);
+  assert.match(rightTabBlock, /letter-spacing:\s*0\.8px/);
+  assert.match(rightTabBlock, /color:\s*var\(--color-tab-inactive\)/);
+  assert.match(selectedRightTabBlock, /border-radius:\s*4px/);
+  assert.match(selectedRightTabBlock, /background:\s*var\(--color-tab-active-bg\)/);
+  assert.match(selectedRightTabBlock, /color:\s*var\(--color-tab-active\)/);
+  assert.match(selectedRightTabBlock, /box-shadow:\s*0 0\.5px 0\.5px rgba\(0,\s*0,\s*0,\s*0\.1\)/);
+  assert.doesNotMatch(rightTabsBlock, /grid-template-columns:\s*1fr 1fr/);
+  assert.doesNotMatch(rightTabBlock, /font-weight:\s*700/);
 });
 
 test("Electron package declares PTY and xterm terminal dependencies", () => {

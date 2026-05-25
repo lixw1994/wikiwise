@@ -257,25 +257,27 @@
             aria-orientation="vertical"
             tabindex="0"
           ></div>
-          <div class="right-tabs" role="tablist" aria-label="Right sidebar">
-            <button
-              id="right-tab-info"
-              class="right-tab"
-              type="button"
-              role="tab"
-              aria-selected="false"
-            >
-              INFO
-            </button>
-            <button
-              id="right-tab-terminal"
-              class="right-tab selected"
-              type="button"
-              role="tab"
-              aria-selected="true"
-            >
-              TERMINAL
-            </button>
+          <div class="right-tabs">
+            <div class="right-tab-switch" role="tablist" aria-label="Right sidebar">
+              <button
+                id="right-tab-info"
+                class="right-tab"
+                type="button"
+                role="tab"
+                aria-selected="false"
+              >
+                INFO
+              </button>
+              <button
+                id="right-tab-terminal"
+                class="right-tab selected"
+                type="button"
+                role="tab"
+                aria-selected="true"
+              >
+                TERMINAL
+              </button>
+            </div>
           </div>
 
           <section id="info-panel" class="right-panel info-panel" hidden>
