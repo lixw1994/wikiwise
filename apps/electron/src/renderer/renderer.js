@@ -94,8 +94,7 @@ const toolbarSymbols = Object.freeze({
   },
   leftSidebar: {
     nativeSymbol: "sidebar.left",
-    glyph: "▤",
-    label: "Toggle left sidebar"
+    glyph: "▤"
   },
   rightSidebarVisible: {
     nativeSymbol: "sidebar.right",
@@ -647,7 +646,6 @@ function renderProjectToolbar() {
   goForwardButton.disabled = state.forwardHistory.length === 0;
   setToolbarButtonSymbol(appearanceModeButton, toolbarSymbols[state.appearanceMode] ?? toolbarSymbols.Auto);
   setToolbarButtonSymbol(openMapButton, toolbarSymbols.map);
-  setToolbarButtonSymbol(toggleLeftSidebarButton, toolbarSymbols.leftSidebar);
   setToolbarButtonSymbol(
     toggleRightSidebarButton,
     state.isRightSidebarVisible ? toolbarSymbols.rightSidebarVisible : toolbarSymbols.rightSidebarHidden
@@ -656,6 +654,13 @@ function renderProjectToolbar() {
   applyLeftSidebarWidth();
   toggleLeftSidebarButton.classList.toggle("selected", state.isLeftSidebarVisible);
   toggleLeftSidebarButton.setAttribute("aria-pressed", String(state.isLeftSidebarVisible));
+  const leftSidebarHelpText = leftSidebarButtonHelpText();
+  setToolbarButtonSymbol(toggleLeftSidebarButton, {
+    ...toolbarSymbols.leftSidebar,
+    label: leftSidebarHelpText
+  });
+  toggleLeftSidebarButton.title = leftSidebarHelpText;
+  toggleLeftSidebarButton.setAttribute("aria-label", leftSidebarHelpText);
   toggleRightSidebarButton.classList.toggle("selected", state.isRightSidebarVisible);
   leftSidebar.hidden = !state.isLeftSidebarVisible;
   project.classList.toggle("left-sidebar-hidden", !state.isLeftSidebarVisible);
@@ -664,6 +669,10 @@ function renderProjectToolbar() {
   if (state.currentProject && state.isRightSidebarVisible) {
     applyRightSidebarWidth();
   }
+}
+
+function leftSidebarButtonHelpText() {
+  return state.isLeftSidebarVisible ? "Hide Sidebar" : "Show Sidebar";
 }
 
 function setToolbarButtonSymbol(button, symbol) {

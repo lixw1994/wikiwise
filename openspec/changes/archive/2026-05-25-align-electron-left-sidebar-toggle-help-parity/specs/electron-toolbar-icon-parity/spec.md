@@ -1,8 +1,5 @@
-# electron-toolbar-icon-parity Specification
+## MODIFIED Requirements
 
-## Purpose
-Define opened-project Electron toolbar icon semantics that mirror native SwiftUI toolbar controls while preserving accessible labels and runtime audit evidence.
-## Requirements
 ### Requirement: Icon-Only Toolbar Controls
 The Electron opened-project toolbar SHALL match native SwiftUI icon-only semantics for appearance, map, and sidebar controls.
 

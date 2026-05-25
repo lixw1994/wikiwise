@@ -155,6 +155,22 @@ test("project toolbar icon controls mirror native SwiftUI symbol semantics", () 
   assert.match(cssSource, /\.toolbar-symbol/);
 });
 
+test("left sidebar toolbar control mirrors native restore help text", () => {
+  const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+
+  assert.match(swiftSource, /Image\(systemName:\s*"sidebar\.left"\)[\s\S]*\.help\("Show Sidebar"\)/);
+  assert.match(rendererSource, /function leftSidebarButtonHelpText\(\)/);
+  assert.match(rendererSource, /state\.isLeftSidebarVisible\s*\?\s*"Hide Sidebar"\s*:\s*"Show Sidebar"/);
+  assert.match(rendererSource, /const leftSidebarHelpText = leftSidebarButtonHelpText\(\)/);
+  assert.match(rendererSource, /toggleLeftSidebarButton\.title = leftSidebarHelpText/);
+  assert.match(
+    rendererSource,
+    /toggleLeftSidebarButton\.setAttribute\("aria-label",\s*leftSidebarHelpText\)/
+  );
+  assert.doesNotMatch(rendererSource, /label:\s*"Toggle left sidebar"/);
+});
+
 test("renderer styles wire native adaptive palette tokens into visible shell surfaces", () => {
   const cssSource = read("src/renderer/styles.css");
 
