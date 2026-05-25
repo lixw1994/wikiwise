@@ -246,6 +246,25 @@ button:disabled {
   color: var(--color-toolbar-text);
 }
 
+#go-back {
+  color: var(--color-toolbar-text);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 16px;
+  font-weight: 400;
+}
+
+#go-forward {
+  color: var(--color-toolbar-text);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 16px;
+  font-weight: 400;
+}
+
+#go-back:disabled, #go-forward:disabled {
+  color: var(--color-toolbar-disabled);
+  opacity: 1;
+}
+
 #toggle-left-sidebar:not(.selected) {
   color: var(--color-toolbar-disabled);
 }

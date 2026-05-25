@@ -250,6 +250,31 @@ test("project toolbar groups mirror native horizontal spacing", () => {
   assert.doesNotMatch(toolbarGroupBlock, /gap:\s*8px/);
 });
 
+test("project toolbar navigation arrows mirror native typography and disabled color", () => {
+  const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const cssSource = read("src/renderer/styles.css");
+  const backBlock = cssBlock(cssSource, "#go-back");
+  const forwardBlock = cssBlock(cssSource, "#go-forward");
+  const disabledNavigationBlock = cssBlock(cssSource, "#go-back:disabled, #go-forward:disabled");
+
+  assert.match(
+    swiftSource,
+    /Text\("\\u\{2190\}"\)[\s\S]*\.font\(\.system\(size:\s*16,\s*weight:\s*\.regular,\s*design:\s*\.monospaced\)\)[\s\S]*\.foregroundStyle\(backHistory\.isEmpty \? Color\.toolbarDisabled : Color\.toolbarText\)/
+  );
+  assert.match(
+    swiftSource,
+    /Text\("\\u\{2192\}"\)[\s\S]*\.font\(\.system\(size:\s*16,\s*weight:\s*\.regular,\s*design:\s*\.monospaced\)\)[\s\S]*\.foregroundStyle\(forwardHistory\.isEmpty \? Color\.toolbarDisabled : Color\.toolbarText\)/
+  );
+  for (const block of [backBlock, forwardBlock]) {
+    assert.match(block, /font-family:\s*ui-monospace,\s*"SFMono-Regular",\s*Menlo,\s*monospace/);
+    assert.match(block, /font-size:\s*16px/);
+    assert.match(block, /font-weight:\s*400/);
+    assert.match(block, /color:\s*var\(--color-toolbar-text\)/);
+  }
+  assert.match(disabledNavigationBlock, /color:\s*var\(--color-toolbar-disabled\)/);
+  assert.match(disabledNavigationBlock, /opacity:\s*1/);
+});
+
 test("renderer styles wire native adaptive palette tokens into visible shell surfaces", () => {
   const cssSource = read("src/renderer/styles.css");
 
