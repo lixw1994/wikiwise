@@ -187,10 +187,30 @@ test("renderer mirrors native new-wiki location label spacing", () => {
     /VStack\(alignment:\s*\.leading,\s*spacing:\s*6\)\s*\{[\s\S]*Text\("Location"\)[\s\S]*HStack\s*\{/
   );
   assert.match(locationPathBlock, /margin:\s*6px 0 0/);
-  assert.match(locationPathBlock, /color:\s*var\(--color-muted-text\)/);
+  assert.match(locationPathBlock, /color:\s*var\(--color-sidebar-text-muted\)/);
   assert.match(locationPathBlock, /white-space:\s*nowrap/);
   assert.match(rendererSource, /newWikiLocationLabel\.title = fullLocationPath/);
   assert.match(rendererSource, /parentDir:\s*state\.newWikiLocation/);
+});
+
+test("renderer mirrors native new-wiki location path color", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const styleSource = read("src/renderer/styles.css");
+  const newWikiSheetSource =
+    nativeSource.match(/private var newWikiSheet: some View[\s\S]*?\.frame\(width:\s*400\)/)?.[0] ?? "";
+  const locationPathBlock = cssBlock(styleSource, ".location-path");
+  const publishUrlAffixBlock = cssBlock(styleSource, ".publish-url-affix");
+
+  assert.notEqual(newWikiSheetSource, "");
+  assert.match(
+    newWikiSheetSource,
+    /Text\(newWikiLocation\?\.path \?\? "~\/wikis"\)[\s\S]*\.foregroundStyle\(Color\.sidebarTextMuted\)/
+  );
+  assert.match(locationPathBlock, /color:\s*var\(--color-sidebar-text-muted\)/);
+  assert.match(locationPathBlock, /font-size:\s*12px/);
+  assert.match(locationPathBlock, /margin:\s*6px 0 0/);
+  assert.match(locationPathBlock, /white-space:\s*nowrap/);
+  assert.match(publishUrlAffixBlock, /color:\s*var\(--color-muted-text\)/);
 });
 
 test("renderer mirrors native new-wiki action row spacing", () => {

@@ -1162,7 +1162,7 @@ body.resizing-left-sidebar * {
 .location-path {
   overflow: hidden;
   margin: 6px 0 0;
-  color: var(--color-muted-text);
+  color: var(--color-sidebar-text-muted);
   font-size: 12px;
   white-space: nowrap;
 }
