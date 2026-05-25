@@ -518,3 +518,33 @@ test("renderer mirrors native post-create guide dividers", () => {
   assert.match(dividerRule, /border-top:\s*1px solid var\(--color-sidebar-rule\)/);
   assert.match(dividerRule, /margin:\s*0 0 24px/);
 });
+
+test("renderer mirrors native post-create guide section headings", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const htmlSource = read("src/renderer/index.html");
+  const styleSource = read("src/renderer/styles.css");
+  const postCreateGuideSource =
+    nativeSource.match(/private func postCreateGuide\(wikiURL: URL\) -> some View[\s\S]*?private func agentCommand/)?.[0] ??
+    "";
+  const guideHeadingRule = cssBlock(styleSource, ".post-create-guide .eyebrow");
+  const globalEyebrowRule = styleSource.match(/\n\.eyebrow\s*\{([^}]+)\}/)?.[1] ?? "";
+
+  assert.notEqual(postCreateGuideSource, "");
+  assert.match(
+    postCreateGuideSource,
+    /Text\("OPEN YOUR AGENT"\)[\s\S]*?\.font\(\.system\(size:\s*10,\s*weight:\s*\.semibold\)\)[\s\S]*?\.tracking\(1\.5\)[\s\S]*?\.foregroundStyle\(Color\.sidebarHeader\)/
+  );
+  assert.match(
+    postCreateGuideSource,
+    /Text\("SEED YOUR WIKI"\)[\s\S]*?\.font\(\.system\(size:\s*10,\s*weight:\s*\.semibold\)\)[\s\S]*?\.tracking\(1\.5\)[\s\S]*?\.foregroundStyle\(Color\.sidebarHeader\)/
+  );
+  assert.match(htmlSource, /<p class="eyebrow">OPEN YOUR AGENT<\/p>/);
+  assert.match(htmlSource, /<p class="eyebrow">SEED YOUR WIKI<\/p>/);
+  assert.match(guideHeadingRule, /font-size:\s*10px/);
+  assert.match(guideHeadingRule, /font-weight:\s*600/);
+  assert.match(guideHeadingRule, /letter-spacing:\s*1\.5px/);
+  assert.match(guideHeadingRule, /color:\s*var\(--color-sidebar-header\)/);
+  assert.match(guideHeadingRule, /text-transform:\s*none/);
+  assert.match(globalEyebrowRule, /font-size:\s*12px/);
+  assert.match(globalEyebrowRule, /font-weight:\s*700/);
+});
