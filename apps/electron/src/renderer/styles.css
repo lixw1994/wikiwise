@@ -736,6 +736,7 @@ body.resizing-left-sidebar * {
 
 .publish-dialog {
   width: min(480px, 100%);
+  padding: 24px;
 }
 
 .publish-feedback-dialog {

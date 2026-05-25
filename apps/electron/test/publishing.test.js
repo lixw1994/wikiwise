@@ -327,6 +327,21 @@ test("renderer mirrors native publish URL display without duplicate detail row",
   assert.match(htmlSource, /id="publish-result-url"/);
 });
 
+test("renderer mirrors native publish dialog panel padding", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const cssSource = read("src/renderer/styles.css");
+  const publishDialogBlock = cssBlock(cssSource, ".publish-dialog");
+  const modalPanelBlock = cssBlock(cssSource, ".modal-panel");
+
+  assert.match(
+    nativeSource,
+    /private var publishConfirmSheet:[\s\S]*\.padding\(24\)[\s\S]*\.frame\(width:\s*480\)/
+  );
+  assert.match(publishDialogBlock, /width:\s*min\(480px,\s*100%\)/);
+  assert.match(publishDialogBlock, /padding:\s*24px/);
+  assert.match(modalPanelBlock, /padding:\s*22px/);
+});
+
 test("renderer mirrors native publish result copy", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
