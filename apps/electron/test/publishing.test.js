@@ -484,6 +484,28 @@ test("renderer mirrors native publish dialog title spacing without extra margin"
   assert.match(modalTitleBlock, /margin-bottom:\s*4px/);
 });
 
+test("renderer mirrors native publish dialog actions spacing", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const htmlSource = read("src/renderer/index.html");
+  const normalizedHtml = normalized(htmlSource);
+  const cssSource = read("src/renderer/styles.css");
+  const publishDialogBlock = cssBlock(cssSource, ".publish-dialog");
+  const publishActionsBlock = cssBlock(cssSource, ".publish-actions");
+  const modalActionsBlock = cssBlock(cssSource, ".modal-actions");
+
+  assert.match(
+    nativeSource,
+    /VStack\(alignment:\s*\.leading,\s*spacing:\s*16\)[\s\S]*Text\("A publish\.json file will be saved in your project \\u\{2014\} it contains your publish token[\s\S]*\.lineSpacing\(2\)[\s\S]*HStack \{[\s\S]*Button\("Cancel"\)[\s\S]*Button\("Publish"\)/
+  );
+  assert.match(
+    normalizedHtml,
+    /<div class="modal-actions publish-actions">[\s\S]*id="unpublish-wiki"[\s\S]*id="cancel-publish"[\s\S]*id="confirm-publish"/
+  );
+  assert.match(publishDialogBlock, /gap:\s*16px/);
+  assert.match(publishActionsBlock, /margin-top:\s*0/);
+  assert.match(modalActionsBlock, /margin-top:\s*8px/);
+});
+
 test("renderer mirrors native publish result copy", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");

@@ -926,6 +926,10 @@ body.resizing-left-sidebar * {
   margin-top: 8px;
 }
 
+.publish-actions {
+  margin-top: 0;
+}
+
 .modal-actions-end {
   justify-content: flex-end;
 }

@@ -259,3 +259,12 @@ The Electron publish dialog SHALL render availability hint text with the native 
 - **AND** the taken hint uses red text coloring
 - **AND** the invalid hint uses orange text coloring
 - **AND** availability hint copy, publish eligibility, and inline indicator styling are not changed for this requirement
+
+### Requirement: Publish Dialog Actions Spacing Parity
+The Electron publish dialog SHALL render the action row with native publish sheet spacing.
+
+#### Scenario: Publish actions rely on native content gap
+- **WHEN** the publish dialog is rendered
+- **THEN** the action row has no extra top margin beyond the publish dialog content gap
+- **AND** shared modal action spacing for other dialogs is not changed for this requirement
+- **AND** publish action labels, ordering, keyboard behavior, and disabled state are not changed for this requirement
