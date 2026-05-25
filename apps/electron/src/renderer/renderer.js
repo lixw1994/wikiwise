@@ -45,6 +45,7 @@ const publishDialog = document.querySelector("#publish-dialog");
 const publishSubdomainInput = document.querySelector("#publish-subdomain");
 const publishUrl = document.querySelector("#publish-url");
 const publishAvailability = document.querySelector("#publish-availability");
+const publishAvailabilityIndicator = document.querySelector("#publish-availability-indicator");
 const cancelPublishButton = document.querySelector("#cancel-publish");
 const confirmPublishButton = document.querySelector("#confirm-publish");
 const unpublishButton = document.querySelector("#unpublish-wiki");
@@ -1510,6 +1511,8 @@ function renderPublishDialog() {
   publishUrl.textContent = `https://${state.publishSubdomain || "subdomain"}.wiki-wise.com`;
   publishAvailability.textContent = availabilityMessage(state.publishAvailability);
   publishAvailability.dataset.state = state.publishAvailability;
+  publishAvailabilityIndicator.dataset.state = state.publishAvailability;
+  publishAvailabilityIndicator.textContent = availabilityIndicatorText(state.publishAvailability);
   publishSubdomainInput.disabled = state.isPublishing || state.isUnpublishing;
   cancelPublishButton.disabled = state.isPublishing || state.isUnpublishing;
   confirmPublishButton.disabled = !canPublish();
@@ -1533,6 +1536,23 @@ function availabilityMessage(availability) {
     return "Anyone with this link can view your wiki.";
   default:
     return "Anyone with this link can view your wiki.";
+  }
+}
+
+function availabilityIndicatorText(availability) {
+  switch (availability) {
+  case "checking":
+    return "…";
+  case "available":
+    return "✓";
+  case "owned":
+    return "✓";
+  case "taken":
+    return "×";
+  case "invalid":
+    return "!";
+  default:
+    return "";
   }
 }
 

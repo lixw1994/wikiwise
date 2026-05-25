@@ -328,3 +328,37 @@ test("renderer mirrors native publish availability hint copy", () => {
   assert.doesNotMatch(rendererSource, /return "3-48 characters, letters, numbers, and hyphens only\."/);
   assert.match(rendererSource, /\["available", "owned"\]\.includes\(state\.publishAvailability\)/);
 });
+
+test("renderer mirrors native publish availability inline indicator", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const htmlSource = read("src/renderer/index.html");
+  const rendererSource = read("src/renderer/renderer.js");
+  const cssSource = read("src/renderer/styles.css");
+
+  assert.match(nativeSource, /ProgressView\(\)[\s\S]*\.controlSize\(\.small\)/);
+  assert.match(nativeSource, /Image\(systemName: "checkmark\.circle\.fill"\)[\s\S]*\.foregroundStyle\(\.green\)/);
+  assert.match(nativeSource, /Image\(systemName: "checkmark\.circle\.fill"\)[\s\S]*\.foregroundStyle\(\.blue\)/);
+  assert.match(nativeSource, /Image\(systemName: "xmark\.circle\.fill"\)[\s\S]*\.foregroundStyle\(\.red\)/);
+  assert.match(nativeSource, /Image\(systemName: "exclamationmark\.circle\.fill"\)[\s\S]*\.foregroundStyle\(\.orange\)/);
+  assert.match(nativeSource, /\.frame\(width:\s*16,\s*height:\s*16\)/);
+
+  assert.match(htmlSource, /id="publish-availability-indicator"/);
+  assert.match(rendererSource, /const publishAvailabilityIndicator = document\.querySelector\("#publish-availability-indicator"\)/);
+  assert.match(rendererSource, /publishAvailabilityIndicator\.dataset\.state = state\.publishAvailability/);
+  assert.match(rendererSource, /publishAvailabilityIndicator\.textContent = availabilityIndicatorText\(state\.publishAvailability\)/);
+  assert.match(rendererSource, /function availabilityIndicatorText\(availability\)/);
+  assert.match(rendererSource, /case "checking":\s*return "…"/);
+  assert.match(rendererSource, /case "available":\s*return "✓"/);
+  assert.match(rendererSource, /case "owned":\s*return "✓"/);
+  assert.match(rendererSource, /case "taken":\s*return "×"/);
+  assert.match(rendererSource, /case "invalid":\s*return "!"/);
+
+  assert.match(cssSource, /\.publish-availability-indicator/);
+  assert.match(cssSource, /width:\s*16px/);
+  assert.match(cssSource, /height:\s*16px/);
+  assert.match(cssSource, /\.publish-availability-indicator\[data-state="checking"\]/);
+  assert.match(cssSource, /\.publish-availability-indicator\[data-state="available"\]/);
+  assert.match(cssSource, /\.publish-availability-indicator\[data-state="owned"\]/);
+  assert.match(cssSource, /\.publish-availability-indicator\[data-state="taken"\]/);
+  assert.match(cssSource, /\.publish-availability-indicator\[data-state="invalid"\]/);
+});

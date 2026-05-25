@@ -790,6 +790,39 @@ body.resizing-left-sidebar * {
   font-size: inherit;
 }
 
+.publish-availability-indicator {
+  display: inline-flex;
+  width: 16px;
+  height: 16px;
+  align-items: center;
+  justify-content: center;
+  color: transparent;
+  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  line-height: 1;
+}
+
+.publish-availability-indicator[data-state="checking"] {
+  color: var(--color-muted-text);
+}
+
+.publish-availability-indicator[data-state="available"] {
+  color: #2f8f4e;
+}
+
+.publish-availability-indicator[data-state="owned"] {
+  color: #2d66b3;
+}
+
+.publish-availability-indicator[data-state="taken"] {
+  color: #b23a3a;
+}
+
+.publish-availability-indicator[data-state="invalid"] {
+  color: #b66b00;
+}
+
 .publish-availability {
   min-height: 18px;
   margin: 0;
