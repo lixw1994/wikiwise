@@ -1567,6 +1567,10 @@ function sanitizePublishSubdomain(value) {
   return String(value).toLowerCase().replace(/[^\p{L}\p{N}-]/gu, "");
 }
 
+function publishSubdomainCharacterCount(value) {
+  return Array.from(value).length;
+}
+
 function scheduleAvailabilityCheck() {
   if (state.availabilityCheckTimer) {
     clearTimeout(state.availabilityCheckTimer);
@@ -1579,7 +1583,7 @@ function scheduleAvailabilityCheck() {
     renderPublishDialog();
     return;
   }
-  if (subdomain.length < 3) {
+  if (publishSubdomainCharacterCount(subdomain) < 3) {
     state.publishAvailability = "invalid";
     renderPublishDialog();
     return;

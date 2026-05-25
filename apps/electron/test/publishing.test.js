@@ -482,6 +482,20 @@ test("renderer mirrors native publish subdomain sanitizer character behavior", (
   assert.doesNotMatch(sanitizeBody, /\[\^a-z0-9-\]/);
 });
 
+test("renderer mirrors native publish subdomain character count behavior", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const scheduleBody = rendererSource.match(
+    /function scheduleAvailabilityCheck\(\) \{([\s\S]*?)\n\}\n\nasync function checkPublishAvailability/
+  )?.[1] ?? "";
+
+  assert.match(nativeSource, /guard subdomain\.count >= 3 else/);
+  assert.match(rendererSource, /function publishSubdomainCharacterCount\(value\)/);
+  assert.match(rendererSource, /Array\.from\(value\)\.length/);
+  assert.match(scheduleBody, /publishSubdomainCharacterCount\(subdomain\)\s*<\s*3/);
+  assert.doesNotMatch(scheduleBody, /subdomain\.length\s*<\s*3/);
+});
+
 test("renderer mirrors native publish availability inline indicator", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const htmlSource = read("src/renderer/index.html");
