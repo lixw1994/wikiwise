@@ -1167,6 +1167,10 @@ body.resizing-left-sidebar * {
   margin-top: 8px;
 }
 
+.new-wiki-actions {
+  margin-top: 0;
+}
+
 .publish-actions {
   margin-top: 0;
 }

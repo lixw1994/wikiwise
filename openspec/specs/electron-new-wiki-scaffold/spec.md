@@ -78,3 +78,13 @@ The Electron create-new-wiki dialog SHALL mirror the native sheet's one-line mid
 - **AND** the full selected location remains available as label metadata
 - **AND** wiki creation continues to use the full selected location path
 - **AND** short selected location paths remain unchanged
+
+### Requirement: New Wiki Action Row Spacing Parity
+The Electron create-new-wiki dialog SHALL match the native sheet's action row spacing.
+
+#### Scenario: New wiki action row is inspected
+- **WHEN** the Electron create-new-wiki dialog is rendered
+- **THEN** the Cancel/Create action row uses only the parent sheet's native 20px vertical spacing
+- **AND** it does not add extra top margin above the action row
+- **AND** the Cancel and Create controls keep their IDs and labels
+- **AND** shared modal action spacing remains available for non-new-wiki dialogs

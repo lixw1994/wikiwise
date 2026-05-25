@@ -134,6 +134,33 @@ test("renderer mirrors native new-wiki location middle truncation", () => {
   assert.doesNotMatch(locationPathBlock, /text-overflow:\s*ellipsis/);
 });
 
+test("renderer mirrors native new-wiki action row spacing", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const htmlSource = read("src/renderer/index.html");
+  const styleSource = read("src/renderer/styles.css");
+  const newWikiSheetSource =
+    nativeSource.match(/private var newWikiSheet: some View[\s\S]*?\.frame\(width:\s*400\)/)?.[0] ?? "";
+  const modalActionsBlock = cssBlock(styleSource, ".modal-actions");
+  const newWikiActionsBlock = cssBlock(styleSource, ".new-wiki-actions");
+
+  assert.notEqual(newWikiSheetSource, "");
+  assert.match(
+    newWikiSheetSource,
+    /VStack\(spacing:\s*20\)[\s\S]*HStack\s*\{[\s\S]*Button\("Cancel"\)[\s\S]*Spacer\(\)[\s\S]*Button\("Create"\)/
+  );
+  assert.doesNotMatch(
+    newWikiSheetSource,
+    /HStack\s*\{[\s\S]*Button\("Cancel"\)[\s\S]*Button\("Create"\)[\s\S]*\.padding\(\.top/
+  );
+
+  assert.match(
+    htmlSource,
+    /<div class="modal-actions new-wiki-actions">[\s\S]*id="cancel-create-new"[\s\S]*Cancel[\s\S]*id="confirm-create-new"[\s\S]*Create[\s\S]*<\/div>/
+  );
+  assert.match(modalActionsBlock, /margin-top:\s*8px/);
+  assert.match(newWikiActionsBlock, /margin-top:\s*0/);
+});
+
 test("renderer mirrors native new-wiki and post-create guide copy", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
