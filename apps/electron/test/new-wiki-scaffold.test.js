@@ -507,7 +507,7 @@ test("renderer mirrors native post-create guide dividers", () => {
   );
   assert.match(
     htmlSource,
-    /id="guide-cursor-command"><\/code><\/pre>\s*<\/div>\s*<hr class="guide-divider" aria-hidden="true" \/>\s*<div class="guide-block">\s*<p class="eyebrow">SEED YOUR WIKI<\/p>/
+    /id="guide-cursor-command"><\/code><\/pre>\s*<\/div>\s*<\/div>\s*<hr class="guide-divider" aria-hidden="true" \/>\s*<div class="guide-block">\s*<p class="eyebrow">SEED YOUR WIKI<\/p>/
   );
   assert.match(
     htmlSource,
@@ -608,4 +608,47 @@ test("renderer mirrors native post-create guide final guidance", () => {
   assert.match(finalRule, /line-height:\s*calc\(1\.2em \+ 2px\)/);
   assert.match(sharedParagraphRule, /color:\s*var\(--color-linked-text\)/);
   assert.match(sharedParagraphRule, /line-height:\s*1\.6/);
+});
+
+test("renderer mirrors native post-create guide agent command labels", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const htmlSource = read("src/renderer/index.html");
+  const styleSource = read("src/renderer/styles.css");
+  const agentCommandSource =
+    nativeSource.match(/private func agentCommand\(agent: String, command: String\) -> some View[\s\S]*?private func seedOption/)?.[0] ??
+    "";
+  const commandRule = cssBlock(styleSource, ".guide-command");
+  const labelRule = cssBlock(styleSource, ".post-create-guide .guide-command-agent");
+
+  assert.notEqual(agentCommandSource, "");
+  assert.match(
+    agentCommandSource,
+    /Text\(agent\)[\s\S]*?\.font\(\.system\(size:\s*12,\s*weight:\s*\.semibold\)\)[\s\S]*?\.foregroundStyle\(Color\.sidebarText\)/
+  );
+  assert.match(agentCommandSource, /VStack\(alignment:\s*\.leading,\s*spacing:\s*4\)/);
+  assert.match(nativeSource, /agentCommand\(\s*agent:\s*"Claude Code"/);
+  assert.match(nativeSource, /agentCommand\(\s*agent:\s*"Codex"/);
+  assert.match(nativeSource, /agentCommand\(\s*agent:\s*"Cursor"/);
+  assert.match(
+    htmlSource,
+    /<div class="guide-command">\s*<p class="guide-command-agent">Claude Code<\/p>\s*<pre><code id="guide-claude-command"><\/code><\/pre>\s*<\/div>/
+  );
+  assert.match(
+    htmlSource,
+    /<div class="guide-command">\s*<p class="guide-command-agent">Codex<\/p>\s*<pre><code id="guide-codex-command"><\/code><\/pre>\s*<\/div>/
+  );
+  assert.match(
+    htmlSource,
+    /<div class="guide-command">\s*<p class="guide-command-agent">Cursor<\/p>\s*<pre><code id="guide-cursor-command"><\/code><\/pre>\s*<\/div>/
+  );
+  assert.match(rendererSource, /document\.querySelector\("#guide-claude-command"\)/);
+  assert.match(rendererSource, /document\.querySelector\("#guide-codex-command"\)/);
+  assert.match(rendererSource, /document\.querySelector\("#guide-cursor-command"\)/);
+  assert.match(commandRule, /display:\s*grid/);
+  assert.match(commandRule, /gap:\s*4px/);
+  assert.match(labelRule, /font-size:\s*12px/);
+  assert.match(labelRule, /font-weight:\s*600/);
+  assert.match(labelRule, /color:\s*var\(--color-sidebar-text\)/);
+  assert.match(labelRule, /line-height:\s*1\.2/);
 });

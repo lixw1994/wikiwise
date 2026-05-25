@@ -1273,11 +1273,25 @@ body.resizing-left-sidebar * {
   text-transform: none;
 }
 
+.guide-command {
+  display: grid;
+  gap: 4px;
+  margin: 8px 0;
+}
+
+.post-create-guide .guide-command-agent {
+  margin: 0;
+  color: var(--color-sidebar-text);
+  font-size: 12px;
+  font-weight: 600;
+  line-height: 1.2;
+}
+
 .post-create-guide pre {
   overflow: auto;
   border: 1px solid var(--color-sidebar-rule);
   border-radius: 6px;
-  margin: 8px 0;
+  margin: 0;
   padding: 10px 12px;
   background: var(--color-guide-code-bg);
   color: var(--color-info-value);
