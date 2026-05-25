@@ -652,3 +652,34 @@ test("renderer mirrors native post-create guide agent command labels", () => {
   assert.match(labelRule, /color:\s*var\(--color-sidebar-text\)/);
   assert.match(labelRule, /line-height:\s*1\.2/);
 });
+
+test("renderer mirrors native post-create guide agent command chrome", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const styleSource = read("src/renderer/styles.css");
+  const agentCommandSource =
+    nativeSource.match(/private func agentCommand\(agent: String, command: String\) -> some View[\s\S]*?private func seedOption/)?.[0] ??
+    "";
+  const commandChromeRule = cssBlock(styleSource, ".post-create-guide pre");
+  const commandTextRule = cssBlock(styleSource, ".post-create-guide code");
+
+  assert.notEqual(agentCommandSource, "");
+  assert.match(
+    agentCommandSource,
+    /Text\(command\)[\s\S]*?\.font\(\.system\(size:\s*12,\s*design:\s*\.monospaced\)\)[\s\S]*?\.foregroundStyle\(Color\.sidebarTextMuted\)[\s\S]*?\.padding\(\.horizontal,\s*10\)[\s\S]*?\.padding\(\.vertical,\s*6\)[\s\S]*?\.background\(Color\.sidebarBg\)[\s\S]*?\.clipShape\(RoundedRectangle\(cornerRadius:\s*4\)\)[\s\S]*?\.textSelection\(\.enabled\)/
+  );
+  assert.match(commandTextRule, /font-family:\s*ui-monospace,\s*"SFMono-Regular",\s*Menlo,\s*monospace/);
+  assert.match(commandTextRule, /font-size:\s*12px/);
+  assert.match(commandChromeRule, /border:\s*0/);
+  assert.doesNotMatch(commandChromeRule, /border:\s*1px solid var\(--color-sidebar-rule\)/);
+  assert.match(commandChromeRule, /border-radius:\s*4px/);
+  assert.match(commandChromeRule, /padding:\s*6px 10px/);
+  assert.match(commandChromeRule, /background:\s*var\(--color-sidebar-bg\)/);
+  assert.doesNotMatch(commandChromeRule, /background:\s*var\(--color-guide-code-bg\)/);
+  assert.match(commandChromeRule, /color:\s*var\(--color-sidebar-text-muted\)/);
+  assert.doesNotMatch(commandChromeRule, /color:\s*var\(--color-info-value\)/);
+  assert.match(commandChromeRule, /overflow:\s*auto/);
+  assert.match(rendererSource, /guideClaudeCommand\.textContent = `cd \$\{projectRoot\} && claude`/);
+  assert.match(rendererSource, /guideCodexCommand\.textContent = `cd \$\{projectRoot\} && codex`/);
+  assert.match(rendererSource, /guideCursorCommand\.textContent = `Open \$\{projectRoot\} in Cursor`/);
+});
