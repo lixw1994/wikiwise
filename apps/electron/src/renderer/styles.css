@@ -789,9 +789,12 @@ body.resizing-left-sidebar * {
   border-radius: 4px;
   padding: 8px;
   background: var(--color-sidebar-bg);
-  color: var(--color-linked-text);
   font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
   font-size: 13px;
+}
+
+.publish-url-affix {
+  color: var(--color-muted-text);
 }
 
 .publish-subdomain {
@@ -802,6 +805,7 @@ body.resizing-left-sidebar * {
   border-radius: 0;
   padding: 0;
   background: transparent;
+  color: var(--color-tab-active);
   font-family: inherit;
   font-size: inherit;
 }

@@ -354,6 +354,43 @@ test("renderer mirrors native publish URL row font", () => {
   assert.match(availabilityIndicatorBlock, /height:\s*16px/);
 });
 
+test("renderer mirrors native publish URL row color hierarchy", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const htmlSource = read("src/renderer/index.html");
+  const normalizedHtml = normalized(htmlSource);
+  const cssSource = read("src/renderer/styles.css");
+  const nativePublishSheet = nativeSource.match(
+    /private var publishConfirmSheet:[\s\S]*?\n    private var canPublish/
+  )?.[0] ?? "";
+  const nativeSubdomainField = nativePublishSheet.match(
+    /TextField\("subdomain"[\s\S]*?\.frame\(maxWidth:\s*200\)/
+  )?.[0] ?? "";
+  const publishUrlAffixBlock = cssBlock(cssSource, ".publish-url-affix");
+  const publishUrlRowBlock = cssBlock(cssSource, ".publish-url-row");
+  const publishSubdomainBlock = cssBlock(cssSource, ".publish-subdomain");
+  const availabilityIndicatorBlock = cssBlock(cssSource, ".publish-availability-indicator");
+
+  assert.match(
+    nativePublishSheet,
+    /Text\("https:\/\/"\)[\s\S]*\.foregroundStyle\(\.secondary\)[\s\S]*TextField\("subdomain"/
+  );
+  assert.doesNotMatch(nativeSubdomainField, /foregroundStyle\(\.secondary\)/);
+  assert.match(
+    nativePublishSheet,
+    /Text\("\.wiki-wise\.com"\)[\s\S]*\.foregroundStyle\(\.secondary\)/
+  );
+
+  assert.match(normalizedHtml, /<span class="publish-url-affix">https:\/\/<\/span>/);
+  assert.match(normalizedHtml, /<span class="publish-url-affix">\.wiki-wise\.com<\/span>/);
+  assert.match(publishUrlAffixBlock, /color:\s*var\(--color-muted-text\)/);
+  assert.match(publishSubdomainBlock, /color:\s*var\(--color-tab-active\)/);
+  assert.doesNotMatch(publishUrlRowBlock, /color:\s*var\(--color-linked-text\)/);
+  assert.match(publishUrlRowBlock, /grid-template-columns:\s*auto minmax\(80px,\s*200px\) auto minmax\(0,\s*1fr\) 16px/);
+  assert.match(publishUrlRowBlock, /font-size:\s*13px/);
+  assert.match(availabilityIndicatorBlock, /width:\s*16px/);
+  assert.match(availabilityIndicatorBlock, /height:\s*16px/);
+});
+
 test("renderer mirrors native publish subdomain plain input padding", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const cssSource = read("src/renderer/styles.css");
