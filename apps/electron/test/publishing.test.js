@@ -262,9 +262,13 @@ test("renderer mirrors native publish dialog copy", () => {
 
   assert.match(nativeSource, /Button\("Unpublish\\u\{2026\}"\)/);
   assert.match(htmlSource, />\s*Unpublish…\s*<\/button>/);
-  assert.match(rendererSource, /state\.isUnpublishing \? "Unpublishing" : "Unpublish…"/);
+  assert.match(rendererSource, /unpublishButton\.textContent = "Unpublish…"/);
   assert.doesNotMatch(htmlSource, /Unpublish\.\.\./);
   assert.doesNotMatch(rendererSource, /Unpublish\.\.\./);
+  assert.doesNotMatch(
+    rendererSource,
+    /unpublishButton\.textContent = state\.isUnpublishing \? "Unpublishing" : "Unpublish…"/
+  );
 });
 
 test("renderer mirrors native publish result copy", () => {

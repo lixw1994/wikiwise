@@ -1519,7 +1519,7 @@ function renderPublishDialog() {
   confirmPublishButton.textContent = "Publish";
   unpublishButton.hidden = !state.publishConfig?.published;
   unpublishButton.disabled = state.isPublishing || state.isUnpublishing;
-  unpublishButton.textContent = state.isUnpublishing ? "Unpublishing" : "Unpublish…";
+  unpublishButton.textContent = "Unpublish…";
 }
 
 function availabilityMessage(availability) {

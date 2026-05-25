@@ -45,6 +45,7 @@ The Electron app SHALL let users choose or edit the wiki subdomain before publis
 - **THEN** the dialog displays the saved subdomain
 - **AND** the subdomain state is treated as owned unless an availability check says otherwise
 - **AND** the dialog shows the native `Unpublish…` action
+- **AND** the native `Unpublish…` action label remains unchanged while shown
 - **AND** the confirmation action remains labeled `Publish`
 - **AND** the dialog closes through the native cancel keyboard shortcut
 - **AND** the dialog submits through the native default keyboard shortcut when Publish is enabled
