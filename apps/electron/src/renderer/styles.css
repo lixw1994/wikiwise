@@ -744,6 +744,7 @@ body.resizing-left-sidebar * {
   font-family: Georgia, serif;
   font-size: 18px;
   font-weight: 500;
+  margin-bottom: 0;
 }
 
 .publish-feedback-dialog {

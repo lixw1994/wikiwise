@@ -167,3 +167,11 @@ The Electron publish dialog SHALL use the native publish sheet title typography.
 - **WHEN** the publish dialog is rendered
 - **THEN** the `Publish your wiki` title uses an 18px serif font with medium weight matching the native publish sheet
 - **AND** the typography override is scoped to the publish dialog title
+
+### Requirement: Publish Dialog Title Margin Parity
+The Electron publish dialog title SHALL not add spacing beyond the native publish sheet content gap.
+
+#### Scenario: Publish dialog title relies on panel gap
+- **WHEN** the publish dialog is rendered
+- **THEN** the title has no additional bottom margin beyond the dialog's native 16px content gap
+- **AND** the shared modal title margin for unrelated dialogs is not changed for this requirement

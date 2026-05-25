@@ -370,6 +370,22 @@ test("renderer mirrors native publish dialog title typography", () => {
   assert.match(publishTitleBlock, /font-weight:\s*500/);
 });
 
+test("renderer mirrors native publish dialog title spacing without extra margin", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const cssSource = read("src/renderer/styles.css");
+  const publishDialogBlock = cssBlock(cssSource, ".publish-dialog");
+  const publishTitleBlock = cssBlock(cssSource, ".publish-dialog h2");
+  const modalTitleBlock = cssBlock(cssSource, ".modal-panel h2");
+
+  assert.match(
+    nativeSource,
+    /private var publishConfirmSheet:[\s\S]*VStack\(alignment:\s*\.leading,\s*spacing:\s*16\)/
+  );
+  assert.match(publishDialogBlock, /gap:\s*16px/);
+  assert.match(publishTitleBlock, /margin-bottom:\s*0/);
+  assert.match(modalTitleBlock, /margin-bottom:\s*4px/);
+});
+
 test("renderer mirrors native publish result copy", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
