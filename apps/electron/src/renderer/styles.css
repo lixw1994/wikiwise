@@ -804,7 +804,17 @@ body.resizing-left-sidebar * {
 }
 
 .publish-availability-indicator[data-state="checking"] {
-  color: var(--color-muted-text);
+  color: transparent;
+}
+
+.publish-availability-indicator[data-state="checking"]::before {
+  width: 12px;
+  height: 12px;
+  border: 2px solid color-mix(in srgb, var(--color-muted-text) 30%, transparent);
+  border-top-color: var(--color-muted-text);
+  border-radius: 50%;
+  animation: publish-availability-spin 0.8s linear infinite;
+  content: "";
 }
 
 .publish-availability-indicator[data-state="available"] {
@@ -821,6 +831,12 @@ body.resizing-left-sidebar * {
 
 .publish-availability-indicator[data-state="invalid"] {
   color: #b66b00;
+}
+
+@keyframes publish-availability-spin {
+  to {
+    transform: rotate(360deg);
+  }
 }
 
 .publish-availability {

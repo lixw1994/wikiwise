@@ -1542,7 +1542,7 @@ function availabilityMessage(availability) {
 function availabilityIndicatorText(availability) {
   switch (availability) {
   case "checking":
-    return "…";
+    return "";
   case "available":
     return "✓";
   case "owned":

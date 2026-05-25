@@ -351,7 +351,8 @@ test("renderer mirrors native publish availability inline indicator", () => {
   assert.match(rendererSource, /publishAvailabilityIndicator\.dataset\.state = state\.publishAvailability/);
   assert.match(rendererSource, /publishAvailabilityIndicator\.textContent = availabilityIndicatorText\(state\.publishAvailability\)/);
   assert.match(rendererSource, /function availabilityIndicatorText\(availability\)/);
-  assert.match(rendererSource, /case "checking":\s*return "…"/);
+  assert.match(rendererSource, /case "checking":\s*return ""/);
+  assert.doesNotMatch(rendererSource, /case "checking":\s*return "…"/);
   assert.match(rendererSource, /case "available":\s*return "✓"/);
   assert.match(rendererSource, /case "owned":\s*return "✓"/);
   assert.match(rendererSource, /case "taken":\s*return "×"/);
@@ -361,6 +362,9 @@ test("renderer mirrors native publish availability inline indicator", () => {
   assert.match(cssSource, /width:\s*16px/);
   assert.match(cssSource, /height:\s*16px/);
   assert.match(cssSource, /\.publish-availability-indicator\[data-state="checking"\]/);
+  assert.match(cssSource, /\.publish-availability-indicator\[data-state="checking"\]::before/);
+  assert.match(cssSource, /animation:\s*publish-availability-spin/);
+  assert.match(cssSource, /@keyframes publish-availability-spin/);
   assert.match(cssSource, /\.publish-availability-indicator\[data-state="available"\]/);
   assert.match(cssSource, /\.publish-availability-indicator\[data-state="owned"\]/);
   assert.match(cssSource, /\.publish-availability-indicator\[data-state="taken"\]/);

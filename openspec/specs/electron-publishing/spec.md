@@ -63,6 +63,7 @@ The Electron app SHALL show subdomain availability feedback matching the native 
 - **AND** the UI distinguishes available, owned, taken, invalid, checking, and unknown states
 - **AND** the subdomain row includes a fixed 16x16 availability indicator
 - **AND** `checking` displays an in-progress indicator in the row
+- **AND** `checking` does not display visible text or punctuation in the row indicator
 - **AND** `available` and `owned` display a success indicator in the row
 - **AND** `taken` displays a failure indicator in the row
 - **AND** `invalid` displays a warning indicator in the row
