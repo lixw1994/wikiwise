@@ -76,8 +76,15 @@ test("renderer contains new-wiki dialog state, create flow, and post-create guid
 
 test("renderer mirrors native new-wiki and post-create guide copy", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
   const htmlSource = read("src/renderer/index.html");
   const normalizedHtml = normalized(htmlSource);
+
+  assert.match(nativeSource, /Button\("Create"\)\s*\{[\s\S]*createNewWiki\(\)/);
+  assert.match(htmlSource, /id="confirm-create-new"[\s\S]*?>\s*Create\s*<\/button>/);
+  assert.match(rendererSource, /confirmCreateNewButton\.textContent = "Create"/);
+  assert.doesNotMatch(rendererSource, /confirmCreateNewButton\.textContent = state\.isCreatingWiki \? "Creating" : "Create"/);
+  assert.doesNotMatch(rendererSource, /"Creating"/);
 
   assert.match(nativeSource, /Button\("Choose…"\)/);
   assert.match(htmlSource, /id="choose-new-wiki-location"[\s\S]*?>\s*Choose…\s*<\/button>/);

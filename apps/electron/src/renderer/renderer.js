@@ -1087,7 +1087,7 @@ function renderNewWikiDialog() {
   cancelCreateNewButton.disabled = state.isCreatingWiki;
   confirmCreateNewButton.disabled =
     state.isCreatingWiki || state.newWikiName.trim().length === 0 || !state.newWikiLocation;
-  confirmCreateNewButton.textContent = state.isCreatingWiki ? "Creating" : "Create";
+  confirmCreateNewButton.textContent = "Create";
 }
 
 async function chooseNewWikiLocation() {
