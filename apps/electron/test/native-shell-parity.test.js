@@ -132,6 +132,22 @@ test("offsets toolbar project title like native left-sidebar compensation", () =
   assert.match(rendererSource, /project\.style\.setProperty\("--toolbar-title-offset",\s*`\$\{toolbarTitleOffset\}px`\)/);
 });
 
+test("matches native toolbar navigation help labels", () => {
+  assert.match(nativeContentViewSource, /\.help\("Go Back \(\\u\{2318\}\[\)"\)/);
+  assert.match(nativeContentViewSource, /\.help\("Go Forward \(\\u\{2318\}\]\)"\)/);
+
+  assert.match(
+    htmlSource,
+    /id="go-back"[^>]*title="Go Back \(⌘\[\)"[^>]*aria-label="Go Back \(⌘\[\)"/
+  );
+  assert.match(
+    htmlSource,
+    /id="go-forward"[^>]*title="Go Forward \(⌘\]\)"[^>]*aria-label="Go Forward \(⌘\]\)"/
+  );
+  assert.doesNotMatch(htmlSource, /id="go-back"[^>]*title="Go Back"/);
+  assert.doesNotMatch(htmlSource, /id="go-forward"[^>]*title="Go Forward"/);
+});
+
 test("matches native left-sidebar header structure and typography", () => {
   const sidebarBlock = cssBlock(".sidebar");
   const sidebarHeaderBlock = cssBlock(".sidebar .eyebrow");
