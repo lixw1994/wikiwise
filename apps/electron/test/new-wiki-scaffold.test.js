@@ -134,6 +134,26 @@ test("renderer mirrors native new-wiki location middle truncation", () => {
   assert.doesNotMatch(locationPathBlock, /text-overflow:\s*ellipsis/);
 });
 
+test("renderer mirrors native new-wiki location path font", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const styleSource = read("src/renderer/styles.css");
+  const newWikiSheetSource =
+    nativeSource.match(/private var newWikiSheet: some View[\s\S]*?\.frame\(width:\s*400\)/)?.[0] ?? "";
+  const locationPathBlock = cssBlock(styleSource, ".location-path");
+
+  assert.notEqual(newWikiSheetSource, "");
+  assert.match(
+    newWikiSheetSource,
+    /Text\(newWikiLocation\?\.path \?\? "~\/wikis"\)[\s\S]*\.font\(\.system\(size:\s*12\)\)/
+  );
+  assert.match(locationPathBlock, /font-size:\s*12px/);
+  assert.doesNotMatch(locationPathBlock, /ui-monospace|SFMono-Regular|Menlo|monospace/);
+  assert.match(rendererSource, /newWikiLocationLabel\.title = fullLocationPath/);
+  assert.match(rendererSource, /newWikiLocationLabel\.setAttribute\("aria-label", fullLocationPath\)/);
+  assert.match(rendererSource, /parentDir:\s*state\.newWikiLocation/);
+});
+
 test("renderer mirrors native new-wiki action row spacing", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const htmlSource = read("src/renderer/index.html");
