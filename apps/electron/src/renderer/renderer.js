@@ -1074,6 +1074,24 @@ function closeNewWikiDialog() {
   renderNewWikiDialog();
 }
 
+function handleNewWikiDialogKeydown(event) {
+  if (!state.isNewWikiDialogOpen) return;
+
+  if (event.key === "Escape") {
+    event.preventDefault();
+    closeNewWikiDialog();
+    return;
+  }
+
+  if (event.key === "Enter") {
+    if (event.target instanceof HTMLButtonElement) return;
+    if (confirmCreateNewButton.disabled) return;
+
+    event.preventDefault();
+    createNewWiki();
+  }
+}
+
 function renderNewWikiDialog() {
   newWikiDialog.hidden = !state.isNewWikiDialogOpen;
   if (!state.isNewWikiDialogOpen) return;
@@ -2027,4 +2045,5 @@ newWikiNameInput.addEventListener("input", () => {
 chooseNewWikiLocationButton.addEventListener("click", chooseNewWikiLocation);
 cancelCreateNewButton.addEventListener("click", closeNewWikiDialog);
 confirmCreateNewButton.addEventListener("click", createNewWiki);
+newWikiDialog.addEventListener("keydown", handleNewWikiDialogKeydown);
 dismissPostCreateGuideButton.addEventListener("click", dismissPostCreateGuide);

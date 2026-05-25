@@ -17,6 +17,8 @@ The Electron app SHALL provide a create-new-wiki flow from the welcome screen th
 - **AND** the confirm action uses the native `Create` label
 - **AND** the Create action is disabled while the trimmed wiki name is empty
 - **AND** the Create action remains disabled while a create request is in progress
+- **AND** the dialog closes through the native cancel keyboard shortcut
+- **AND** the dialog submits through the native default keyboard shortcut when Create is enabled
 
 ### Requirement: Scaffolded Wiki Creation
 

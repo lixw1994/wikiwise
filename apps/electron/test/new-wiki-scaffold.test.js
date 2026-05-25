@@ -59,6 +59,7 @@ test("renderer contains new-wiki dialog state, create flow, and post-create guid
   assert.match(rendererSource, /openNewWikiDialog/);
   assert.match(rendererSource, /chooseNewWikiLocation/);
   assert.match(rendererSource, /createNewWiki/);
+  assert.match(rendererSource, /handleNewWikiDialogKeydown/);
   assert.match(rendererSource, /applyProjectResult/);
   assert.match(rendererSource, /startProjectWatcher/);
   assert.match(rendererSource, /dismissPostCreateGuide/);
@@ -85,6 +86,19 @@ test("renderer mirrors native new-wiki and post-create guide copy", () => {
   assert.match(rendererSource, /confirmCreateNewButton\.textContent = "Create"/);
   assert.doesNotMatch(rendererSource, /confirmCreateNewButton\.textContent = state\.isCreatingWiki \? "Creating" : "Create"/);
   assert.doesNotMatch(rendererSource, /"Creating"/);
+
+  assert.match(
+    nativeSource,
+    /Button\("Cancel"\)\s*\{[\s\S]*showNewWikiSheet = false[\s\S]*\.keyboardShortcut\(\.cancelAction\)/
+  );
+  assert.match(
+    nativeSource,
+    /Button\("Create"\)\s*\{[\s\S]*createNewWiki\(\)[\s\S]*\.keyboardShortcut\(\.defaultAction\)/
+  );
+  assert.match(rendererSource, /function handleNewWikiDialogKeydown\(event\)/);
+  assert.match(rendererSource, /event\.key === "Escape"[\s\S]*closeNewWikiDialog\(\)/);
+  assert.match(rendererSource, /event\.key === "Enter"[\s\S]*confirmCreateNewButton\.disabled[\s\S]*createNewWiki\(\)/);
+  assert.match(rendererSource, /newWikiDialog\.addEventListener\("keydown", handleNewWikiDialogKeydown\)/);
 
   assert.match(nativeSource, /Button\("Choose…"\)/);
   assert.match(htmlSource, /id="choose-new-wiki-location"[\s\S]*?>\s*Choose…\s*<\/button>/);
