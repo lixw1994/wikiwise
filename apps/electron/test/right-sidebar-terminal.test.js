@@ -20,6 +20,11 @@ function cssBlock(source, selector) {
   return source.match(pattern)?.[1] ?? "";
 }
 
+function rootCssBlock(source, selector) {
+  const pattern = new RegExp(`${selector}\\s*\\{([^}]+)\\}`);
+  return source.match(pattern)?.[1] ?? "";
+}
+
 test("main process exposes document info IPC with project path validation", () => {
   const mainSource = read("src/main/main.js");
 
@@ -235,6 +240,37 @@ test("renderer terminal panel mirrors native top and leading inset", () => {
   assert.match(xtermBlock, /height:\s*100%/);
   assert.match(xtermBlock, /padding:\s*0/);
   assert.doesNotMatch(xtermBlock, /padding:\s*10px/);
+});
+
+test("renderer terminal CSS fallback mirrors native SwiftTerm palette", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/TerminalEmbed.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const cssSource = read("src/renderer/styles.css");
+  const rootBlock = rootCssBlock(cssSource, ":root");
+  const darkRootBlock = rootCssBlock(cssSource, ':root\\[data-appearance="Dark"\\]');
+  const terminalPanelBlock = cssBlock(cssSource, ".terminal-panel");
+  const terminalSurfaceBlock = cssBlock(cssSource, ".terminal-surface");
+
+  assert.match(
+    nativeSource,
+    /nativeBackgroundColor = isDark[\s\S]*0x0E\/255[\s\S]*0x0C\/255[\s\S]*0x08\/255[\s\S]*0xF3\/255[\s\S]*0xED\/255[\s\S]*0xDE\/255/
+  );
+  assert.match(
+    nativeSource,
+    /nativeForegroundColor = isDark[\s\S]*0xCF\/255[\s\S]*0xC3\/255[\s\S]*0xA3\/255[\s\S]*0x5B\/255[\s\S]*0x52\/255[\s\S]*0x40\/255/
+  );
+  assert.match(rendererSource, /background:\s*"#0E0C08"[\s\S]*foreground:\s*"#CFC3A3"/);
+  assert.match(rendererSource, /background:\s*"#F3EDDE"[\s\S]*foreground:\s*"#5B5240"/);
+
+  assert.match(rootBlock, /--color-terminal-bg:\s*#f3edde/);
+  assert.match(rootBlock, /--color-terminal-fg:\s*#5b5240/);
+  assert.match(darkRootBlock, /--color-terminal-bg:\s*#0e0c08/);
+  assert.match(darkRootBlock, /--color-terminal-fg:\s*#cfc3a3/);
+  assert.match(terminalPanelBlock, /background:\s*var\(--color-terminal-bg\)/);
+  assert.match(terminalSurfaceBlock, /background:\s*var\(--color-terminal-bg\)/);
+  assert.match(terminalSurfaceBlock, /color:\s*var\(--color-terminal-fg\)/);
+  assert.doesNotMatch(terminalPanelBlock, /#161714/);
+  assert.doesNotMatch(terminalSurfaceBlock, /#10110f|#d7ead0/);
 });
 
 test("renderer directions info uses native gold callout styling", () => {
