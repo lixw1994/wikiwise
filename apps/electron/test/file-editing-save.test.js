@@ -41,6 +41,7 @@ test("main and preload expose shared CodeMirror editor resource without renderer
 test("renderer uses shared CodeMirror iframe for source editing, save, and scroll state", () => {
   const rendererSource = read("src/renderer/renderer.js");
   const htmlSource = read("src/renderer/index.html");
+  const setDetailModeSource = rendererSource.match(/function setDetailMode\(mode\) \{[\s\S]*?\n\}/)?.[0] ?? "";
 
   assert.match(htmlSource, /id="source-editor-frame"/);
   assert.match(htmlSource, /title="Source editor"/);
@@ -56,8 +57,12 @@ test("renderer uses shared CodeMirror iframe for source editing, save, and scrol
   assert.match(rendererSource, /__getScrollFraction/);
   assert.match(rendererSource, /__scrollToFraction/);
   assert.match(
-    rendererSource,
-    /function setDetailMode\(mode\) \{\s*if \(state\.detailMode === "file" && mode !== "file"\) \{\s*captureEditorScrollFraction\(\);\s*\}\s*state\.detailMode = mode;/
+    setDetailModeSource,
+    /if \(state\.detailMode === "file" && mode !== "file"\) \{\s*captureEditorScrollFraction\(\);/
+  );
+  assert.ok(
+    setDetailModeSource.indexOf("captureEditorScrollFraction();") <
+      setDetailModeSource.indexOf("state.detailMode = mode;")
   );
   assert.match(rendererSource, /isDirty/);
   assert.match(rendererSource, /lastSavedContent/);

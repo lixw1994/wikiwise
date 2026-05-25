@@ -534,6 +534,8 @@ async function setActiveSelectedFile(filePath = state.selectedFile?.path) {
 function setDetailMode(mode) {
   if (state.detailMode === "file" && mode !== "file") {
     captureEditorScrollFraction();
+  } else if (state.detailMode === "wiki" && mode !== "wiki") {
+    capturePreviewScrollFraction();
   }
   state.detailMode = mode;
   renderDetail();
@@ -624,7 +626,14 @@ function setEditorContent(content, scrollFraction = 0, filePath = "") {
 }
 
 function renderPreview() {
-  previewFrame.src = state.selectedFile.compiled.fileUrl;
+  const file = state.selectedFile;
+  if (!file?.compiled?.fileUrl) return;
+
+  if (!previewFrame.hidden && previewFrame.getAttribute("src") === file.compiled.fileUrl) {
+    capturePreviewScrollFraction();
+  }
+
+  previewFrame.src = file.compiled.fileUrl;
 }
 
 function publishButtonHelpText() {
@@ -1964,6 +1973,42 @@ function captureEditorScrollFraction() {
   }
 }
 
+function capturePreviewScrollFraction() {
+  if (!state.selectedFile || previewFrame.hidden) return;
+
+  try {
+    const previewWindow = previewFrame.contentWindow;
+    const previewDocument = previewWindow?.document;
+    if (!previewWindow || !previewDocument?.body) return;
+
+    const fraction =
+      previewWindow.scrollY / Math.max(1, previewDocument.body.scrollHeight - previewWindow.innerHeight);
+    if (Number.isFinite(fraction)) {
+      state.selectedFile.scrollFraction = fraction;
+    }
+  } catch {
+    // A future non-local preview should not break mode switching.
+  }
+}
+
+function restorePreviewScrollFraction(scrollFraction = 0) {
+  const fraction = Number(scrollFraction);
+  if (!Number.isFinite(fraction) || fraction <= 0) return;
+
+  try {
+    const previewWindow = previewFrame.contentWindow;
+    const previewDocument = previewWindow?.document;
+    if (!previewWindow || !previewDocument?.body) return;
+
+    window.requestAnimationFrame(() => {
+      const maxScroll = Math.max(1, previewDocument.body.scrollHeight - previewWindow.innerHeight);
+      previewWindow.scrollTo(0, fraction * maxScroll);
+    });
+  } catch {
+    // Ignore inaccessible preview frames and keep rendering the page.
+  }
+}
+
 function syncEditorContentToSelectedFile() {
   const file = state.selectedFile;
   if (!file) return;
@@ -2089,7 +2134,10 @@ document.addEventListener("keydown", (event) => {
 });
 modeFileButton.addEventListener("click", () => setDetailMode("file"));
 modeWikiButton.addEventListener("click", () => setDetailMode("wiki"));
-previewFrame.addEventListener("load", () => attachPreviewNavigation(previewFrame));
+previewFrame.addEventListener("load", () => {
+  attachPreviewNavigation(previewFrame);
+  restorePreviewScrollFraction(state.selectedFile?.scrollFraction ?? 0);
+});
 generatedPreviewFrame.addEventListener("load", () => attachPreviewNavigation(generatedPreviewFrame));
 publishButton.addEventListener("click", openPublishDialog);
 goBackButton.addEventListener("click", navigateBack);
