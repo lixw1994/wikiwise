@@ -772,8 +772,8 @@ body.resizing-left-sidebar * {
   grid-template-columns: auto minmax(80px, 200px) auto minmax(0, 1fr) 16px;
   align-items: center;
   gap: 4px;
-  border: 1px solid var(--color-sidebar-rule);
-  border-radius: 6px;
+  border: 0;
+  border-radius: 4px;
   padding: 8px;
   background: var(--color-sidebar-bg);
   color: var(--color-linked-text);

@@ -19,6 +19,11 @@ function normalized(source) {
   return source.replace(/\s+/g, " ").trim();
 }
 
+function cssBlock(source, selector) {
+  const pattern = new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{([^}]+)\\}`);
+  return source.match(pattern)?.[1] ?? "";
+}
+
 test("main process exposes publishing IPC through core helpers", () => {
   const mainSource = read("src/main/main.js");
 
@@ -287,6 +292,22 @@ test("renderer mirrors native publish URL row layout", () => {
   assert.doesNotMatch(cssSource, /grid-template-columns:\s*auto minmax\(80px,\s*1fr\) auto/);
   assert.match(cssSource, /max-width:\s*200px/);
   assert.match(cssSource, /grid-column:\s*5/);
+});
+
+test("renderer mirrors native publish URL row chrome", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const cssSource = read("src/renderer/styles.css");
+  const publishUrlRowBlock = cssBlock(cssSource, ".publish-url-row");
+
+  assert.match(
+    nativeSource,
+    /\.padding\(8\)[\s\S]*\.background\(RoundedRectangle\(cornerRadius:\s*4\)\.fill\(Color\.sidebarBg\)\)/
+  );
+  assert.match(publishUrlRowBlock, /border:\s*0/);
+  assert.match(publishUrlRowBlock, /border-radius:\s*4px/);
+  assert.match(publishUrlRowBlock, /background:\s*var\(--color-sidebar-bg\)/);
+  assert.doesNotMatch(publishUrlRowBlock, /border:\s*1px solid/);
+  assert.doesNotMatch(publishUrlRowBlock, /border-radius:\s*6px/);
 });
 
 test("renderer mirrors native publish result copy", () => {
