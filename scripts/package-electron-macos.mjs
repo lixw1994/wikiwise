@@ -9,6 +9,7 @@ const repositoryRoot = path.resolve(scriptDir, "..");
 const electronTemplateRelativePath = "node_modules/electron/dist/Electron.app";
 const outputAppRelativePath = "apps/electron/out/Wikiwise.app";
 const embeddedAppRelativePath = "Contents/Resources/app";
+const electronTemplateIconRelativePath = "Contents/Resources/electron.icns";
 const electronExecutableRelativePath = "Contents/MacOS/Electron";
 const wikiwiseExecutableRelativePath = "Contents/MacOS/Wikiwise";
 const electronMainSourceRelativePath = "src/main";
@@ -182,6 +183,10 @@ function renameExecutable() {
   fs.chmodSync(destinationExecutable, 0o755);
 }
 
+function removeElectronTemplateResources() {
+  fs.rmSync(path.join(outputAppPath, ...electronTemplateIconRelativePath.split("/")), { force: true });
+}
+
 function copyElectronAppSource() {
   const appRoot = path.join(outputAppPath, embeddedAppRelativePath);
 
@@ -279,6 +284,7 @@ function packageElectronMacApp() {
   });
 
   renameExecutable();
+  removeElectronTemplateResources();
   copyElectronAppSource();
   copyCorePackage();
   copyElectronRuntimeDependencies();

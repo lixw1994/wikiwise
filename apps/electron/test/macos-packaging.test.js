@@ -100,6 +100,20 @@ test("packaging script strips non-native Electron template build plist metadata"
   assert.doesNotMatch(script, /LSApplicationCategoryType:\s*"/);
 });
 
+test("packaging script removes unused Electron template icon resource", () => {
+  const script = read("scripts/package-electron-macos.mjs");
+  const nativeResources = read("Wikiwise.app/Contents/Info.plist");
+
+  assert.match(script, /electronTemplateIconRelativePath/);
+  assert.match(script, /Contents\/Resources\/electron\.icns/);
+  assert.match(script, /removeElectronTemplateResources/);
+  assert.match(script, /fs\.rmSync\(path\.join\(outputAppPath,\s*\.\.\.electronTemplateIconRelativePath\.split\("\/"\)\),\s*\{\s*force:\s*true\s*\}\)/);
+  assert.match(script, /copyNativeResources\(\)/);
+  assert.match(script, /Wikiwise\.icns/);
+  assert.match(script, /CFBundleIconFile:\s*productName/);
+  assert.match(nativeResources, /<key>CFBundleIconFile<\/key><string>Wikiwise<\/string>/);
+});
+
 test("packaging script mirrors native minimum macOS metadata", () => {
   const script = read("scripts/package-electron-macos.mjs");
   const packageManifest = read("Package.swift");
