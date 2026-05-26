@@ -31,6 +31,13 @@ const electronRuntimeDependencyNames = Object.freeze([
 ]);
 const productName = "Wikiwise";
 const bundleIdentifier = process.env.WIKIWISE_ELECTRON_BUNDLE_ID || "com.readwise.wikiwise";
+const inheritedElectronTemplateInfoPlistKeys = Object.freeze([
+  "NSCameraUsageDescription",
+  "NSMicrophoneUsageDescription",
+  "NSBluetoothAlwaysUsageDescription",
+  "NSBluetoothPeripheralUsageDescription",
+  "NSAppTransportSecurity"
+]);
 
 const electronPackage = JSON.parse(
   fs.readFileSync(path.join(electronPackageRoot, "package.json"), "utf8")
@@ -78,6 +85,27 @@ function setPlistString(plist, key, value) {
   );
 }
 
+function removePlistEntry(plist, key) {
+  const valuePattern = [
+    "<string>[\\s\\S]*?</string>",
+    "<dict>[\\s\\S]*?</dict>",
+    "<array>[\\s\\S]*?</array>",
+    "<true\\s*/>",
+    "<false\\s*/>",
+    "<integer>[^<]*</integer>",
+    "<real>[^<]*</real>"
+  ].join("|");
+  const pattern = new RegExp(`\\n?\\s*<key>${key}</key>\\s*(?:${valuePattern})`, "g");
+  return plist.replace(pattern, "");
+}
+
+function removeElectronTemplateInfoPlistKeys(plist) {
+  return inheritedElectronTemplateInfoPlistKeys.reduce(
+    (currentPlist, key) => removePlistEntry(currentPlist, key),
+    plist
+  );
+}
+
 function rewriteInfoPlist() {
   const infoPlistPath = path.join(outputAppPath, "Contents", "Info.plist");
   let plist = fs.readFileSync(infoPlistPath, "utf8");
@@ -96,6 +124,8 @@ function rewriteInfoPlist() {
   for (const [key, value] of Object.entries(updates)) {
     plist = setPlistString(plist, key, value);
   }
+
+  plist = removeElectronTemplateInfoPlistKeys(plist);
 
   fs.writeFileSync(infoPlistPath, plist);
 }

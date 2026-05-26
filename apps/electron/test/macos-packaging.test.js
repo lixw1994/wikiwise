@@ -17,6 +17,14 @@ function readJson(relativePath) {
   return JSON.parse(read(relativePath));
 }
 
+const inheritedElectronTemplatePlistKeys = [
+  "NSCameraUsageDescription",
+  "NSMicrophoneUsageDescription",
+  "NSBluetoothAlwaysUsageDescription",
+  "NSBluetoothPeripheralUsageDescription",
+  "NSAppTransportSecurity"
+];
+
 test("package manifests expose Electron macOS packaging commands", () => {
   const rootPackage = readJson("package.json");
   const electronPackage = readJson("apps/electron/package.json");
@@ -46,6 +54,21 @@ test("packaging script assembles a Wikiwise macOS app from installed Electron", 
   assert.match(script, /com\.readwise\.wikiwise/);
   assert.match(script, /copyElectronAppSource/);
   assert.match(script, /copyCorePackage/);
+});
+
+test("packaging script strips unused Electron template privacy plist metadata", () => {
+  const script = read("scripts/package-electron-macos.mjs");
+  const nativeInfoPlist = read("Wikiwise.app/Contents/Info.plist");
+
+  assert.match(nativeInfoPlist, /<key>CFBundleDisplayName<\/key>/);
+  assert.match(script, /removeElectronTemplateInfoPlistKeys/);
+  assert.match(script, /removePlistEntry/);
+  assert.match(script, /plist = removeElectronTemplateInfoPlistKeys\(plist\)/);
+
+  for (const key of inheritedElectronTemplatePlistKeys) {
+    assert.doesNotMatch(nativeInfoPlist, new RegExp(`<key>${key}</key>`));
+    assert.match(script, new RegExp(`"${key}"`));
+  }
 });
 
 test("packaging script embeds the Electron app and shared core package layout", () => {
