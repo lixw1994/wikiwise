@@ -47,6 +47,32 @@ test("main process schedules native-style background compilation batches", () =>
   assert.match(mainSource, /startBackgroundCompilation\(projectRoot\)/);
 });
 
+test("main process ties background compilation to native window resource cleanup", () => {
+  const mainSource = read("src/main/main.js");
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+
+  assert.match(
+    nativeSource,
+    /\.onDisappear\s*\{[\s\S]*backgroundTimer\?\.invalidate\(\)[\s\S]*backgroundTimer = nil[\s\S]*fileWatcher\?\.stop\(\)[\s\S]*fileWatcher = nil/
+  );
+  assert.match(mainSource, /const projectRootsByWebContents = new Map\(\)/);
+  assert.match(mainSource, /function setWebContentsProjectRoot\(webContents,\s*projectRoot\)/);
+  assert.match(mainSource, /const previousRoot = projectRootsByWebContents\.get\(webContentsId\)/);
+  assert.match(
+    mainSource,
+    /if \(previousRoot && previousRoot !== nextRoot\) \{[\s\S]*stopBackgroundCompilation\(previousRoot\)/
+  );
+  assert.match(mainSource, /function stopBackgroundCompilationForWebContents\(webContentsId\)/);
+  assert.match(
+    mainSource,
+    /function closeWindowScopedResources\(webContentsId\) \{[\s\S]*closeProjectWatcher\(webContentsId\)[\s\S]*stopBackgroundCompilationForWebContents\(webContentsId\)[\s\S]*closeTerminal\(webContentsId\)/
+  );
+  assert.match(
+    mainSource,
+    /mainWindow\.webContents\.once\("destroyed",\s*\(\) => \{[\s\S]*closeWindowScopedResources\(webContentsId\)[\s\S]*startupRestoreByWebContentsId\.delete\(webContentsId\)/
+  );
+});
+
 test("preload exposes compiler preview APIs", () => {
   const preloadSource = read("src/preload/preload.cjs");
 

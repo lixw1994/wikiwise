@@ -88,6 +88,37 @@ test("main process mirrors native standalone file open state", () => {
   assert.doesNotMatch(mainSource, /const tree = scanOneLevel\(projectRoot\);/);
 });
 
+test("main process updates window project root ownership at project result boundaries", () => {
+  const mainSource = read("src/main/main.js");
+
+  assert.match(mainSource, /function createProjectResult\(targetPath,\s*webContents = null\)/);
+  assert.match(mainSource, /setWebContentsProjectRoot\(webContents,\s*isDirectory \? projectRoot : null\)/);
+  assert.match(
+    mainSource,
+    /function restoreLastProject\(webContents = null\)[\s\S]*createProjectResult\(settings\.lastFolderPath,\s*webContents\)/
+  );
+  assert.match(
+    mainSource,
+    /function restoreLastProjectForWebContents\(webContents\)[\s\S]*return restoreLastProject\(webContents\)/
+  );
+  assert.match(
+    mainSource,
+    /async function openExistingProject\(browserWindow\)[\s\S]*return \{[\s\S]*project:\s*createProjectResult\(targetPath,\s*browserWindow\?\.webContents\)/
+  );
+  assert.match(
+    mainSource,
+    /function createNewWiki\(payload,\s*webContents = null\)[\s\S]*project:\s*createProjectResult\(scaffold\.path,\s*webContents\)/
+  );
+  assert.match(
+    mainSource,
+    /ipcMain\.handle\("wikiwise:createNewWiki",\s*\(event,\s*payload\) => \{[\s\S]*return createNewWiki\(payload,\s*event\.sender\)/
+  );
+  assert.match(
+    mainSource,
+    /function startProjectWatcher\(webContents,\s*payload\)[\s\S]*setWebContentsProjectRoot\(webContents,\s*resolvedRoot\)/
+  );
+});
+
 test("renderer treats standalone file opens as non-project service state", () => {
   const rendererSource = read("src/renderer/renderer.js");
 

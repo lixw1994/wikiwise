@@ -55,13 +55,14 @@ test("startup restore is limited to the native first window scope", () => {
   assert.match(mainSource, /const startupRestoreByWebContentsId = new Map\(\)/);
   assert.match(mainSource, /const shouldRestoreLastProject = mainWindowCreationCount === 0/);
   assert.match(mainSource, /mainWindowCreationCount \+= 1/);
+  assert.match(mainSource, /const webContentsId = mainWindow\.webContents\.id/);
   assert.match(
     mainSource,
-    /startupRestoreByWebContentsId\.set\(mainWindow\.webContents\.id,\s*shouldRestoreLastProject\)/
+    /startupRestoreByWebContentsId\.set\(webContentsId,\s*shouldRestoreLastProject\)/
   );
   assert.match(
     mainSource,
-    /mainWindow\.webContents\.once\("destroyed",\s*\(\) => \{\s*startupRestoreByWebContentsId\.delete\(mainWindow\.webContents\.id\)/
+    /mainWindow\.webContents\.once\("destroyed",\s*\(\) => \{[\s\S]*closeWindowScopedResources\(webContentsId\)[\s\S]*startupRestoreByWebContentsId\.delete\(webContentsId\)/
   );
   assert.match(mainSource, /function restoreLastProjectForWebContents\(webContents\)/);
   assert.match(

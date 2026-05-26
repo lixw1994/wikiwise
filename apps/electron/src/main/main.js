@@ -30,6 +30,7 @@ const requireFromMain = createRequire(import.meta.url);
 const compilersByProjectRoot = new Map();
 const watchersByWebContents = new Map();
 const terminalSessionsByWebContents = new Map();
+const projectRootsByWebContents = new Map();
 const backgroundCompilationJobsByProjectRoot = new Map();
 const startupRestoreByWebContentsId = new Map();
 let mainWindowCreationCount = 0;
@@ -71,6 +72,58 @@ function stopBackgroundCompilation(projectRoot) {
   clearInterval(job.timer);
   backgroundCompilationJobsByProjectRoot.delete(resolvedRoot);
   return true;
+}
+
+function setWebContentsProjectRoot(webContents, projectRoot) {
+  if (!webContents || webContents.isDestroyed?.()) {
+    return {
+      registered: false,
+      projectRoot: null,
+      stoppedPreviousBackgroundCompilation: false
+    };
+  }
+
+  const webContentsId = webContents.id;
+  const previousRoot = projectRootsByWebContents.get(webContentsId);
+  const nextRoot = projectRoot ? path.resolve(projectRoot) : null;
+  let stoppedPreviousBackgroundCompilation = false;
+  if (previousRoot && previousRoot !== nextRoot) {
+    stoppedPreviousBackgroundCompilation = stopBackgroundCompilation(previousRoot);
+  }
+
+  if (nextRoot) {
+    projectRootsByWebContents.set(webContentsId, nextRoot);
+  } else {
+    projectRootsByWebContents.delete(webContentsId);
+  }
+
+  return {
+    registered: true,
+    webContentsId,
+    previousRoot: previousRoot ?? null,
+    projectRoot: nextRoot,
+    stoppedPreviousBackgroundCompilation
+  };
+}
+
+function stopBackgroundCompilationForWebContents(webContentsId) {
+  const projectRoot = projectRootsByWebContents.get(webContentsId);
+  if (!projectRoot) return false;
+
+  projectRootsByWebContents.delete(webContentsId);
+  return stopBackgroundCompilation(projectRoot);
+}
+
+function closeWindowScopedResources(webContentsId) {
+  const watcherStopped = closeProjectWatcher(webContentsId);
+  const backgroundCompilationStopped = stopBackgroundCompilationForWebContents(webContentsId);
+  const terminalStopped = closeTerminal(webContentsId);
+
+  return {
+    watcherStopped,
+    backgroundCompilationStopped,
+    terminalStopped
+  };
 }
 
 function startBackgroundCompilation(projectRoot) {
@@ -244,7 +297,7 @@ function rememberProjectRoot(projectRoot) {
   return updateAppSettings({ lastFolderPath: resolvedRoot });
 }
 
-function restoreLastProject() {
+function restoreLastProject(webContents = null) {
   const settings = readAppSettings();
   if (!settings.lastFolderPath || !fs.existsSync(settings.lastFolderPath)) {
     return null;
@@ -255,13 +308,13 @@ function restoreLastProject() {
     return null;
   }
 
-  return createProjectResult(settings.lastFolderPath);
+  return createProjectResult(settings.lastFolderPath, webContents);
 }
 
 function restoreLastProjectForWebContents(webContents) {
   if (!startupRestoreByWebContentsId.get(webContents?.id)) return null;
 
-  return restoreLastProject();
+  return restoreLastProject(webContents);
 }
 
 function openGeneratedPage(payload) {
@@ -504,6 +557,7 @@ function startProjectWatcher(webContents, payload) {
   const resolvedRoot = path.resolve(projectRoot);
   const compiler = getCompiler(resolvedRoot);
   const webContentsId = webContents.id;
+  setWebContentsProjectRoot(webContents, resolvedRoot);
   closeProjectWatcher(webContentsId);
 
   const pendingEvents = [];
@@ -899,7 +953,7 @@ async function chooseNewWikiLocation(browserWindow) {
   };
 }
 
-function createNewWiki(payload) {
+function createNewWiki(payload, webContents = null) {
   if (!payload?.name || !payload?.parentDir) {
     throw new Error("createNewWiki requires name and parentDir");
   }
@@ -914,7 +968,7 @@ function createNewWiki(payload) {
   return {
     created: true,
     scaffold,
-    project: createProjectResult(scaffold.path)
+    project: createProjectResult(scaffold.path, webContents)
   };
 }
 
@@ -932,11 +986,12 @@ function compileWikiHomeIfPresent(projectRoot) {
   };
 }
 
-function createProjectResult(targetPath) {
+function createProjectResult(targetPath, webContents = null) {
   const stat = fs.statSync(targetPath);
   const isDirectory = stat.isDirectory();
   const projectKind = isDirectory ? "folder" : "file";
   const projectRoot = isDirectory ? targetPath : path.dirname(targetPath);
+  setWebContentsProjectRoot(webContents, isDirectory ? projectRoot : null);
   if (isDirectory) {
     getCompiler(projectRoot).scanPages();
   }
@@ -982,7 +1037,7 @@ async function openExistingProject(browserWindow) {
 
   return {
     canceled: false,
-    project: createProjectResult(targetPath)
+    project: createProjectResult(targetPath, browserWindow?.webContents)
   };
 }
 
@@ -1007,9 +1062,11 @@ function createMainWindow() {
       sandbox: true
     }
   });
-  startupRestoreByWebContentsId.set(mainWindow.webContents.id, shouldRestoreLastProject);
+  const webContentsId = mainWindow.webContents.id;
+  startupRestoreByWebContentsId.set(webContentsId, shouldRestoreLastProject);
   mainWindow.webContents.once("destroyed", () => {
-    startupRestoreByWebContentsId.delete(mainWindow.webContents.id);
+    closeWindowScopedResources(webContentsId);
+    startupRestoreByWebContentsId.delete(webContentsId);
   });
 
   mainWindow.loadFile(path.join(packageRoot, "src", "renderer", "index.html"));
@@ -1089,8 +1146,8 @@ ipcMain.handle("wikiwise:getDefaultWikiLocation", () => {
 ipcMain.handle("wikiwise:chooseNewWikiLocation", (event) => {
   return chooseNewWikiLocation(BrowserWindow.fromWebContents(event.sender));
 });
-ipcMain.handle("wikiwise:createNewWiki", (_event, payload) => {
-  return createNewWiki(payload);
+ipcMain.handle("wikiwise:createNewWiki", (event, payload) => {
+  return createNewWiki(payload, event.sender);
 });
 ipcMain.handle("wikiwise:startProjectWatcher", (event, payload) => {
   return startProjectWatcher(event.sender, payload);
@@ -1158,6 +1215,7 @@ export {
   backgroundCompilationBatchSize,
   backgroundCompilationIntervalMs,
   closeProjectWatcher,
+  closeWindowScopedResources,
   compileMarkdownFile,
   createApplicationMenu,
   createNewWiki,
@@ -1192,10 +1250,12 @@ export {
   sendTerminalInput,
   sendAppCommand,
   setAppearanceMode,
+  setWebContentsProjectRoot,
   startBackgroundCompilation,
   startTerminal,
   startProjectWatcher,
   stopBackgroundCompilation,
+  stopBackgroundCompilationForWebContents,
   unpublishProject,
   writeAppSettings
 };
