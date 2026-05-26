@@ -1793,6 +1793,21 @@ async function readDomEvidence(window) {
 	    const specialFolderDotContent = specialFolderIcon
 	      ? window.getComputedStyle(specialFolderIcon, "::after").content
 	      : "none";
+	    const welcomeToolbar = document.querySelector("#welcome-toolbar");
+	    const welcomeToolbarRect = rectFor("#welcome-toolbar");
+	    const welcomeToolbarEvidence = {
+	      welcomeToolbarEvidence: Boolean(welcomeToolbar),
+	      welcomeToolbarVisible: Boolean(
+	        welcomeToolbar &&
+	          !welcomeToolbar.hidden &&
+	          welcomeToolbarRect &&
+	          welcomeToolbarRect.width > 0 &&
+	          welcomeToolbarRect.height > 0
+	      ),
+	      welcomeToolbarMarkText: textFor(".welcome-toolbar-mark"),
+	      welcomeToolbarTitleText: textFor(".welcome-toolbar-title"),
+	      welcomeToolbarRect
+	    };
 	    const rootAppearance = document.documentElement.dataset.appearance ?? "";
 	    const computedShellColors = {
 	      root: styleFor(":root"),
@@ -1839,6 +1854,11 @@ async function readDomEvidence(window) {
       projectRect: rectFor("#project"),
       projectName: textFor("#project-name") || textFor("#toolbar-project-name"),
       toolbarProjectName: textFor("#toolbar-project-name"),
+      welcomeToolbarEvidence: Boolean(welcomeToolbarEvidence.welcomeToolbarEvidence),
+      welcomeToolbarVisible: Boolean(welcomeToolbarEvidence.welcomeToolbarVisible),
+      welcomeToolbarMarkText: welcomeToolbarEvidence.welcomeToolbarMarkText,
+      welcomeToolbarTitleText: welcomeToolbarEvidence.welcomeToolbarTitleText,
+      welcomeToolbarRect: welcomeToolbarEvidence.welcomeToolbarRect,
       toolbarIconEvidence: Boolean(toolbarIconEvidence.toolbarIconEvidence),
       appearanceNativeSymbol: toolbarIconEvidence.appearanceNativeSymbol,
       mapNativeSymbol: toolbarIconEvidence.mapNativeSymbol,
@@ -2091,6 +2111,17 @@ function assertScenario(scenario, dom, screenshot) {
   if (scenario.kind === "welcome") {
     if (dom.welcomeHidden || !dom.projectHidden) {
       failures.push("Welcome scenario did not render the no-folder state.");
+    }
+    if (
+      !dom.welcomeToolbarEvidence ||
+      !dom.welcomeToolbarVisible ||
+      (dom.welcomeToolbarRect?.width ?? 0) <= 0 ||
+      (dom.welcomeToolbarRect?.height ?? 0) <= 0
+    ) {
+      failures.push("Welcome toolbar brand evidence is missing.");
+    }
+    if (dom.welcomeToolbarMarkText !== "W" || dom.welcomeToolbarTitleText !== "WikiWise") {
+      failures.push("Welcome toolbar brand text does not match native.");
     }
     for (const expectedText of [
       "WikiWise helps you turn any folder",

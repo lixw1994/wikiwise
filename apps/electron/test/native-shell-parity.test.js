@@ -92,6 +92,38 @@ test("matches native welcome action symbols and preserves entry labels", () => {
   assert.match(htmlSource, /id="open-existing"/);
 });
 
+test("matches native welcome toolbar brand chrome", () => {
+  const welcomeToolbarBlock = cssBlock(".welcome-toolbar");
+  const welcomeToolbarBrandBlock = cssBlock(".welcome-toolbar-brand");
+  const welcomeToolbarMarkBlock = cssBlock(".welcome-toolbar-mark");
+  const welcomeToolbarTitleBlock = cssBlock(".welcome-toolbar-title");
+  const welcomeContentBlock = cssBlock(".welcome-content");
+
+  assert.match(
+    nativeContentViewSource,
+    /ToolbarItem\(placement:\s*\.navigation\)\s*\{[\s\S]*Text\("W"\)[\s\S]*\.font\(\.system\(size:\s*18,\s*weight:\s*\.medium,\s*design:\s*\.serif\)\)[\s\S]*\.italic\(\)[\s\S]*Text\("WikiWise"\)[\s\S]*\.font\(\.system\(size:\s*13,\s*weight:\s*\.medium\)\)/
+  );
+  assert.match(
+    htmlSource,
+    /<div id="welcome-toolbar" class="welcome-toolbar">[\s\S]*<div class="welcome-toolbar-brand">[\s\S]*<span class="welcome-toolbar-mark" aria-hidden="true">W<\/span>[\s\S]*<span class="welcome-toolbar-title">WikiWise<\/span>/
+  );
+  assert.match(htmlSource, /<div class="welcome-content">[\s\S]*id="create-new"/);
+  assert.match(welcomeToolbarBlock, /display:\s*flex/);
+  assert.match(welcomeToolbarBlock, /align-items:\s*center/);
+  assert.match(welcomeToolbarBlock, /border-bottom:\s*1px solid var\(--color-sidebar-rule\)/);
+  assert.match(welcomeToolbarBlock, /background:\s*var\(--color-sidebar-bg\)/);
+  assert.match(welcomeToolbarBrandBlock, /gap:\s*10px/);
+  assert.match(welcomeToolbarBrandBlock, /padding-inline:\s*12px/);
+  assert.match(welcomeToolbarMarkBlock, /font-family:\s*Georgia,\s*"Times New Roman",\s*serif/);
+  assert.match(welcomeToolbarMarkBlock, /font-size:\s*18px/);
+  assert.match(welcomeToolbarMarkBlock, /font-style:\s*italic/);
+  assert.match(welcomeToolbarMarkBlock, /font-weight:\s*500/);
+  assert.match(welcomeToolbarTitleBlock, /font-size:\s*13px/);
+  assert.match(welcomeToolbarTitleBlock, /font-weight:\s*500/);
+  assert.match(welcomeContentBlock, /align-content:\s*center/);
+  assert.match(welcomeContentBlock, /gap:\s*32px/);
+});
+
 test("matches native macOS default and minimum window geometry", () => {
   assert.match(nativeAppSource, /\.defaultSize\(width:\s*1500,\s*height:\s*1000\)/);
   assert.match(nativeContentViewSource, /\.frame\(minWidth:\s*800,\s*minHeight:\s*500\)/);
