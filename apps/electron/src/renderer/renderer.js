@@ -1396,11 +1396,6 @@ async function refreshGeneratedPage() {
 }
 
 async function refreshCurrentView() {
-  if (state.generatedPage?.name) {
-    await refreshGeneratedPage();
-    return;
-  }
-
   if (state.selectedFile?.path && isMarkdownFile(state.selectedFile.path)) {
     await refreshSelectedMarkdown({ invalidate: true });
   }

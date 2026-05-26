@@ -5,9 +5,24 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const repositoryRoot = path.resolve(packageRoot, "..", "..");
 
 function read(relativePath) {
   return fs.readFileSync(path.join(packageRoot, relativePath), "utf8");
+}
+
+function readRepository(relativePath) {
+  return fs.readFileSync(path.join(repositoryRoot, relativePath), "utf8");
+}
+
+function sourceBetween(source, startSignature, endSignature) {
+  const start = source.indexOf(startSignature);
+  const end = source.indexOf(endSignature, start + startSignature.length);
+
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+
+  return source.slice(start, end);
 }
 
 test("main process resolves preview navigation and opens external links safely", () => {
@@ -55,4 +70,37 @@ test("renderer intercepts preview and generated frame links through app navigati
   assert.match(rendererSource, /pushHistoryEntry\(currentHistoryEntry\(\)\)/);
   assert.match(rendererSource, /change\.changedMarkdownPaths/);
   assert.match(htmlSource, /sandbox="allow-scripts allow-same-origin"/);
+});
+
+test("manual Refresh Page command stays scoped to selected markdown like native", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const nativeRefreshSource = sourceBetween(
+    nativeSource,
+    "private func recompileCurrentPage(_ c: Compiler)",
+    "    // MARK: - Publish"
+  );
+  const rendererRefreshSource = sourceBetween(
+    rendererSource,
+    "async function refreshCurrentView()",
+    "function attachPreviewNavigation"
+  );
+
+  assert.match(nativeRefreshSource, /guard let url = selectedFileURL else \{ return \}/);
+  assert.match(rendererRefreshSource, /state\.selectedFile\?\.path && isMarkdownFile\(state\.selectedFile\.path\)/);
+  assert.match(rendererRefreshSource, /refreshSelectedMarkdown\(\{ invalidate:\s*true \}\)/);
+  assert.doesNotMatch(rendererRefreshSource, /refreshGeneratedPage\(/);
+});
+
+test("watcher-driven output changes still refresh active generated pages", () => {
+  const rendererSource = read("src/renderer/renderer.js");
+  const projectChangedSource = sourceBetween(
+    rendererSource,
+    "async function handleProjectChanged(change)",
+    "async function refreshSelectedMarkdown"
+  );
+
+  assert.match(projectChangedSource, /const generatedPageActive = Boolean\(state\.generatedPage\?\.name\)/);
+  assert.match(projectChangedSource, /const generatedOutputChanged =/);
+  assert.match(projectChangedSource, /if \(generatedOutputChanged\) \{\s*await refreshGeneratedPage\(\);\s*\}/);
 });

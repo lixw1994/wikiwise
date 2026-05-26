@@ -57,6 +57,18 @@ The Electron app SHALL expose native-compatible app menu commands in the same Fi
 - **THEN** the focused renderer receives the matching app command event
 - **AND** the renderer handles the command through its existing project state
 
+#### Scenario: Refresh Page command is selected for Markdown
+
+- **WHEN** the user selects Refresh Page while a Markdown source file is selected
+- **THEN** Electron invalidates and refreshes the selected Markdown preview
+- **AND** the command remains routed through existing renderer project state
+
+#### Scenario: Refresh Page command is selected for generated page
+
+- **WHEN** the user selects Refresh Page while a generated map or graph page is active
+- **THEN** Electron does not directly refresh the generated page from that command
+- **AND** the behavior matches the native command path where `recompileCurrentPage(_:)` returns without a selected file
+
 ### Requirement: Native-Like Toolbar Controls
 The Electron renderer SHALL expose native-like toolbar controls for opened projects.
 
