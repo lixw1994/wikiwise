@@ -10,8 +10,12 @@ const electronTemplateRelativePath = "node_modules/electron/dist/Electron.app";
 const outputAppRelativePath = "apps/electron/out/Wikiwise.app";
 const embeddedAppRelativePath = "Contents/Resources/app";
 const electronTemplateIconRelativePath = "Contents/Resources/electron.icns";
+const electronTemplatePkgInfoRelativePath = "Contents/PkgInfo";
 const electronExecutableRelativePath = "Contents/MacOS/Electron";
 const wikiwiseExecutableRelativePath = "Contents/MacOS/Wikiwise";
+const packagedInfoPlistRelativePath = "Contents/Info.plist";
+const packagedWikiwiseIconRelativePath = "Contents/Resources/Wikiwise.icns";
+const packagedDefaultAppAsarRelativePath = "Contents/Resources/default_app.asar";
 const electronMainSourceRelativePath = "src/main";
 const electronPreloadSourceRelativePath = "src/preload";
 const electronRendererSourceRelativePath = "src/renderer";
@@ -57,6 +61,12 @@ const version = versionMetadata.shortVersion;
 
 function assertDirectory(targetPath, message) {
   if (!fs.existsSync(targetPath) || !fs.statSync(targetPath).isDirectory()) {
+    throw new Error(message);
+  }
+}
+
+function assertFile(targetPath, message) {
+  if (!fs.existsSync(targetPath) || !fs.statSync(targetPath).isFile()) {
     throw new Error(message);
   }
 }
@@ -147,7 +157,7 @@ function removeElectronTemplateInfoPlistKeys(plist) {
 }
 
 function rewriteInfoPlist() {
-  const infoPlistPath = path.join(outputAppPath, "Contents", "Info.plist");
+  const infoPlistPath = path.join(outputAppPath, ...packagedInfoPlistRelativePath.split("/"));
   let plist = fs.readFileSync(infoPlistPath, "utf8");
 
   const updates = {
@@ -185,6 +195,7 @@ function renameExecutable() {
 
 function removeElectronTemplateResources() {
   fs.rmSync(path.join(outputAppPath, ...electronTemplateIconRelativePath.split("/")), { force: true });
+  fs.rmSync(path.join(outputAppPath, ...electronTemplatePkgInfoRelativePath.split("/")), { force: true });
 }
 
 function copyElectronAppSource() {
@@ -265,8 +276,22 @@ function copyNativeResources() {
   copyDirectory(nativeResourcesRoot, packagedResources);
   copyFile(
     path.join(nativeResourcesRoot, "Wikiwise.icns"),
-    path.join(outputAppPath, "Contents", "Resources", "Wikiwise.icns")
+    path.join(outputAppPath, ...packagedWikiwiseIconRelativePath.split("/"))
   );
+}
+
+function assertRequiredPackagedFiles() {
+  for (const relativePath of [
+    packagedInfoPlistRelativePath,
+    wikiwiseExecutableRelativePath,
+    packagedWikiwiseIconRelativePath,
+    packagedDefaultAppAsarRelativePath
+  ]) {
+    assertFile(
+      path.join(outputAppPath, ...relativePath.split("/")),
+      `Missing required packaged file ${relativePath}`
+    );
+  }
 }
 
 function packageElectronMacApp() {
@@ -290,6 +315,7 @@ function packageElectronMacApp() {
   copyElectronRuntimeDependencies();
   copyNativeResources();
   rewriteInfoPlist();
+  assertRequiredPackagedFiles();
 
   return {
     appPath: outputAppRelativePath,
