@@ -75,3 +75,18 @@ The Electron opened-project icon-only toolbar controls SHALL use intrinsic plain
 - **AND** Electron icon-only toolbar controls do not add extra padding beyond their symbol/text content
 - **AND** mode segmented controls and the publish action keep their explicit native padding
 - **AND** toolbar symbol names, icon sizes, plain chrome, color states, accessible labels, click behavior, toolbar group spacing, sidebar layout behavior, and project title offset behavior are not changed for this requirement
+
+### Requirement: Left Sidebar Split-View Affordance Semantics
+The Electron left-sidebar toolbar control SHALL distinguish the native system split-view toggle state from the native custom restore state while preserving icon-only toolbar styling.
+
+#### Scenario: Visible sidebar affordance is rendered
+- **WHEN** the left sidebar is visible
+- **THEN** the left-sidebar toolbar control keeps icon-only plain button styling
+- **AND** the control exposes `system-split-view-toggle` native affordance metadata
+- **AND** the control exposes `hide` sidebar action metadata
+
+#### Scenario: Hidden sidebar affordance is rendered
+- **WHEN** the left sidebar is hidden
+- **THEN** the left-sidebar toolbar control keeps icon-only plain button styling
+- **AND** the control exposes `custom-restore-control` native affordance metadata
+- **AND** the control exposes `show` sidebar action metadata

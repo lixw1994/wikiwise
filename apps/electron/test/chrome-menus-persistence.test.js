@@ -352,6 +352,30 @@ test("left sidebar toolbar control mirrors native restore help text", () => {
   assert.doesNotMatch(rendererSource, /label:\s*"Toggle left sidebar"/);
 });
 
+test("left sidebar toolbar control exposes native split-view affordance states", () => {
+  const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+
+  assert.match(swiftSource, /if sidebarVisibility != \.all[\s\S]*Image\(systemName:\s*"sidebar\.left"\)/);
+  assert.match(swiftSource, /\.help\("Show Sidebar"\)/);
+
+  assert.match(rendererSource, /function leftSidebarNativeAffordance\(\)/);
+  assert.match(
+    rendererSource,
+    /state\.isLeftSidebarVisible\s*\?\s*"system-split-view-toggle"\s*:\s*"custom-restore-control"/
+  );
+  assert.match(rendererSource, /function leftSidebarAction\(\)/);
+  assert.match(rendererSource, /state\.isLeftSidebarVisible\s*\?\s*"hide"\s*:\s*"show"/);
+  assert.match(
+    rendererSource,
+    /toggleLeftSidebarButton\.dataset\.nativeAffordance = leftSidebarNativeAffordance\(\)/
+  );
+  assert.match(
+    rendererSource,
+    /toggleLeftSidebarButton\.dataset\.sidebarAction = leftSidebarAction\(\)/
+  );
+});
+
 test("sidebar toolbar toggles mirror native plain icon color states", () => {
   const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const cssSource = read("src/renderer/styles.css");

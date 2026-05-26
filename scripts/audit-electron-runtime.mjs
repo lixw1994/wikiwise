@@ -724,6 +724,13 @@ async function simulateLeftSidebarToggle(window) {
     const expandedFolderNames = () => [...document.querySelectorAll(".tree-folder-button")]
       .filter((button) => button.getAttribute("aria-expanded") === "true")
       .map((button) => button.textContent.trim());
+    const toolbarAffordance = () => ({
+      nativeAffordance: toggle?.dataset?.nativeAffordance ?? "",
+      sidebarAction: toggle?.dataset?.sidebarAction ?? "",
+      title: toggle?.getAttribute("title") ?? "",
+      ariaLabel: toggle?.getAttribute("aria-label") ?? "",
+      nativeSymbol: toggle?.querySelector(".toolbar-symbol")?.dataset?.nativeSymbol ?? ""
+    });
     const isVisible = (element) => Boolean(
       element &&
       !element.hidden &&
@@ -757,7 +764,8 @@ async function simulateLeftSidebarToggle(window) {
       leftSidebarWidth: leftSidebarWidth(),
       titleOffset: titleOffset(),
       selectedTreeText: selectedTreeText(),
-      expandedFolderNames: expandedFolderNames()
+      expandedFolderNames: expandedFolderNames(),
+      toolbarAffordance: toolbarAffordance()
     };
 
     if (!leftSidebar || !toggle || !detail) {
@@ -776,7 +784,17 @@ async function simulateLeftSidebarToggle(window) {
         toolbarTitleExpectedVisibleOffset: before.leftSidebarWidth ? -Math.round(before.leftSidebarWidth / 2) : 0,
         toolbarTitleInitialOffset: before.titleOffset,
         toolbarTitleHiddenOffset: null,
-        toolbarTitleRestoredOffset: null
+        toolbarTitleRestoredOffset: null,
+        leftSidebarVisibleNativeAffordance: before.toolbarAffordance.nativeAffordance,
+        leftSidebarVisibleSidebarAction: before.toolbarAffordance.sidebarAction,
+        leftSidebarVisibleToolbarTitle: before.toolbarAffordance.title,
+        leftSidebarVisibleToolbarAriaLabel: before.toolbarAffordance.ariaLabel,
+        leftSidebarVisibleNativeSymbol: before.toolbarAffordance.nativeSymbol,
+        leftSidebarHiddenNativeAffordance: "",
+        leftSidebarHiddenSidebarAction: "",
+        leftSidebarHiddenToolbarTitle: "",
+        leftSidebarHiddenToolbarAriaLabel: "",
+        leftSidebarHiddenNativeSymbol: ""
       };
       window.__wikiwiseLeftSidebarVisibilityEvidence = missingEvidence;
       return missingEvidence;
@@ -786,7 +804,8 @@ async function simulateLeftSidebarToggle(window) {
     const hidden = {
       visible: isVisible(leftSidebar),
       detailWidth: detailWidth(),
-      titleOffset: titleOffset()
+      titleOffset: titleOffset(),
+      toolbarAffordance: toolbarAffordance()
     };
     toggle.click();
     const restored = {
@@ -794,7 +813,8 @@ async function simulateLeftSidebarToggle(window) {
       leftSidebarWidth: leftSidebarWidth(),
       titleOffset: titleOffset(),
       selectedTreeText: selectedTreeText(),
-      expandedFolderNames: expandedFolderNames()
+      expandedFolderNames: expandedFolderNames(),
+      toolbarAffordance: toolbarAffordance()
     };
     const expectedVisibleOffset = -Math.round(restored.leftSidebarWidth / 2);
     const evidence = {
@@ -812,7 +832,19 @@ async function simulateLeftSidebarToggle(window) {
       toolbarTitleExpectedVisibleOffset: expectedVisibleOffset,
       toolbarTitleInitialOffset: before.titleOffset,
       toolbarTitleHiddenOffset: hidden.titleOffset,
-      toolbarTitleRestoredOffset: restored.titleOffset
+      toolbarTitleRestoredOffset: restored.titleOffset,
+      leftSidebarVisibleNativeAffordance: before.toolbarAffordance.nativeAffordance,
+      leftSidebarVisibleSidebarAction: before.toolbarAffordance.sidebarAction,
+      leftSidebarVisibleToolbarTitle: before.toolbarAffordance.title,
+      leftSidebarVisibleToolbarAriaLabel: before.toolbarAffordance.ariaLabel,
+      leftSidebarVisibleNativeSymbol: before.toolbarAffordance.nativeSymbol,
+      leftSidebarHiddenNativeAffordance: hidden.toolbarAffordance.nativeAffordance,
+      leftSidebarHiddenSidebarAction: hidden.toolbarAffordance.sidebarAction,
+      leftSidebarHiddenToolbarTitle: hidden.toolbarAffordance.title,
+      leftSidebarHiddenToolbarAriaLabel: hidden.toolbarAffordance.ariaLabel,
+      leftSidebarHiddenNativeSymbol: hidden.toolbarAffordance.nativeSymbol,
+      leftSidebarRestoredNativeAffordance: restored.toolbarAffordance.nativeAffordance,
+      leftSidebarRestoredSidebarAction: restored.toolbarAffordance.sidebarAction
     };
     window.__wikiwiseLeftSidebarVisibilityEvidence = evidence;
     return evidence;
@@ -832,6 +864,18 @@ async function simulateLeftSidebarToggle(window) {
     toolbarTitleInitialOffset: null,
     toolbarTitleHiddenOffset: null,
     toolbarTitleRestoredOffset: null,
+    leftSidebarVisibleNativeAffordance: "",
+    leftSidebarVisibleSidebarAction: "",
+    leftSidebarVisibleToolbarTitle: "",
+    leftSidebarVisibleToolbarAriaLabel: "",
+    leftSidebarVisibleNativeSymbol: "",
+    leftSidebarHiddenNativeAffordance: "",
+    leftSidebarHiddenSidebarAction: "",
+    leftSidebarHiddenToolbarTitle: "",
+    leftSidebarHiddenToolbarAriaLabel: "",
+    leftSidebarHiddenNativeSymbol: "",
+    leftSidebarRestoredNativeAffordance: "",
+    leftSidebarRestoredSidebarAction: "",
     error: error instanceof Error ? error.message : String(error)
   }));
 }
@@ -1939,6 +1983,30 @@ async function readDomEvidence(window) {
 	      toolbarTitleInitialOffset: leftSidebarVisibilityEvidence.toolbarTitleInitialOffset ?? null,
 	      toolbarTitleHiddenOffset: leftSidebarVisibilityEvidence.toolbarTitleHiddenOffset ?? null,
 	      toolbarTitleRestoredOffset: leftSidebarVisibilityEvidence.toolbarTitleRestoredOffset ?? null,
+	      leftSidebarVisibleNativeAffordance:
+	        leftSidebarVisibilityEvidence.leftSidebarVisibleNativeAffordance ?? "",
+	      leftSidebarVisibleSidebarAction:
+	        leftSidebarVisibilityEvidence.leftSidebarVisibleSidebarAction ?? "",
+	      leftSidebarVisibleToolbarTitle:
+	        leftSidebarVisibilityEvidence.leftSidebarVisibleToolbarTitle ?? "",
+	      leftSidebarVisibleToolbarAriaLabel:
+	        leftSidebarVisibilityEvidence.leftSidebarVisibleToolbarAriaLabel ?? "",
+	      leftSidebarVisibleNativeSymbol:
+	        leftSidebarVisibilityEvidence.leftSidebarVisibleNativeSymbol ?? "",
+	      leftSidebarHiddenNativeAffordance:
+	        leftSidebarVisibilityEvidence.leftSidebarHiddenNativeAffordance ?? "",
+	      leftSidebarHiddenSidebarAction:
+	        leftSidebarVisibilityEvidence.leftSidebarHiddenSidebarAction ?? "",
+	      leftSidebarHiddenToolbarTitle:
+	        leftSidebarVisibilityEvidence.leftSidebarHiddenToolbarTitle ?? "",
+	      leftSidebarHiddenToolbarAriaLabel:
+	        leftSidebarVisibilityEvidence.leftSidebarHiddenToolbarAriaLabel ?? "",
+	      leftSidebarHiddenNativeSymbol:
+	        leftSidebarVisibilityEvidence.leftSidebarHiddenNativeSymbol ?? "",
+	      leftSidebarRestoredNativeAffordance:
+	        leftSidebarVisibilityEvidence.leftSidebarRestoredNativeAffordance ?? "",
+	      leftSidebarRestoredSidebarAction:
+	        leftSidebarVisibilityEvidence.leftSidebarRestoredSidebarAction ?? "",
 	      infoOptionalSectionEvidence: Boolean(infoOptionalEvidence.infoOptionalSectionEvidence),
 	      infoTabActivated: Boolean(infoOptionalEvidence.infoTabActivated),
 	      infoDirectionsSectionVisible: Boolean(infoOptionalEvidence.infoDirectionsSectionVisible),
@@ -2264,6 +2332,24 @@ function assertScenario(scenario, dom, screenshot) {
 	    }
 	    if (!dom.leftSidebarDetailExpanded) {
 	      failures.push("Detail area did not expand after hiding left sidebar.");
+	    }
+	    if (
+	      dom.leftSidebarVisibleNativeAffordance !== "system-split-view-toggle" ||
+	      dom.leftSidebarVisibleSidebarAction !== "hide" ||
+	      dom.leftSidebarVisibleToolbarTitle !== "Hide Sidebar" ||
+	      dom.leftSidebarVisibleToolbarAriaLabel !== "Hide Sidebar" ||
+	      dom.leftSidebarVisibleNativeSymbol !== "sidebar.left"
+	    ) {
+	      failures.push("Visible split-view toolbar affordance metadata is missing.");
+	    }
+	    if (
+	      dom.leftSidebarHiddenNativeAffordance !== "custom-restore-control" ||
+	      dom.leftSidebarHiddenSidebarAction !== "show" ||
+	      dom.leftSidebarHiddenToolbarTitle !== "Show Sidebar" ||
+	      dom.leftSidebarHiddenToolbarAriaLabel !== "Show Sidebar" ||
+	      dom.leftSidebarHiddenNativeSymbol !== "sidebar.left"
+	    ) {
+	      failures.push("Hidden split-view toolbar affordance metadata is missing.");
 	    }
 	    if (!dom.leftSidebarSelectionPreserved || !dom.leftSidebarExpansionPreserved) {
 	      failures.push("Left sidebar tree state was not preserved after restore.");

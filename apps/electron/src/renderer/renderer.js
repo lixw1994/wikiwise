@@ -693,6 +693,8 @@ function renderProjectToolbar() {
   toggleLeftSidebarButton.classList.toggle("selected", state.isLeftSidebarVisible);
   toggleLeftSidebarButton.setAttribute("aria-pressed", String(state.isLeftSidebarVisible));
   const leftSidebarHelpText = leftSidebarButtonHelpText();
+  toggleLeftSidebarButton.dataset.nativeAffordance = leftSidebarNativeAffordance();
+  toggleLeftSidebarButton.dataset.sidebarAction = leftSidebarAction();
   setToolbarButtonSymbol(toggleLeftSidebarButton, {
     ...toolbarSymbols.leftSidebar,
     label: leftSidebarHelpText
@@ -711,6 +713,14 @@ function renderProjectToolbar() {
 
 function leftSidebarButtonHelpText() {
   return state.isLeftSidebarVisible ? "Hide Sidebar" : "Show Sidebar";
+}
+
+function leftSidebarNativeAffordance() {
+  return state.isLeftSidebarVisible ? "system-split-view-toggle" : "custom-restore-control";
+}
+
+function leftSidebarAction() {
+  return state.isLeftSidebarVisible ? "hide" : "show";
 }
 
 function setToolbarButtonSymbol(button, symbol) {
