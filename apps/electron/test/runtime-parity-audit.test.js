@@ -340,6 +340,34 @@ test("runtime audit script records watcher-driven selected preview refresh evide
   ]);
 });
 
+test("runtime audit script records populated INFO tab evidence", () => {
+  const script = read("scripts/audit-electron-runtime.mjs");
+
+  assertSourceContains(script, [
+    /info-runtime\.md/,
+    /directions:\s*Verify populated INFO runtime evidence/,
+    /\[\[home\]\]/,
+    /captureInfoPopulatedSectionEvidence/,
+    /window\.__wikiwiseInfoPopulatedSectionEvidence/,
+    /infoPopulatedSectionEvidence/,
+    /infoPopulatedFixtureSelected/,
+    /infoPopulatedInfoTabActivated/,
+    /infoPopulatedDirectionsSectionVisible/,
+    /infoPopulatedDirectionsText/,
+    /infoPopulatedLinksSectionVisible/,
+    /infoPopulatedLinksText/,
+    /infoPopulatedExpectedDirections/,
+    /infoPopulatedExpectedLink/,
+    /infoPopulatedRestoredHome/,
+    /infoPopulatedRestoredEditorMode/,
+    /Populated INFO runtime evidence is missing/,
+    /Populated INFO fixture was not selected/,
+    /Populated directions section is missing/,
+    /Populated linked section is missing/,
+    /Populated INFO capture did not restore home editor state/
+  ]);
+});
+
 test("runtime audit script creates scaffold project evidence through core helpers", () => {
   const script = read("scripts/audit-electron-runtime.mjs");
 

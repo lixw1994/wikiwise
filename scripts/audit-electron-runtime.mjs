@@ -27,6 +27,9 @@ const preloadPath = path.join(electronPackageRoot, "src", "preload", "preload.cj
 const requireFromAudit = createRequire(import.meta.url);
 const nativeDefaultWindowViewport = Object.freeze({ width: 1500, height: 1000 });
 const viewport = nativeDefaultWindowViewport;
+const populatedInfoFixtureName = "info-runtime.md";
+const populatedInfoExpectedDirections = "Verify populated INFO runtime evidence";
+const populatedInfoExpectedLink = "home";
 const scenarios = Object.freeze([
   { name: "welcome-light", kind: "welcome", appearanceMode: "Light" },
   { name: "welcome-dark", kind: "welcome", appearanceMode: "Dark" },
@@ -104,8 +107,19 @@ function createAuditProject() {
   });
   const projectRoot = scaffold.path;
   const selectedPath = path.join(projectRoot, "wiki", "home.md");
+  const populatedInfoPath = path.join(projectRoot, "wiki", populatedInfoFixtureName);
   const compiler = new WikiCompiler({ projectRoot, repositoryRoot });
 
+  fs.writeFileSync(
+    populatedInfoPath,
+    `---
+directions: Verify populated INFO runtime evidence
+---
+# Runtime INFO Evidence
+
+This page links to [[home]] so the runtime audit can prove populated INFO parity.
+`
+  );
   compiler.scanPages();
   const compiled = compiler.compileMarkdownFile(selectedPath);
   const backgroundCompilationEvidence = drainBackgroundCompilation(compiler);
@@ -650,6 +664,7 @@ async function runScenario(window, scenario) {
     await window.webContents.executeJavaScript(`window.__wikiwiseTerminal?.input("echo runtime audit\\r")`, true);
     await delay(80);
     await captureInfoOptionalSectionEvidence(window);
+    await captureInfoPopulatedSectionEvidence(window);
   }
   await delay(120);
 
@@ -1050,6 +1065,128 @@ async function captureInfoOptionalSectionEvidence(window) {
     infoDirectionsText: "",
     infoLinksText: "",
     infoOptionalSectionEvidence: false,
+    error: error instanceof Error ? error.message : String(error)
+  }));
+}
+
+async function captureInfoPopulatedSectionEvidence(window) {
+  return window.webContents.executeJavaScript(`(async () => {
+    const infoFixtureName = ${JSON.stringify(populatedInfoFixtureName)};
+    const expectedDirections = ${JSON.stringify(populatedInfoExpectedDirections)};
+    const expectedLink = ${JSON.stringify(populatedInfoExpectedLink)};
+    const infoTab = document.querySelector("#right-tab-info");
+    const terminalTab = document.querySelector("#right-tab-terminal");
+    const modeFile = document.querySelector("#mode-file");
+    const sourceEditorFrame = document.querySelector("#source-editor-frame");
+    const previewFrame = document.querySelector("#preview-frame");
+    const selectedFileLabel = () => document.querySelector("#selected-file")?.textContent?.trim() ?? "";
+    const textFor = (selector) => document.querySelector(selector)?.textContent?.trim() ?? "";
+    const isVisible = (element) => Boolean(
+      element &&
+      !element.hidden &&
+      element.getBoundingClientRect().width > 0 &&
+      element.getBoundingClientRect().height > 0
+    );
+    const treeFileButton = (name) => [...document.querySelectorAll(".tree-file-button")]
+      .find((button) => button.textContent.trim() === name);
+    const waitFor = async (predicate, timeoutMs = 3500) => {
+      const start = Date.now();
+      while (Date.now() - start < timeoutMs) {
+        if (predicate()) return true;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      return false;
+    };
+    const nextFrame = () => new Promise((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(resolve));
+    });
+    const evidence = {
+      infoPopulatedSectionEvidence: true,
+      infoPopulatedExpectedDirections: expectedDirections,
+      infoPopulatedExpectedLink: expectedLink,
+      infoPopulatedFixtureButtonPresent: false,
+      infoPopulatedFixtureSelected: false,
+      infoPopulatedSelectedFileLabel: "",
+      infoPopulatedInfoTabActivated: false,
+      infoPopulatedDirectionsSectionVisible: false,
+      infoPopulatedDirectionsText: "",
+      infoPopulatedLinksSectionVisible: false,
+      infoPopulatedLinksText: "",
+      infoPopulatedRestoredHome: false,
+      infoPopulatedRestoredEditorMode: false,
+      infoPopulatedRestoredSelectedFileLabel: ""
+    };
+
+    const fixtureButton = treeFileButton(infoFixtureName);
+    evidence.infoPopulatedFixtureButtonPresent = Boolean(fixtureButton);
+    if (!fixtureButton || !infoTab) {
+      window.__wikiwiseInfoPopulatedSectionEvidence = evidence;
+      terminalTab?.click();
+      return evidence;
+    }
+
+    fixtureButton.click();
+    await waitFor(() => selectedFileLabel() === infoFixtureName);
+    evidence.infoPopulatedFixtureSelected = selectedFileLabel() === infoFixtureName;
+    evidence.infoPopulatedSelectedFileLabel = selectedFileLabel();
+
+    infoTab.click();
+    await waitFor(() => (
+      infoTab.classList.contains("selected") &&
+      isVisible(document.querySelector("#info-directions-section")) &&
+      textFor("#info-directions") === expectedDirections &&
+      isVisible(document.querySelector("#info-links-section")) &&
+      textFor("#info-links").includes(expectedLink)
+    ));
+    await nextFrame();
+
+    const directionsSection = document.querySelector("#info-directions-section");
+    const linksSection = document.querySelector("#info-links-section");
+    evidence.infoPopulatedInfoTabActivated = Boolean(infoTab.classList.contains("selected"));
+    evidence.infoPopulatedDirectionsSectionVisible = isVisible(directionsSection);
+    evidence.infoPopulatedDirectionsText = textFor("#info-directions");
+    evidence.infoPopulatedLinksSectionVisible = isVisible(linksSection);
+    evidence.infoPopulatedLinksText = textFor("#info-links");
+
+    treeFileButton("home.md")?.click();
+    await waitFor(() => selectedFileLabel() === "home.md");
+    modeFile?.click();
+    await waitFor(() => (
+      selectedFileLabel() === "home.md" &&
+      Boolean(sourceEditorFrame && !sourceEditorFrame.hidden) &&
+      Boolean(sourceEditorFrame?.contentDocument?.querySelector(".cm-editor")) &&
+      Boolean(previewFrame?.hidden)
+    ));
+    terminalTab?.click();
+    await nextFrame();
+
+    evidence.infoPopulatedRestoredSelectedFileLabel = selectedFileLabel();
+    evidence.infoPopulatedRestoredHome = evidence.infoPopulatedRestoredSelectedFileLabel === "home.md";
+    evidence.infoPopulatedRestoredEditorMode = Boolean(
+      modeFile?.classList.contains("selected") &&
+      sourceEditorFrame &&
+      !sourceEditorFrame.hidden &&
+      sourceEditorFrame.contentDocument?.querySelector(".cm-editor") &&
+      previewFrame?.hidden
+    );
+
+    window.__wikiwiseInfoPopulatedSectionEvidence = evidence;
+    return evidence;
+  })()`, true).catch((error) => ({
+    infoPopulatedSectionEvidence: false,
+    infoPopulatedExpectedDirections: populatedInfoExpectedDirections,
+    infoPopulatedExpectedLink: populatedInfoExpectedLink,
+    infoPopulatedFixtureButtonPresent: false,
+    infoPopulatedFixtureSelected: false,
+    infoPopulatedSelectedFileLabel: "",
+    infoPopulatedInfoTabActivated: false,
+    infoPopulatedDirectionsSectionVisible: false,
+    infoPopulatedDirectionsText: "",
+    infoPopulatedLinksSectionVisible: false,
+    infoPopulatedLinksText: "",
+    infoPopulatedRestoredHome: false,
+    infoPopulatedRestoredEditorMode: false,
+    infoPopulatedRestoredSelectedFileLabel: "",
     error: error instanceof Error ? error.message : String(error)
   }));
 }
@@ -1795,6 +1932,7 @@ async function readDomEvidence(window) {
 	    const leftSidebarResizeEvidence = window.__wikiwiseLeftSidebarResizeEvidence ?? {};
 	    const leftSidebarVisibilityEvidence = window.__wikiwiseLeftSidebarVisibilityEvidence ?? {};
 	    const infoOptionalEvidence = window.__wikiwiseInfoOptionalSectionEvidence ?? {};
+	    const infoPopulatedEvidence = window.__wikiwiseInfoPopulatedSectionEvidence ?? {};
 	    const defaultWikiPreviewEvidence = window.__wikiwiseDefaultWikiPreviewEvidence ?? {};
 	    const previewScrollEvidence = window.__wikiwisePreviewScrollEvidence ?? {};
 	    const generatedMapEvidence = window.__wikiwiseGeneratedMapEvidence ?? {};
@@ -2079,6 +2217,22 @@ async function readDomEvidence(window) {
 	      infoLinksSectionVisible: Boolean(infoOptionalEvidence.infoLinksSectionVisible),
 	      infoDirectionsText: infoOptionalEvidence.infoDirectionsText ?? "",
 	      infoLinksText: infoOptionalEvidence.infoLinksText ?? "",
+	      infoPopulatedSectionEvidence: Boolean(infoPopulatedEvidence.infoPopulatedSectionEvidence),
+	      infoPopulatedFixtureButtonPresent: Boolean(infoPopulatedEvidence.infoPopulatedFixtureButtonPresent),
+	      infoPopulatedFixtureSelected: Boolean(infoPopulatedEvidence.infoPopulatedFixtureSelected),
+	      infoPopulatedSelectedFileLabel: infoPopulatedEvidence.infoPopulatedSelectedFileLabel ?? "",
+	      infoPopulatedInfoTabActivated: Boolean(infoPopulatedEvidence.infoPopulatedInfoTabActivated),
+	      infoPopulatedDirectionsSectionVisible:
+	        Boolean(infoPopulatedEvidence.infoPopulatedDirectionsSectionVisible),
+	      infoPopulatedDirectionsText: infoPopulatedEvidence.infoPopulatedDirectionsText ?? "",
+	      infoPopulatedLinksSectionVisible: Boolean(infoPopulatedEvidence.infoPopulatedLinksSectionVisible),
+	      infoPopulatedLinksText: infoPopulatedEvidence.infoPopulatedLinksText ?? "",
+	      infoPopulatedExpectedDirections: infoPopulatedEvidence.infoPopulatedExpectedDirections ?? "",
+	      infoPopulatedExpectedLink: infoPopulatedEvidence.infoPopulatedExpectedLink ?? "",
+	      infoPopulatedRestoredHome: Boolean(infoPopulatedEvidence.infoPopulatedRestoredHome),
+	      infoPopulatedRestoredEditorMode: Boolean(infoPopulatedEvidence.infoPopulatedRestoredEditorMode),
+	      infoPopulatedRestoredSelectedFileLabel:
+	        infoPopulatedEvidence.infoPopulatedRestoredSelectedFileLabel ?? "",
       previewFrameHidden: Boolean(document.querySelector("#preview-frame")?.hidden),
 		      rightSidebarHidden: Boolean(document.querySelector("#right-sidebar")?.hidden),
 		      rightSidebarResizeHandlePresent: Boolean(document.querySelector("#right-sidebar-resize-handle")),
@@ -2478,6 +2632,35 @@ function assertScenario(scenario, dom, screenshot) {
 	    }
 	    if (/\bNone\b/.test(`${dom.infoDirectionsText}\n${dom.infoLinksText}`)) {
 	      failures.push("Empty optional info placeholder text is visible.");
+	    }
+	    if (!dom.infoPopulatedSectionEvidence) {
+	      failures.push("Populated INFO runtime evidence is missing.");
+	    }
+	    if (
+	      !dom.infoPopulatedFixtureSelected ||
+	      dom.infoPopulatedSelectedFileLabel !== populatedInfoFixtureName
+	    ) {
+	      failures.push("Populated INFO fixture was not selected.");
+	    }
+	    if (
+	      !dom.infoPopulatedInfoTabActivated ||
+	      !dom.infoPopulatedDirectionsSectionVisible ||
+	      dom.infoPopulatedDirectionsText !== populatedInfoExpectedDirections
+	    ) {
+	      failures.push("Populated directions section is missing.");
+	    }
+	    if (
+	      !dom.infoPopulatedLinksSectionVisible ||
+	      !dom.infoPopulatedLinksText.includes(populatedInfoExpectedLink)
+	    ) {
+	      failures.push("Populated linked section is missing.");
+	    }
+	    if (
+	      !dom.infoPopulatedRestoredHome ||
+	      !dom.infoPopulatedRestoredEditorMode ||
+	      dom.infoPopulatedRestoredSelectedFileLabel !== "home.md"
+	    ) {
+	      failures.push("Populated INFO capture did not restore home editor state.");
 	    }
 	    if (dom.sourceEditorFrameHidden) {
 	      failures.push("Source editor frame is hidden.");
