@@ -591,3 +591,11 @@ The migration roadmap SHALL record Electron generated-link history parity as a n
 - **WHEN** the Electron generated-link history parity change is archived
 - **THEN** retained verification records native selected-file-only generated-link history evidence, Electron generated-link history coverage, preserved toolbar map history behavior, and package/build evidence
 - **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation
+
+### Requirement: Release Workflow Phase Completion Tracking
+The migration roadmap SHALL record credential-backed Electron release workflow support as a final distribution support phase.
+
+#### Scenario: Release workflow phase is archived
+- **WHEN** the Electron release workflow change is archived
+- **THEN** retained verification records workflow trigger behavior, Apple credential bootstrap coverage, canonical release-script delegation, artifact upload coverage, and documentation coverage
+- **AND** final migration completion still requires an actual successful signed/notarized release run or an explicitly accepted OpenSpec deviation

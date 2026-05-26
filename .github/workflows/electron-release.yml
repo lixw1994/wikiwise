@@ -1,0 +1,93 @@
+name: Electron Release
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: "Release version. Leave empty to use the native app bundle version."
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  release:
+    name: Build signed Electron macOS release
+    runs-on: macos-14
+    env:
+      RELEASE_REPORT_PATH: apps/electron/out/release/report.json
+      RELEASE_VERSION: ${{ inputs.release_version }}
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run JavaScript tests
+        run: npm test
+
+      - name: Build native Swift app
+        run: swift build
+
+      - name: Import Apple release credentials
+        env:
+          APPLE_SIGNING_CERTIFICATE_BASE64: ${{ secrets.APPLE_SIGNING_CERTIFICATE_BASE64 }}
+          APPLE_SIGNING_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_SIGNING_CERTIFICATE_PASSWORD }}
+          APPLE_NOTARY_KEY_ID: ${{ secrets.APPLE_NOTARY_KEY_ID }}
+          APPLE_NOTARY_ISSUER_ID: ${{ secrets.APPLE_NOTARY_ISSUER_ID }}
+          APPLE_NOTARY_KEY_BASE64: ${{ secrets.APPLE_NOTARY_KEY_BASE64 }}
+        run: |
+          set -euo pipefail
+
+          CERTIFICATE_PATH="$RUNNER_TEMP/wikiwise-release-certificate.p12"
+          NOTARY_KEY_PATH="$RUNNER_TEMP/AuthKey_${APPLE_NOTARY_KEY_ID}.p8"
+          KEYCHAIN_PATH="$RUNNER_TEMP/wikiwise-release.keychain-db"
+          KEYCHAIN_PASSWORD="$(uuidgen)"
+
+          printf '%s' "$APPLE_SIGNING_CERTIFICATE_BASE64" | base64 --decode > "$CERTIFICATE_PATH"
+          printf '%s' "$APPLE_NOTARY_KEY_BASE64" | base64 --decode > "$NOTARY_KEY_PATH"
+
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security import "$CERTIFICATE_PATH" -P "$APPLE_SIGNING_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+          security default-keychain -s "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+
+          xcrun notarytool store-credentials notarytool \
+            --key "$NOTARY_KEY_PATH" \
+            --key-id "$APPLE_NOTARY_KEY_ID" \
+            --issuer "$APPLE_NOTARY_ISSUER_ID"
+
+      - name: Run canonical Electron release
+        run: |
+          set -euo pipefail
+
+          if [[ -n "$RELEASE_VERSION" ]]; then
+            bash scripts/build-release.sh --release-report apps/electron/out/release/report.json "$RELEASE_VERSION"
+          else
+            npm run electron:release:evidence
+          fi
+
+      - name: Upload Electron release artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: Wikiwise-macOS-dmg
+          path: Wikiwise-macOS.dmg
+          if-no-files-found: error
+
+      - name: Upload Electron release report
+        uses: actions/upload-artifact@v4
+        with:
+          name: Wikiwise-electron-release-report
+          path: apps/electron/out/release/report.json
+          if-no-files-found: error

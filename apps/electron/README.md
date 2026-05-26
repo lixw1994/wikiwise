@@ -55,6 +55,31 @@ That report is written only after runtime audit, packaging, signing, notarizatio
 and it records the DMG path plus SHA-256 checksum. It is not a substitute for a completed production release;
 it is the structured evidence retained by that completed release.
 
+## GitHub release workflow
+
+The manual `Electron Release` workflow at
+`.github/workflows/electron-release.yml` runs on macOS and executes the same
+canonical release path. It installs dependencies, runs `npm test` and
+`swift build`, imports Apple release credentials from GitHub secrets, stores a
+`notarytool` keychain profile, then runs `bash scripts/build-release.sh
+--release-report apps/electron/out/release/report.json` or
+`npm run electron:release:evidence` when the workflow release-version input is
+left empty.
+
+Required secrets:
+
+- `APPLE_SIGNING_CERTIFICATE_BASE64`: base64-encoded Developer ID Application
+  PKCS#12 certificate.
+- `APPLE_SIGNING_CERTIFICATE_PASSWORD`: password for the PKCS#12 certificate.
+- `APPLE_NOTARY_KEY_ID`: Apple notarization API key ID.
+- `APPLE_NOTARY_ISSUER_ID`: Apple notarization issuer ID.
+- `APPLE_NOTARY_KEY_BASE64`: base64-encoded notarization API private key.
+
+After a successful signed and notarized release run, the workflow uploads
+`Wikiwise-macOS.dmg` and `apps/electron/out/release/report.json` as artifacts.
+Final Electron migration completion still requires that successful signed and
+notarized release run, or an accepted OpenSpec deviation.
+
 ## Runtime parity audit
 
 `npm run electron:audit:runtime` launches Electron with the current renderer and
