@@ -138,6 +138,7 @@ The migration roadmap SHALL record Electron file-tree expansion parity as a nati
 - **WHEN** the Electron file-tree expansion parity change is archived
 - **THEN** retained verification records native ordering, default top-level expansion, lazy nested expansion, path-safe expansion IPC, nested file selection, and runtime audit evidence
 - **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation
+
 ### Requirement: Viewport Detail Chrome Parity Phase Completion Tracking
 The migration roadmap SHALL record Electron viewport/detail chrome parity as a visible shell polish phase.
 
@@ -375,4 +376,15 @@ The migration roadmap SHALL record first-publish dialog runtime evidence as a na
 - **WHEN** the publish dialog runtime evidence change is archived
 - **THEN** retained verification records runtime audit coverage for dialog opening, URL-row evidence, token-warning evidence, availability evidence, cancel-closure evidence, and restore-state evidence
 - **AND** retained verification states that publish success, publish error, and unpublish runtime flows remain separate from this first-publish dialog evidence
+- **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation
+
+### Requirement: Publish Feedback Runtime Evidence Phase Completion Tracking
+
+The migration roadmap SHALL record publish feedback runtime evidence as a native runtime parity evidence phase.
+
+#### Scenario: Publish feedback runtime evidence phase is archived
+
+- **WHEN** the publish feedback runtime evidence change is archived
+- **THEN** retained verification records runtime audit coverage for first-publish success feedback, external browser routing, publish error feedback, unpublish confirmation, unpublish cleanup, and restore-state evidence
+- **AND** retained verification states that the evidence uses audit-only mocked publishing IPC and does not contact the production publishing service
 - **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation

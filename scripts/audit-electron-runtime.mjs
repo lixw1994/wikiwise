@@ -36,6 +36,17 @@ const publishDialogExpectedUrlSuffix = ".wiki-wise.com";
 const publishDialogExpectedAvailabilityText = "Anyone with this link can view your wiki.";
 const publishDialogExpectedTokenWarning =
   "A publish.json file will be saved in your project — it contains your publish token. Treat it like a password: if you lose it, you won’t be able to update this site.";
+const publishFeedbackSuccessSubdomain = "runtime-audit-publish";
+const publishFeedbackErrorSubdomain = "runtime-audit-error";
+const publishFeedbackExpectedUrl = `https://${publishFeedbackSuccessSubdomain}.wiki-wise.com`;
+const publishFeedbackExpectedTitle = "Published!";
+const publishFeedbackExpectedMessagePrefix = "Your wiki is live at";
+const publishFeedbackExpectedSavedConfigText = "A publish.json file has been saved to your project";
+const publishFeedbackExpectedOpenButton = "Open in Browser";
+const publishFeedbackExpectedErrorTitle = "Publish Error";
+const publishFeedbackExpectedErrorMessage = "Runtime audit publish failed.";
+const publishFeedbackExpectedUnpublishTitle = "Unpublish wiki?";
+const publishFeedbackExpectedUnpublishBody = "Your local files are not affected.";
 const scenarios = Object.freeze([
   { name: "welcome-light", kind: "welcome", appearanceMode: "Light" },
   { name: "welcome-dark", kind: "welcome", appearanceMode: "Dark" },
@@ -66,6 +77,10 @@ let terminalStartedProjectRoot = "";
 let newWikiRuntimeCreatedScaffold = null;
 let newWikiRuntimeCreatedProject = null;
 let previewNavigationResolvePayloads = [];
+let auditPublishConfig = null;
+let auditPublishedUrlOpened = "";
+let auditPublishSiteCalls = [];
+let auditUnpublishSiteCalls = [];
 const auditIpcChannels = Object.freeze([
   "wikiwise:getAppSettings",
   "wikiwise:setAppearanceMode",
@@ -432,11 +447,19 @@ function registerAuditIpcHandlers() {
   ipcMain.handle("wikiwise:getDocumentInfo", (_event, payload) => {
     return summarizeDocumentInfo(payload.filePath);
   });
-  ipcMain.handle("wikiwise:getPublishConfig", (_event, payload) => ({
-    published: false,
-    subdomain: null,
-    suggestedSubdomain: randomPublishSubdomain(path.basename(payload.projectRoot))
-  }));
+  ipcMain.handle("wikiwise:getPublishConfig", (_event, payload) => {
+    if (auditPublishConfig) {
+      return { ...auditPublishConfig };
+    }
+
+    return {
+      published: false,
+      subdomain: "",
+      suggestedSubdomain: randomPublishSubdomain(path.basename(payload.projectRoot)),
+      url: "",
+      lastPublishedAt: null
+    };
+  });
   ipcMain.handle("wikiwise:scanProject", (_event, projectRoot) => scanOneLevel(projectRoot));
   ipcMain.handle("wikiwise:expandTreeDirectory", (_event, payload) => {
     return expandTreeDirectory(payload.projectRoot, payload.directoryPath);
@@ -511,7 +534,10 @@ function registerAuditIpcHandlers() {
     });
     return result;
   });
-  ipcMain.handle("wikiwise:openExternalUrl", () => ({ ok: true }));
+  ipcMain.handle("wikiwise:openExternalUrl", (_event, url) => {
+    auditPublishedUrlOpened = typeof url === "string" ? url : "";
+    return { ok: true };
+  });
   ipcMain.handle("wikiwise:openExisting", () => ({ canceled: true }));
   ipcMain.handle("wikiwise:getDefaultWikiLocation", () => sampleProjectParent);
   ipcMain.handle("wikiwise:chooseNewWikiLocation", () => ({ canceled: true }));
@@ -544,12 +570,50 @@ function registerAuditIpcHandlers() {
     activeFileObserved = Boolean(payload?.projectRoot && payload?.filePath);
     return { ok: true };
   });
-  ipcMain.handle("wikiwise:checkPublishAvailability", () => ({ availability: "unknown" }));
-  ipcMain.handle("wikiwise:publishSite", () => {
-    throw new Error("Runtime audit does not publish.");
+  ipcMain.handle("wikiwise:checkPublishAvailability", (_event, payload) => {
+    const subdomain = typeof payload?.subdomain === "string" ? payload.subdomain : "";
+    if ([publishFeedbackSuccessSubdomain, publishFeedbackErrorSubdomain].includes(subdomain)) {
+      return { availability: "available" };
+    }
+
+    return { availability: "unknown" };
   });
-  ipcMain.handle("wikiwise:unpublishSite", () => {
-    throw new Error("Runtime audit does not unpublish.");
+  ipcMain.handle("wikiwise:publishSite", (_event, payload) => {
+    const subdomain = typeof payload?.subdomain === "string" ? payload.subdomain : publishFeedbackSuccessSubdomain;
+    const url = `https://${subdomain}.wiki-wise.com`;
+    const isFirstPublish = !auditPublishConfig?.published;
+    auditPublishSiteCalls.push({
+      projectRoot: typeof payload?.projectRoot === "string" ? path.resolve(payload.projectRoot) : "",
+      subdomain,
+      url,
+      isFirstPublish
+    });
+
+    if (subdomain === publishFeedbackErrorSubdomain) {
+      throw new Error(publishFeedbackExpectedErrorMessage);
+    }
+
+    auditPublishConfig = {
+      published: true,
+      subdomain,
+      suggestedSubdomain: subdomain,
+      url,
+      lastPublishedAt: "2026-05-27T00:00:00.000Z"
+    };
+    return {
+      url,
+      isFirstPublish,
+      fileCount: 0
+    };
+  });
+  ipcMain.handle("wikiwise:unpublishSite", (_event, payload) => {
+    auditUnpublishSiteCalls.push({
+      projectRoot: typeof payload?.projectRoot === "string" ? path.resolve(payload.projectRoot) : "",
+      subdomain: auditPublishConfig?.subdomain ?? "",
+      url: auditPublishConfig?.url ?? ""
+    });
+    auditPublishConfig = null;
+    return { unpublished: true };
   });
 }
 
@@ -596,6 +660,10 @@ async function runScenario(window, scenario) {
   newWikiRuntimeCreatedScaffold = null;
   newWikiRuntimeCreatedProject = null;
   previewNavigationResolvePayloads = [];
+  auditPublishConfig = null;
+  auditPublishedUrlOpened = "";
+  auditPublishSiteCalls = [];
+  auditUnpublishSiteCalls = [];
   nativeTheme.themeSource = scenario.appearanceMode.toLowerCase();
   console.log(`Running runtime audit scenario: ${scenario.name}`);
 
@@ -672,6 +740,7 @@ async function runScenario(window, scenario) {
     await captureInfoOptionalSectionEvidence(window);
     await captureInfoPopulatedSectionEvidence(window);
     await capturePublishDialogRuntimeEvidence(window);
+    await capturePublishFeedbackRuntimeEvidence(window);
   }
   await delay(120);
 
@@ -1354,6 +1423,285 @@ async function capturePublishDialogRuntimeEvidence(window) {
     publishDialogRestoredEditorMode: false,
     publishDialogRestoredSelectedFileLabel: "",
     error: error instanceof Error ? error.message : String(error)
+  }));
+}
+
+async function capturePublishFeedbackRuntimeEvidence(window) {
+  const browserEvidence = await window.webContents.executeJavaScript(`(async () => {
+    const successSubdomain = ${JSON.stringify(publishFeedbackSuccessSubdomain)};
+    const errorSubdomain = ${JSON.stringify(publishFeedbackErrorSubdomain)};
+    const expectedUrl = ${JSON.stringify(publishFeedbackExpectedUrl)};
+    const expectedSuccessTitle = ${JSON.stringify(publishFeedbackExpectedTitle)};
+    const expectedMessagePrefix = ${JSON.stringify(publishFeedbackExpectedMessagePrefix)};
+    const expectedSavedConfigText = ${JSON.stringify(publishFeedbackExpectedSavedConfigText)};
+    const expectedOpenButton = ${JSON.stringify(publishFeedbackExpectedOpenButton)};
+    const expectedErrorTitle = ${JSON.stringify(publishFeedbackExpectedErrorTitle)};
+    const expectedErrorMessage = ${JSON.stringify(publishFeedbackExpectedErrorMessage)};
+    const expectedUnpublishTitle = ${JSON.stringify(publishFeedbackExpectedUnpublishTitle)};
+    const expectedUnpublishBody = ${JSON.stringify(publishFeedbackExpectedUnpublishBody)};
+    const publishButton = document.querySelector("#publish-wiki");
+    const publishDialog = document.querySelector("#publish-dialog");
+    const publishSubdomainInput = document.querySelector("#publish-subdomain");
+    const publishAvailability = document.querySelector("#publish-availability");
+    const confirmPublishButton = document.querySelector("#confirm-publish");
+    const cancelPublishButton = document.querySelector("#cancel-publish");
+    const unpublishButton = document.querySelector("#unpublish-wiki");
+    const publishResultDialog = document.querySelector("#publish-result-dialog");
+    const openPublishResultButton = document.querySelector("#open-publish-result");
+    const publishErrorDialog = document.querySelector("#publish-error-dialog");
+    const dismissPublishErrorButton = document.querySelector("#dismiss-publish-error");
+    const unpublishConfirmDialog = document.querySelector("#unpublish-confirm-dialog");
+    const confirmUnpublishButton = document.querySelector("#confirm-unpublish");
+    const modeFile = document.querySelector("#mode-file");
+    const sourceEditorFrame = document.querySelector("#source-editor-frame");
+    const previewFrame = document.querySelector("#preview-frame");
+    const normalizeText = (value) => String(value ?? "").replace(/\\s+/g, " ").trim();
+    const textFor = (selector) => normalizeText(document.querySelector(selector)?.textContent);
+    const selectedFileLabel = () => textFor("#selected-file");
+    const isVisible = (element) => Boolean(
+      element &&
+      !element.hidden &&
+      element.getBoundingClientRect().width > 0 &&
+      element.getBoundingClientRect().height > 0
+    );
+    const treeFileButton = (name) => [...document.querySelectorAll(".tree-file-button")]
+      .find((button) => button.textContent.trim() === name);
+    const waitFor = async (predicate, timeoutMs = 5000) => {
+      const start = Date.now();
+      while (Date.now() - start < timeoutMs) {
+        if (predicate()) return true;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      return false;
+    };
+    const nextFrame = () => new Promise((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(resolve));
+    });
+    const evidence = {
+      publishFeedbackRuntimeEvidence: true,
+      publishFeedbackExpectedUrl: expectedUrl,
+      publishFeedbackExpectedSuccessTitle: expectedSuccessTitle,
+      publishFeedbackExpectedMessagePrefix: expectedMessagePrefix,
+      publishFeedbackExpectedSavedConfigText: expectedSavedConfigText,
+      publishFeedbackExpectedOpenButton: expectedOpenButton,
+      publishFeedbackExpectedErrorTitle: expectedErrorTitle,
+      publishFeedbackExpectedErrorMessage: expectedErrorMessage,
+      publishFeedbackExpectedUnpublishTitle: expectedUnpublishTitle,
+      publishFeedbackExpectedUnpublishBody: expectedUnpublishBody,
+      publishFeedbackSuccessEvidence: false,
+      publishFeedbackSuccessTitle: "",
+      publishFeedbackSuccessMessage: "",
+      publishFeedbackSuccessUrl: "",
+      publishFeedbackOpenButtonLabel: "",
+      publishFeedbackResultUrlHidden: false,
+      publishFeedbackResultDismissed: false,
+      publishFeedbackErrorEvidence: false,
+      publishFeedbackErrorTitle: "",
+      publishFeedbackErrorMessage: "",
+      publishFeedbackErrorDismissed: false,
+      publishFeedbackErrorControlsEnabled: false,
+      publishFeedbackUnpublishEvidence: false,
+      publishFeedbackUnpublishDialogOpened: false,
+      publishFeedbackUnpublishTitle: "",
+      publishFeedbackUnpublishBody: "",
+      publishFeedbackUnpublishConfirmed: false,
+      publishFeedbackRestoredHome: false,
+      publishFeedbackRestoredEditorMode: false,
+      publishFeedbackRestoredSelectedFileLabel: "",
+      publishFeedbackExternalOpenObserved: false,
+      publishFeedbackExternalOpenUrl: "",
+      publishFeedbackPublishCallObserved: false,
+      publishFeedbackUnpublishCallObserved: false,
+      publishFeedbackPublishedConfigCleared: false
+    };
+
+    const openDialog = async () => {
+      publishButton?.click();
+      await waitFor(() => isVisible(publishDialog));
+      await nextFrame();
+      return isVisible(publishDialog);
+    };
+    const setSubdomain = async (subdomain) => {
+      publishSubdomainInput?.focus();
+      if (publishSubdomainInput) {
+        publishSubdomainInput.value = subdomain;
+        publishSubdomainInput.dispatchEvent(new Event("input", { bubbles: true }));
+      }
+      await waitFor(() => (
+        publishAvailability?.dataset.state === "available" &&
+        Boolean(confirmPublishButton) &&
+        !confirmPublishButton.disabled
+      ));
+      await nextFrame();
+    };
+    const restoreHomeEditor = async () => {
+      if (selectedFileLabel() !== "home.md") {
+        treeFileButton("home.md")?.click();
+        await waitFor(() => selectedFileLabel() === "home.md");
+      }
+      modeFile?.click();
+      await waitFor(() => (
+        selectedFileLabel() === "home.md" &&
+        Boolean(sourceEditorFrame && !sourceEditorFrame.hidden) &&
+        Boolean(sourceEditorFrame?.contentDocument?.querySelector(".cm-editor")) &&
+        Boolean(previewFrame?.hidden)
+      ));
+      await nextFrame();
+
+      evidence.publishFeedbackRestoredSelectedFileLabel = selectedFileLabel();
+      evidence.publishFeedbackRestoredHome =
+        evidence.publishFeedbackRestoredSelectedFileLabel === "home.md";
+      evidence.publishFeedbackRestoredEditorMode = Boolean(
+        modeFile?.classList.contains("selected") &&
+        sourceEditorFrame &&
+        !sourceEditorFrame.hidden &&
+        sourceEditorFrame.contentDocument?.querySelector(".cm-editor") &&
+        previewFrame?.hidden
+      );
+    };
+
+    if (
+      !publishButton ||
+      !publishDialog ||
+      !publishSubdomainInput ||
+      !confirmPublishButton ||
+      !publishResultDialog ||
+      !publishErrorDialog ||
+      !unpublishConfirmDialog
+    ) {
+      await restoreHomeEditor();
+      window.__wikiwisePublishFeedbackRuntimeEvidence = evidence;
+      return evidence;
+    }
+
+    await openDialog();
+    await setSubdomain(successSubdomain);
+    confirmPublishButton.click();
+    await waitFor(() => isVisible(publishResultDialog));
+    await nextFrame();
+
+    evidence.publishFeedbackSuccessTitle = textFor("#publish-result-title");
+    evidence.publishFeedbackSuccessMessage = textFor("#publish-result-message");
+    evidence.publishFeedbackSuccessUrl = expectedUrl;
+    evidence.publishFeedbackOpenButtonLabel = normalizeText(openPublishResultButton?.textContent);
+    evidence.publishFeedbackResultUrlHidden = Boolean(document.querySelector("#publish-result-url")?.hidden);
+    evidence.publishFeedbackSuccessEvidence = Boolean(
+      isVisible(publishResultDialog) &&
+      evidence.publishFeedbackSuccessTitle === expectedSuccessTitle &&
+      evidence.publishFeedbackSuccessMessage.includes(expectedMessagePrefix + " " + expectedUrl) &&
+      evidence.publishFeedbackSuccessMessage.includes(expectedSavedConfigText) &&
+      evidence.publishFeedbackOpenButtonLabel === expectedOpenButton &&
+      evidence.publishFeedbackResultUrlHidden
+    );
+
+    openPublishResultButton?.click();
+    await waitFor(() => Boolean(publishResultDialog.hidden));
+    evidence.publishFeedbackResultDismissed = Boolean(publishResultDialog.hidden);
+
+    await openDialog();
+    await setSubdomain(errorSubdomain);
+    confirmPublishButton.click();
+    await waitFor(() => isVisible(publishErrorDialog));
+    await nextFrame();
+
+    evidence.publishFeedbackErrorTitle = textFor("#publish-error-title");
+    evidence.publishFeedbackErrorMessage = textFor("#publish-error-message");
+    evidence.publishFeedbackErrorEvidence = Boolean(
+      isVisible(publishErrorDialog) &&
+      evidence.publishFeedbackErrorTitle === expectedErrorTitle &&
+      evidence.publishFeedbackErrorMessage.includes(expectedErrorMessage)
+    );
+    dismissPublishErrorButton?.click();
+    await waitFor(() => Boolean(publishErrorDialog.hidden));
+    evidence.publishFeedbackErrorDismissed = Boolean(publishErrorDialog.hidden);
+    evidence.publishFeedbackErrorControlsEnabled = Boolean(publishButton && !publishButton.disabled);
+
+    await openDialog();
+    unpublishButton?.click();
+    await waitFor(() => isVisible(unpublishConfirmDialog));
+    await nextFrame();
+
+    evidence.publishFeedbackUnpublishDialogOpened = isVisible(unpublishConfirmDialog);
+    evidence.publishFeedbackUnpublishTitle = textFor("#unpublish-confirm-title");
+    evidence.publishFeedbackUnpublishBody = textFor("#unpublish-confirm-dialog .publish-feedback-message");
+    evidence.publishFeedbackUnpublishEvidence = Boolean(
+      evidence.publishFeedbackUnpublishDialogOpened &&
+      evidence.publishFeedbackUnpublishTitle === expectedUnpublishTitle &&
+      evidence.publishFeedbackUnpublishBody.includes(expectedUnpublishBody)
+    );
+    confirmUnpublishButton?.click();
+    await waitFor(() => Boolean(unpublishConfirmDialog.hidden));
+    evidence.publishFeedbackUnpublishConfirmed = Boolean(unpublishConfirmDialog.hidden);
+
+    if (!publishDialog.hidden) {
+      cancelPublishButton?.click();
+      await waitFor(() => Boolean(publishDialog.hidden));
+    }
+    await restoreHomeEditor();
+
+    window.__wikiwisePublishFeedbackRuntimeEvidence = evidence;
+    return evidence;
+  })()`, true).catch((error) => ({
+    publishFeedbackRuntimeEvidence: false,
+    publishFeedbackExpectedUrl: publishFeedbackExpectedUrl,
+    publishFeedbackExpectedSuccessTitle: publishFeedbackExpectedTitle,
+    publishFeedbackExpectedMessagePrefix: publishFeedbackExpectedMessagePrefix,
+    publishFeedbackExpectedSavedConfigText: publishFeedbackExpectedSavedConfigText,
+    publishFeedbackExpectedOpenButton: publishFeedbackExpectedOpenButton,
+    publishFeedbackExpectedErrorTitle: publishFeedbackExpectedErrorTitle,
+    publishFeedbackExpectedErrorMessage: publishFeedbackExpectedErrorMessage,
+    publishFeedbackExpectedUnpublishTitle: publishFeedbackExpectedUnpublishTitle,
+    publishFeedbackExpectedUnpublishBody: publishFeedbackExpectedUnpublishBody,
+    publishFeedbackSuccessEvidence: false,
+    publishFeedbackSuccessTitle: "",
+    publishFeedbackSuccessMessage: "",
+    publishFeedbackSuccessUrl: "",
+    publishFeedbackOpenButtonLabel: "",
+    publishFeedbackResultUrlHidden: false,
+    publishFeedbackResultDismissed: false,
+    publishFeedbackErrorEvidence: false,
+    publishFeedbackErrorTitle: "",
+    publishFeedbackErrorMessage: "",
+    publishFeedbackErrorDismissed: false,
+    publishFeedbackErrorControlsEnabled: false,
+    publishFeedbackUnpublishEvidence: false,
+    publishFeedbackUnpublishDialogOpened: false,
+    publishFeedbackUnpublishTitle: "",
+    publishFeedbackUnpublishBody: "",
+    publishFeedbackUnpublishConfirmed: false,
+    publishFeedbackRestoredHome: false,
+    publishFeedbackRestoredEditorMode: false,
+    publishFeedbackRestoredSelectedFileLabel: "",
+    publishFeedbackExternalOpenObserved: false,
+    publishFeedbackExternalOpenUrl: "",
+    publishFeedbackPublishCallObserved: false,
+    publishFeedbackUnpublishCallObserved: false,
+    publishFeedbackPublishedConfigCleared: false,
+    error: error instanceof Error ? error.message : String(error)
+  }));
+
+  const hostEvidence = {
+    publishFeedbackExternalOpenObserved: auditPublishedUrlOpened === publishFeedbackExpectedUrl,
+    publishFeedbackExternalOpenUrl: auditPublishedUrlOpened,
+    publishFeedbackPublishCallObserved: auditPublishSiteCalls.some(
+      (call) => call.subdomain === publishFeedbackSuccessSubdomain && call.url === publishFeedbackExpectedUrl
+    ),
+    publishFeedbackUnpublishCallObserved: auditUnpublishSiteCalls.some(
+      (call) => call.subdomain === publishFeedbackSuccessSubdomain && call.url === publishFeedbackExpectedUrl
+    ),
+    publishFeedbackPublishedConfigCleared: auditPublishConfig === null
+  };
+  return window.webContents.executeJavaScript(`(() => {
+    const hostEvidence = ${JSON.stringify(hostEvidence)};
+    const evidence = {
+      ...(window.__wikiwisePublishFeedbackRuntimeEvidence ?? {}),
+      ...hostEvidence
+    };
+    window.__wikiwisePublishFeedbackRuntimeEvidence = evidence;
+    return evidence;
+  })()`, true).catch(() => ({
+    ...browserEvidence,
+    ...hostEvidence
   }));
 }
 
@@ -2100,6 +2448,7 @@ async function readDomEvidence(window) {
 	    const infoOptionalEvidence = window.__wikiwiseInfoOptionalSectionEvidence ?? {};
 	    const infoPopulatedEvidence = window.__wikiwiseInfoPopulatedSectionEvidence ?? {};
 	    const publishDialogEvidence = window.__wikiwisePublishDialogRuntimeEvidence ?? {};
+	    const publishFeedbackEvidence = window.__wikiwisePublishFeedbackRuntimeEvidence ?? {};
 	    const defaultWikiPreviewEvidence = window.__wikiwiseDefaultWikiPreviewEvidence ?? {};
 	    const previewScrollEvidence = window.__wikiwisePreviewScrollEvidence ?? {};
 	    const generatedMapEvidence = window.__wikiwiseGeneratedMapEvidence ?? {};
@@ -2253,6 +2602,56 @@ async function readDomEvidence(window) {
       publishDialogRestoredEditorMode: Boolean(publishDialogEvidence.publishDialogRestoredEditorMode),
       publishDialogRestoredSelectedFileLabel:
         publishDialogEvidence.publishDialogRestoredSelectedFileLabel ?? "",
+      publishFeedbackRuntimeEvidence: Boolean(publishFeedbackEvidence.publishFeedbackRuntimeEvidence),
+      publishFeedbackExpectedUrl: publishFeedbackEvidence.publishFeedbackExpectedUrl ?? "",
+      publishFeedbackExpectedSuccessTitle: publishFeedbackEvidence.publishFeedbackExpectedSuccessTitle ?? "",
+      publishFeedbackExpectedMessagePrefix:
+        publishFeedbackEvidence.publishFeedbackExpectedMessagePrefix ?? "",
+      publishFeedbackExpectedSavedConfigText:
+        publishFeedbackEvidence.publishFeedbackExpectedSavedConfigText ?? "",
+      publishFeedbackExpectedOpenButton: publishFeedbackEvidence.publishFeedbackExpectedOpenButton ?? "",
+      publishFeedbackExpectedErrorTitle: publishFeedbackEvidence.publishFeedbackExpectedErrorTitle ?? "",
+      publishFeedbackExpectedErrorMessage:
+        publishFeedbackEvidence.publishFeedbackExpectedErrorMessage ?? "",
+      publishFeedbackExpectedUnpublishTitle:
+        publishFeedbackEvidence.publishFeedbackExpectedUnpublishTitle ?? "",
+      publishFeedbackExpectedUnpublishBody:
+        publishFeedbackEvidence.publishFeedbackExpectedUnpublishBody ?? "",
+      publishFeedbackSuccessEvidence: Boolean(publishFeedbackEvidence.publishFeedbackSuccessEvidence),
+      publishFeedbackSuccessTitle: publishFeedbackEvidence.publishFeedbackSuccessTitle ?? "",
+      publishFeedbackSuccessMessage: publishFeedbackEvidence.publishFeedbackSuccessMessage ?? "",
+      publishFeedbackSuccessUrl: publishFeedbackEvidence.publishFeedbackSuccessUrl ?? "",
+      publishFeedbackOpenButtonLabel: publishFeedbackEvidence.publishFeedbackOpenButtonLabel ?? "",
+      publishFeedbackResultUrlHidden: Boolean(publishFeedbackEvidence.publishFeedbackResultUrlHidden),
+      publishFeedbackResultDismissed: Boolean(publishFeedbackEvidence.publishFeedbackResultDismissed),
+      publishFeedbackExternalOpenObserved:
+        Boolean(publishFeedbackEvidence.publishFeedbackExternalOpenObserved),
+      publishFeedbackExternalOpenUrl: publishFeedbackEvidence.publishFeedbackExternalOpenUrl ?? "",
+      publishFeedbackPublishCallObserved:
+        Boolean(publishFeedbackEvidence.publishFeedbackPublishCallObserved),
+      publishFeedbackErrorEvidence: Boolean(publishFeedbackEvidence.publishFeedbackErrorEvidence),
+      publishFeedbackErrorTitle: publishFeedbackEvidence.publishFeedbackErrorTitle ?? "",
+      publishFeedbackErrorMessage: publishFeedbackEvidence.publishFeedbackErrorMessage ?? "",
+      publishFeedbackErrorDismissed: Boolean(publishFeedbackEvidence.publishFeedbackErrorDismissed),
+      publishFeedbackErrorControlsEnabled:
+        Boolean(publishFeedbackEvidence.publishFeedbackErrorControlsEnabled),
+      publishFeedbackUnpublishEvidence:
+        Boolean(publishFeedbackEvidence.publishFeedbackUnpublishEvidence),
+      publishFeedbackUnpublishDialogOpened:
+        Boolean(publishFeedbackEvidence.publishFeedbackUnpublishDialogOpened),
+      publishFeedbackUnpublishTitle: publishFeedbackEvidence.publishFeedbackUnpublishTitle ?? "",
+      publishFeedbackUnpublishBody: publishFeedbackEvidence.publishFeedbackUnpublishBody ?? "",
+      publishFeedbackUnpublishConfirmed:
+        Boolean(publishFeedbackEvidence.publishFeedbackUnpublishConfirmed),
+      publishFeedbackUnpublishCallObserved:
+        Boolean(publishFeedbackEvidence.publishFeedbackUnpublishCallObserved),
+      publishFeedbackPublishedConfigCleared:
+        Boolean(publishFeedbackEvidence.publishFeedbackPublishedConfigCleared),
+      publishFeedbackRestoredHome: Boolean(publishFeedbackEvidence.publishFeedbackRestoredHome),
+      publishFeedbackRestoredEditorMode:
+        Boolean(publishFeedbackEvidence.publishFeedbackRestoredEditorMode),
+      publishFeedbackRestoredSelectedFileLabel:
+        publishFeedbackEvidence.publishFeedbackRestoredSelectedFileLabel ?? "",
       newWikiDialogHidden: Boolean(document.querySelector("#new-wiki-dialog")?.hidden),
       sourceEditorFramePresent: Boolean(sourceEditorFrame),
       sourceEditorFrameReady: Boolean(sourceEditorFrame?.contentWindow?.getContent),
@@ -2902,6 +3301,57 @@ function assertScenario(scenario, dom, screenshot) {
 	      dom.publishDialogRestoredSelectedFileLabel !== "home.md"
 	    ) {
 	      failures.push("Publish dialog capture did not restore home editor state.");
+	    }
+	    if (!dom.publishFeedbackRuntimeEvidence) {
+	      failures.push("Publish feedback runtime evidence is missing.");
+	    }
+	    if (
+	      !dom.publishFeedbackSuccessEvidence ||
+	      !dom.publishFeedbackPublishCallObserved ||
+	      dom.publishFeedbackSuccessTitle !== publishFeedbackExpectedTitle ||
+	      dom.publishFeedbackSuccessUrl !== publishFeedbackExpectedUrl ||
+	      !dom.publishFeedbackSuccessMessage.includes(
+	        `${publishFeedbackExpectedMessagePrefix} ${publishFeedbackExpectedUrl}`
+	      ) ||
+	      !dom.publishFeedbackSuccessMessage.includes(publishFeedbackExpectedSavedConfigText) ||
+	      dom.publishFeedbackOpenButtonLabel !== publishFeedbackExpectedOpenButton ||
+	      !dom.publishFeedbackResultUrlHidden
+	    ) {
+	      failures.push("Publish success feedback evidence is missing.");
+	    }
+	    if (
+	      !dom.publishFeedbackExternalOpenObserved ||
+	      dom.publishFeedbackExternalOpenUrl !== publishFeedbackExpectedUrl ||
+	      !dom.publishFeedbackResultDismissed
+	    ) {
+	      failures.push("Publish result external-open routing is missing.");
+	    }
+	    if (
+	      !dom.publishFeedbackErrorEvidence ||
+	      dom.publishFeedbackErrorTitle !== publishFeedbackExpectedErrorTitle ||
+	      !dom.publishFeedbackErrorMessage.includes(publishFeedbackExpectedErrorMessage) ||
+	      !dom.publishFeedbackErrorDismissed ||
+	      !dom.publishFeedbackErrorControlsEnabled
+	    ) {
+	      failures.push("Publish error feedback evidence is missing.");
+	    }
+	    if (
+	      !dom.publishFeedbackUnpublishEvidence ||
+	      !dom.publishFeedbackUnpublishDialogOpened ||
+	      dom.publishFeedbackUnpublishTitle !== publishFeedbackExpectedUnpublishTitle ||
+	      !dom.publishFeedbackUnpublishBody.includes(publishFeedbackExpectedUnpublishBody) ||
+	      !dom.publishFeedbackUnpublishConfirmed ||
+	      !dom.publishFeedbackUnpublishCallObserved ||
+	      !dom.publishFeedbackPublishedConfigCleared
+	    ) {
+	      failures.push("Unpublish feedback evidence is missing.");
+	    }
+	    if (
+	      !dom.publishFeedbackRestoredHome ||
+	      !dom.publishFeedbackRestoredEditorMode ||
+	      dom.publishFeedbackRestoredSelectedFileLabel !== "home.md"
+	    ) {
+	      failures.push("Publish feedback capture did not restore home editor state.");
 	    }
 	    if (dom.sourceEditorFrameHidden) {
 	      failures.push("Source editor frame is hidden.");

@@ -404,6 +404,52 @@ test("runtime audit script records first-publish dialog evidence", () => {
   ]);
 });
 
+test("runtime audit script records publish feedback runtime evidence", () => {
+  const script = read("scripts/audit-electron-runtime.mjs");
+
+  assertSourceContains(script, [
+    /capturePublishFeedbackRuntimeEvidence/,
+    /window\.__wikiwisePublishFeedbackRuntimeEvidence/,
+    /publishFeedbackRuntimeEvidence/,
+    /auditPublishConfig/,
+    /auditPublishSiteCalls/,
+    /auditUnpublishSiteCalls/,
+    /auditPublishedUrlOpened/,
+    /publishFeedbackSuccessEvidence/,
+    /publishFeedbackSuccessTitle/,
+    /publishFeedbackSuccessMessage/,
+    /publishFeedbackResultUrlHidden/,
+    /publishFeedbackExternalOpenObserved/,
+    /publishFeedbackExternalOpenUrl/,
+    /publishFeedbackResultDismissed/,
+    /publishFeedbackErrorEvidence/,
+    /publishFeedbackErrorTitle/,
+    /publishFeedbackErrorMessage/,
+    /publishFeedbackErrorDismissed/,
+    /publishFeedbackUnpublishEvidence/,
+    /publishFeedbackUnpublishDialogOpened/,
+    /publishFeedbackUnpublishConfirmed/,
+    /publishFeedbackUnpublishCallObserved/,
+    /publishFeedbackPublishedConfigCleared/,
+    /publishFeedbackRestoredHome/,
+    /publishFeedbackRestoredEditorMode/,
+    /Published!/,
+    /Your wiki is live at/,
+    /A publish\.json file has been saved to your project/,
+    /Open in Browser/,
+    /Publish Error/,
+    /Runtime audit publish failed/,
+    /Unpublish wiki\?/,
+    /Your local files are not affected/,
+    /Publish feedback runtime evidence is missing/,
+    /Publish success feedback evidence is missing/,
+    /Publish result external-open routing is missing/,
+    /Publish error feedback evidence is missing/,
+    /Unpublish feedback evidence is missing/,
+    /Publish feedback capture did not restore home editor state/
+  ]);
+});
+
 test("runtime audit script creates scaffold project evidence through core helpers", () => {
   const script = read("scripts/audit-electron-runtime.mjs");
 
