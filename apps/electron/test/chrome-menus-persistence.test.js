@@ -44,6 +44,36 @@ test("main process owns app settings, appearance, restore, generated pages, and 
   assert.match(mainSource, /accelerator:\s*"CommandOrControl\+R"/);
 });
 
+test("startup restore is limited to the native first window scope", () => {
+  const mainSource = read("src/main/main.js");
+  const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
+
+  assert.match(swiftSource, /private static var instanceCount = 0/);
+  assert.match(swiftSource, /isFirstInstance = ContentView\.instanceCount == 1/);
+  assert.match(swiftSource, /guard isFirstInstance else \{ return \}/);
+  assert.match(mainSource, /let mainWindowCreationCount = 0/);
+  assert.match(mainSource, /const startupRestoreByWebContentsId = new Map\(\)/);
+  assert.match(mainSource, /const shouldRestoreLastProject = mainWindowCreationCount === 0/);
+  assert.match(mainSource, /mainWindowCreationCount \+= 1/);
+  assert.match(
+    mainSource,
+    /startupRestoreByWebContentsId\.set\(mainWindow\.webContents\.id,\s*shouldRestoreLastProject\)/
+  );
+  assert.match(
+    mainSource,
+    /mainWindow\.webContents\.once\("destroyed",\s*\(\) => \{\s*startupRestoreByWebContentsId\.delete\(mainWindow\.webContents\.id\)/
+  );
+  assert.match(mainSource, /function restoreLastProjectForWebContents\(webContents\)/);
+  assert.match(
+    mainSource,
+    /if \(!startupRestoreByWebContentsId\.get\(webContents\?\.id\)\) return null/
+  );
+  assert.match(
+    mainSource,
+    /ipcMain\.handle\("wikiwise:restoreLastProject",\s*\(event\) => \{\s*return restoreLastProjectForWebContents\(event\.sender\)/
+  );
+});
+
 test("app menu navigation commands match the native File command group", () => {
   const mainSource = read("src/main/main.js");
   const swiftSource = readRepository("Sources/Wikiwise/WikiwiseApp.swift");

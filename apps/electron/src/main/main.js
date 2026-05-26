@@ -31,6 +31,8 @@ const compilersByProjectRoot = new Map();
 const watchersByWebContents = new Map();
 const terminalSessionsByWebContents = new Map();
 const backgroundCompilationJobsByProjectRoot = new Map();
+const startupRestoreByWebContentsId = new Map();
+let mainWindowCreationCount = 0;
 const projectWatcherDebounceMs = 200;
 const backgroundCompilationBatchSize = 3;
 const backgroundCompilationIntervalMs = 100;
@@ -254,6 +256,12 @@ function restoreLastProject() {
   }
 
   return createProjectResult(settings.lastFolderPath);
+}
+
+function restoreLastProjectForWebContents(webContents) {
+  if (!startupRestoreByWebContentsId.get(webContents?.id)) return null;
+
+  return restoreLastProject();
 }
 
 function openGeneratedPage(payload) {
@@ -979,6 +987,9 @@ async function openExistingProject(browserWindow) {
 }
 
 function createMainWindow() {
+  const shouldRestoreLastProject = mainWindowCreationCount === 0;
+  mainWindowCreationCount += 1;
+
   const appIcon = createNativeAppIcon();
   const mainWindow = new BrowserWindow({
     width: nativeWindowDefaultSize.width,
@@ -996,6 +1007,10 @@ function createMainWindow() {
       sandbox: true
     }
   });
+  startupRestoreByWebContentsId.set(mainWindow.webContents.id, shouldRestoreLastProject);
+  mainWindow.webContents.once("destroyed", () => {
+    startupRestoreByWebContentsId.delete(mainWindow.webContents.id);
+  });
 
   mainWindow.loadFile(path.join(packageRoot, "src", "renderer", "index.html"));
   return mainWindow;
@@ -1007,8 +1022,8 @@ ipcMain.handle("wikiwise:getAppSettings", () => {
 ipcMain.handle("wikiwise:setAppearanceMode", (_event, mode) => {
   return setAppearanceMode(mode);
 });
-ipcMain.handle("wikiwise:restoreLastProject", () => {
-  return restoreLastProject();
+ipcMain.handle("wikiwise:restoreLastProject", (event) => {
+  return restoreLastProjectForWebContents(event.sender);
 });
 ipcMain.handle("wikiwise:openGeneratedPage", (_event, payload) => {
   return openGeneratedPage(payload);
