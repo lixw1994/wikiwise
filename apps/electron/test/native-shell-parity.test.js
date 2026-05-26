@@ -141,6 +141,35 @@ test("matches native macOS default and minimum window geometry", () => {
   assert.match(mainSource, /minHeight:\s*nativeWindowMinimumSize\.height/);
 });
 
+test("matches native runtime app icon branding", () => {
+  const nativeIconPath = path.join(repositoryRoot, "Sources/Wikiwise/Resources/Wikiwise.icns");
+
+  assert.equal(fs.existsSync(nativeIconPath), true);
+  assert.match(
+    nativeAppSource,
+    /wikiwiseBundle\.url\(forResource:\s*"Wikiwise",\s*withExtension:\s*"icns"\)[\s\S]*NSImage\(contentsOf:\s*icnsURL\)[\s\S]*NSApplication\.shared\.applicationIconImage = icon/
+  );
+  assert.match(
+    mainSource,
+    /const nativeAppIconPath = path\.join\(nativeResourcesRoot,\s*"Wikiwise\.icns"\);/
+  );
+  assert.match(
+    mainSource,
+    /import \{ app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, nativeTheme, shell \} from "electron";/
+  );
+  assert.match(mainSource, /function resolveNativeAppIconPath\(\)/);
+  assert.match(mainSource, /function extractLargestPngFromIcns\(iconBuffer\)/);
+  assert.match(mainSource, /function createNativeAppIcon\(\)/);
+  assert.match(mainSource, /nativeImage\.createFromBuffer\(pngBuffer\)/);
+  assert.match(mainSource, /function applyNativeAppIcon\(\)/);
+  assert.match(mainSource, /app\.dock\?\.setIcon\(appIcon\)/);
+  assert.match(
+    mainSource,
+    /app\.whenReady\(\)\.then\(async \(\) => \{\s*applyNativeAppIcon\(\);\s*if \(isRuntimeAudit\)/
+  );
+  assert.match(mainSource, /const appIcon = createNativeAppIcon\(\);[\s\S]*icon:\s*appIcon/);
+});
+
 test("removes shared resource debug UI from renderer shell", () => {
   assert.equal(htmlSource.includes("Shared resources"), false);
   assert.equal(htmlSource.includes("resources-panel"), false);

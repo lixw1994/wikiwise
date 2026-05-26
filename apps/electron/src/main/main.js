@@ -1,4 +1,4 @@
-import { app, BrowserWindow, dialog, ipcMain, Menu, nativeTheme, shell } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, Menu, nativeImage, nativeTheme, shell } from "electron";
 import * as pty from "node-pty";
 import fs from "node:fs";
 import { createRequire } from "node:module";
@@ -36,6 +36,7 @@ const backgroundCompilationBatchSize = 3;
 const backgroundCompilationIntervalMs = 100;
 const wikiHomeRelativePath = "wiki/home.md";
 const nativeResourcesRoot = path.join(repositoryRoot, "Sources", "Wikiwise", "Resources");
+const nativeAppIconPath = path.join(nativeResourcesRoot, "Wikiwise.icns");
 const nativeWindowDefaultSize = Object.freeze({ width: 1500, height: 1000 });
 const nativeWindowMinimumSize = Object.freeze({ width: 800, height: 500 });
 const terminalRuntimeDependencies = Object.freeze(["node-pty", "@xterm/xterm", "@xterm/addon-fit"]);
@@ -45,6 +46,7 @@ const defaultAppSettings = Object.freeze({
 });
 const generatedPageNames = new Set(["map-3d.html", "map.html", "graph.html", "index.html", "catalog.html"]);
 const isRuntimeAudit = process.argv.includes("--audit-runtime");
+const pngSignature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 function getCompiler(projectRoot) {
   const resolvedRoot = path.resolve(projectRoot);
@@ -169,6 +171,58 @@ function normalizeAppSettings(settings) {
 function applyAppearanceMode(mode) {
   nativeTheme.themeSource = mode === "Dark" ? "dark" : mode === "Light" ? "light" : "system";
   return mode;
+}
+
+function resolveNativeAppIconPath() {
+  return fs.existsSync(nativeAppIconPath) ? nativeAppIconPath : null;
+}
+
+function extractLargestPngFromIcns(iconBuffer) {
+  if (!Buffer.isBuffer(iconBuffer) || iconBuffer.length < 16) return null;
+  if (iconBuffer.toString("ascii", 0, 4) !== "icns") return null;
+
+  let largestPng = null;
+  let offset = 8;
+  while (offset + 8 <= iconBuffer.length) {
+    const entryLength = iconBuffer.readUInt32BE(offset + 4);
+    if (entryLength < 8 || offset + entryLength > iconBuffer.length) {
+      return largestPng ? Buffer.from(largestPng) : null;
+    }
+
+    const payload = iconBuffer.subarray(offset + 8, offset + entryLength);
+    if (payload.subarray(0, pngSignature.length).equals(pngSignature)) {
+      if (!largestPng || payload.length > largestPng.length) {
+        largestPng = payload;
+      }
+    }
+    offset += entryLength;
+  }
+
+  return largestPng ? Buffer.from(largestPng) : null;
+}
+
+function createNativeAppIcon() {
+  const appIconPath = resolveNativeAppIconPath();
+  if (!appIconPath) return null;
+
+  try {
+    const pngBuffer = extractLargestPngFromIcns(fs.readFileSync(appIconPath));
+    const appIcon = pngBuffer
+      ? nativeImage.createFromBuffer(pngBuffer)
+      : nativeImage.createFromPath(appIconPath);
+
+    return appIcon.isEmpty() ? null : appIcon;
+  } catch {
+    return null;
+  }
+}
+
+function applyNativeAppIcon() {
+  const appIcon = createNativeAppIcon();
+  if (!appIcon) return false;
+
+  app.dock?.setIcon(appIcon);
+  return true;
 }
 
 function setAppearanceMode(mode) {
@@ -919,12 +973,14 @@ async function openExistingProject(browserWindow) {
 }
 
 function createMainWindow() {
+  const appIcon = createNativeAppIcon();
   const mainWindow = new BrowserWindow({
     width: nativeWindowDefaultSize.width,
     height: nativeWindowDefaultSize.height,
     minWidth: nativeWindowMinimumSize.width,
     minHeight: nativeWindowMinimumSize.height,
     title: "Wikiwise",
+    ...(appIcon ? { icon: appIcon } : {}),
     webPreferences: {
       preload: path.join(packageRoot, "src", "preload", "preload.cjs"),
       contextIsolation: true,
@@ -1037,6 +1093,8 @@ ipcMain.handle("wikiwise:stopTerminal", (event) => {
 });
 
 app.whenReady().then(async () => {
+  applyNativeAppIcon();
+
   if (isRuntimeAudit) {
     const auditModule = await import(
       pathToFileURL(path.join(repositoryRoot, "scripts", "audit-electron-runtime.mjs")).href
@@ -1070,6 +1128,7 @@ app.on("window-all-closed", () => {
 export {
   applyWatchSummary,
   applyAppearanceMode,
+  applyNativeAppIcon,
   assertProjectPath,
   backgroundCompilationBatchSize,
   backgroundCompilationIntervalMs,
@@ -1082,12 +1141,15 @@ export {
   chooseNewWikiLocation,
   closeTerminal,
   checkProjectPublishAvailability,
+  createNativeAppIcon,
   expandProjectTreeDirectory,
+  extractLargestPngFromIcns,
   getDefaultWikiLocation,
   getDocumentInfo,
   getEditorResource,
   getTerminalResource,
   getPublishConfig,
+  resolveNativeAppIconPath,
   findMarkdownFileForSlug,
   generatedPageResult,
   markdownSlugForPath,
