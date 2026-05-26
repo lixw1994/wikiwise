@@ -572,6 +572,31 @@ test("sidebar toolbar toggles mirror native plain icon color states", () => {
   assert.match(hiddenRightToggleBlock, /color:\s*var\(--color-toolbar-disabled\)/);
 });
 
+test("right sidebar toolbar visibility toggle mirrors native layout animation", () => {
+  const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const cssSource = read("src/renderer/styles.css");
+  const projectShellBlock = cssBlock(cssSource, ".project-shell");
+  const hiddenRightSidebarBlock = cssBlock(cssSource, ".project-shell.right-sidebar-hidden");
+  const hiddenBothSidebarsBlock = cssBlock(
+    cssSource,
+    ".project-shell.left-sidebar-hidden.right-sidebar-hidden"
+  );
+
+  assert.match(
+    swiftSource,
+    /withAnimation\(\.easeInOut\(duration:\s*0\.2\)\)\s*\{[\s\S]*showRightSidebar\.toggle\(\)/
+  );
+  assert.match(projectShellBlock, /transition:\s*grid-template-columns 200ms ease-in-out/);
+  assert.match(
+    hiddenRightSidebarBlock,
+    /grid-template-columns:\s*var\(--left-sidebar-width\)\s+minmax\(0,\s*1fr\)\s+0px/
+  );
+  assert.match(
+    hiddenBothSidebarsBlock,
+    /grid-template-columns:\s*minmax\(0,\s*1fr\)\s+0px/
+  );
+});
+
 test("project toolbar groups mirror native horizontal spacing", () => {
   const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const cssSource = read("src/renderer/styles.css");

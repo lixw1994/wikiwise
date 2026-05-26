@@ -286,10 +286,11 @@ button:disabled {
   max-height: 100vh;
   overflow: hidden;
   background: var(--color-content-bg);
+  transition: grid-template-columns 200ms ease-in-out;
 }
 
 .project-shell.right-sidebar-hidden {
-  grid-template-columns: var(--left-sidebar-width) minmax(0, 1fr);
+  grid-template-columns: var(--left-sidebar-width) minmax(0, 1fr) 0px;
 }
 
 .project-shell.left-sidebar-hidden {
@@ -297,7 +298,7 @@ button:disabled {
 }
 
 .project-shell.left-sidebar-hidden.right-sidebar-hidden {
-  grid-template-columns: minmax(0, 1fr);
+  grid-template-columns: minmax(0, 1fr) 0px;
 }
 
 .project-toolbar {
