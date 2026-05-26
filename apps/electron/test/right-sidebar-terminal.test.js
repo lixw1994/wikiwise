@@ -353,17 +353,26 @@ test("renderer info metadata mirrors native about document section", () => {
     nativeSource,
     /private func infoRow[\s\S]*HStack \{[\s\S]*\.font\(\.custom\("JetBrains Mono",\s*size:\s*10\)\)[\s\S]*Spacer\(\)[\s\S]*\.font\(\.custom\("Fraunces",\s*size:\s*12\)\)/
   );
+  assert.match(nativeSource, /private func formattedModDate[\s\S]*else \{ return "\\u\{2014\}" \}/);
+  assert.match(nativeSource, /private func formattedWordCount[\s\S]*else \{ return "\\u\{2014\}" \}/);
 
   assert.match(htmlSource, /id="info-about-section" class="info-section info-about-section" hidden/);
   assert.match(htmlSource, /<h3>ABOUT THIS DOCUMENT<\/h3>[\s\S]*<dl class="info-list">/);
   assert.match(htmlSource, /<div class="info-row">[\s\S]*<dt>PATH<\/dt>[\s\S]*<dd id="info-path" class="info-value"><\/dd>/);
   assert.doesNotMatch(htmlSource, /id="info-path">No document<\/dd>/);
   assert.match(rendererSource, /const infoAboutSection = document\.querySelector\("#info-about-section"\)/);
+  assert.match(rendererSource, /const missingInfoValue = "—"/);
   assert.match(rendererSource, /const hasDocument = Boolean\(file\)/);
   assert.match(rendererSource, /infoAboutSection\.hidden = !hasDocument/);
   assert.match(rendererSource, /infoPath\.textContent = hasDocument \? \(info\?\.name \?\? file\.name\) : ""/);
-  assert.match(rendererSource, /infoEdited\.textContent = hasDocument && info\?\.modifiedAt \? formatEditedTime\(info\.modifiedAt\) : ""/);
-  assert.match(rendererSource, /infoWords\.textContent = hasDocument && info \? formatWordCount\(info\.wordCount\) : ""/);
+  assert.match(
+    rendererSource,
+    /infoEdited\.textContent = hasDocument \? \(info\?\.modifiedAt \? formatEditedTime\(info\.modifiedAt\) : missingInfoValue\) : ""/
+  );
+  assert.match(
+    rendererSource,
+    /infoWords\.textContent = hasDocument \? \(info \? formatWordCount\(info\.wordCount\) : missingInfoValue\) : ""/
+  );
   assert.match(infoAboutSectionBlock, /gap:\s*8px/);
   assert.match(infoListBlock, /gap:\s*6px/);
   assert.match(infoListBlock, /margin:\s*0/);
@@ -395,8 +404,26 @@ test("renderer mirrors native decimal word-count formatting", () => {
   assert.match(coreSource, /wordCount:\s*countWords\(content\)/);
   assert.match(rendererSource, /function formatWordCount\(wordCount\)/);
   assert.match(rendererSource, /new Intl\.NumberFormat\(\)\.format\(numericWordCount\)/);
-  assert.match(rendererSource, /infoWords\.textContent = hasDocument && info \? formatWordCount\(info\.wordCount\) : ""/);
+  assert.match(
+    rendererSource,
+    /infoWords\.textContent = hasDocument \? \(info \? formatWordCount\(info\.wordCount\) : missingInfoValue\) : ""/
+  );
   assert.doesNotMatch(rendererSource, /infoWords\.textContent = hasDocument && info \? String\(info\.wordCount\) : ""/);
+});
+
+test("renderer handles document info refresh failures like native metadata fallbacks", () => {
+  const rendererSource = read("src/renderer/renderer.js");
+  const refreshStart = rendererSource.indexOf("async function refreshDocumentInfo()");
+  const refreshEnd = rendererSource.indexOf("async function handleProjectChanged");
+  const refreshSource = rendererSource.slice(refreshStart, refreshEnd);
+
+  assert.notEqual(refreshStart, -1);
+  assert.notEqual(refreshEnd, -1);
+  assert.match(refreshSource, /catch \(error\) \{/);
+  assert.match(refreshSource, /state\.documentInfo = null/);
+  assert.match(refreshSource, /renderInfoTab\(\)/);
+  assert.match(refreshSource, /console\.error\(error\)/);
+  assert.doesNotMatch(refreshSource, /setError\(error\)/);
 });
 
 test("renderer mirrors native numeric relative edited-time formatting", () => {

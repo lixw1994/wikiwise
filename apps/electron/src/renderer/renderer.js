@@ -75,6 +75,7 @@ const LEFT_SIDEBAR_MAX_WIDTH = 360;
 const RIGHT_SIDEBAR_DEFAULT_WIDTH = 360;
 const RIGHT_SIDEBAR_MIN_WIDTH = 200;
 const newWikiLocationDisplayLimit = 48;
+const missingInfoValue = "—";
 const systemDarkAppearanceQuery = window.matchMedia("(prefers-color-scheme: dark)");
 const toolbarSymbols = Object.freeze({
   Auto: {
@@ -936,8 +937,8 @@ function renderInfoTab() {
   const hasDocument = Boolean(file);
   infoAboutSection.hidden = !hasDocument;
   infoPath.textContent = hasDocument ? (info?.name ?? file.name) : "";
-  infoEdited.textContent = hasDocument && info?.modifiedAt ? formatEditedTime(info.modifiedAt) : "";
-  infoWords.textContent = hasDocument && info ? formatWordCount(info.wordCount) : "";
+  infoEdited.textContent = hasDocument ? (info?.modifiedAt ? formatEditedTime(info.modifiedAt) : missingInfoValue) : "";
+  infoWords.textContent = hasDocument ? (info ? formatWordCount(info.wordCount) : missingInfoValue) : "";
 
   const hasDirections = Boolean(info?.directions);
   infoDirectionsSection.hidden = !hasDirections;
@@ -1890,7 +1891,7 @@ async function refreshDocumentInfo() {
       state.documentInfo = null;
       renderInfoTab();
     }
-    setError(error);
+    console.error(error);
     return null;
   }
 }
