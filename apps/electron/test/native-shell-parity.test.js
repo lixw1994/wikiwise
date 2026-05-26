@@ -165,9 +165,21 @@ test("matches native runtime app icon branding", () => {
   assert.match(mainSource, /app\.dock\?\.setIcon\(appIcon\)/);
   assert.match(
     mainSource,
-    /app\.whenReady\(\)\.then\(async \(\) => \{\s*applyNativeAppIcon\(\);\s*if \(isRuntimeAudit\)/
+    /app\.whenReady\(\)\.then\(async \(\) => \{\s*applyNativeActivationPolicy\(\);\s*applyNativeAppIcon\(\);\s*if \(isRuntimeAudit\)/
   );
   assert.match(mainSource, /const appIcon = createNativeAppIcon\(\);[\s\S]*icon:\s*appIcon/);
+});
+
+test("matches native startup activation behavior", () => {
+  assert.match(nativeAppSource, /NSApplication\.shared\.setActivationPolicy\(\.regular\)/);
+  assert.match(nativeAppSource, /NSApplication\.shared\.activate\(ignoringOtherApps:\s*true\)/);
+  assert.match(mainSource, /function applyNativeActivationPolicy\(\)/);
+  assert.match(mainSource, /app\.setActivationPolicy\?\.\("regular"\)/);
+  assert.match(mainSource, /app\.focus\(\{\s*steal:\s*true\s*\}\)/);
+  assert.match(
+    mainSource,
+    /app\.whenReady\(\)\.then\(async \(\) => \{\s*applyNativeActivationPolicy\(\);\s*applyNativeAppIcon\(\);\s*if \(isRuntimeAudit\)/
+  );
 });
 
 test("removes shared resource debug UI from renderer shell", () => {

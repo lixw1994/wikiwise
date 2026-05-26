@@ -173,6 +173,12 @@ function applyAppearanceMode(mode) {
   return mode;
 }
 
+function applyNativeActivationPolicy() {
+  app.setActivationPolicy?.("regular");
+  app.focus({ steal: true });
+  return true;
+}
+
 function resolveNativeAppIconPath() {
   return fs.existsSync(nativeAppIconPath) ? nativeAppIconPath : null;
 }
@@ -1093,6 +1099,7 @@ ipcMain.handle("wikiwise:stopTerminal", (event) => {
 });
 
 app.whenReady().then(async () => {
+  applyNativeActivationPolicy();
   applyNativeAppIcon();
 
   if (isRuntimeAudit) {
@@ -1126,6 +1133,7 @@ app.on("window-all-closed", () => {
 });
 
 export {
+  applyNativeActivationPolicy,
   applyWatchSummary,
   applyAppearanceMode,
   applyNativeAppIcon,
