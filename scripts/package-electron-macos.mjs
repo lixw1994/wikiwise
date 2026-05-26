@@ -22,6 +22,7 @@ const outputAppPath = path.join(repositoryRoot, outputAppRelativePath);
 const electronPackageRoot = path.join(repositoryRoot, "apps", "electron");
 const corePackageRoot = path.join(repositoryRoot, "packages", "wikiwise-core");
 const nativeResourcesRoot = path.join(repositoryRoot, "Sources", "Wikiwise", "Resources");
+const nativeAppInfoPlistPath = path.join(repositoryRoot, "Wikiwise.app", "Contents", "Info.plist");
 const requireFromElectronPackage = createRequire(path.join(electronPackageRoot, "package.json"));
 const electronRuntimeDependencyNames = Object.freeze([
   "node-pty",
@@ -42,7 +43,10 @@ const inheritedElectronTemplateInfoPlistKeys = Object.freeze([
 const electronPackage = JSON.parse(
   fs.readFileSync(path.join(electronPackageRoot, "package.json"), "utf8")
 );
-const version = process.argv[2] || electronPackage.version || "0.0.0";
+const explicitReleaseVersion = process.argv[2] || "";
+const nativeVersionMetadata = readNativeAppVersionMetadata();
+const versionMetadata = resolveVersionMetadata(explicitReleaseVersion, nativeVersionMetadata);
+const version = versionMetadata.shortVersion;
 
 function assertDirectory(targetPath, message) {
   if (!fs.existsSync(targetPath) || !fs.statSync(targetPath).isDirectory()) {
@@ -85,6 +89,35 @@ function setPlistString(plist, key, value) {
   );
 }
 
+function plistStringValue(plist, key) {
+  const match = plist.match(new RegExp(`<key>${key}</key>\\s*<string>([^<]*)</string>`));
+  return match?.[1] ?? "";
+}
+
+function readNativeAppVersionMetadata() {
+  if (!fs.existsSync(nativeAppInfoPlistPath)) {
+    return {
+      shortVersion: "",
+      bundleVersion: ""
+    };
+  }
+
+  const plist = fs.readFileSync(nativeAppInfoPlistPath, "utf8");
+  return {
+    shortVersion: plistStringValue(plist, "CFBundleShortVersionString"),
+    bundleVersion: plistStringValue(plist, "CFBundleVersion")
+  };
+}
+
+function resolveVersionMetadata(explicitReleaseVersion, nativeVersionMetadata) {
+  const fallbackVersion = electronPackage.version || "0.0.0";
+
+  return {
+    shortVersion: explicitReleaseVersion || nativeVersionMetadata.shortVersion || fallbackVersion,
+    bundleVersion: explicitReleaseVersion || nativeVersionMetadata.bundleVersion || nativeVersionMetadata.shortVersion || fallbackVersion
+  };
+}
+
 function removePlistEntry(plist, key) {
   const valuePattern = [
     "<string>[\\s\\S]*?</string>",
@@ -115,8 +148,8 @@ function rewriteInfoPlist() {
     CFBundleName: productName,
     CFBundleExecutable: productName,
     CFBundleIdentifier: bundleIdentifier,
-    CFBundleShortVersionString: version,
-    CFBundleVersion: version,
+    CFBundleShortVersionString: versionMetadata.shortVersion,
+    CFBundleVersion: versionMetadata.bundleVersion,
     CFBundleIconFile: productName,
     LSMinimumSystemVersion: "14.0",
     LSApplicationCategoryType: "public.app-category.productivity"
@@ -250,7 +283,8 @@ function packageElectronMacApp() {
   return {
     appPath: outputAppRelativePath,
     bundleIdentifier,
-    version
+    version,
+    bundleVersion: versionMetadata.bundleVersion
   };
 }
 
@@ -259,6 +293,7 @@ try {
   console.log(`Packaged ${productName} at ${result.appPath}`);
   console.log(`Bundle identifier: ${result.bundleIdentifier}`);
   console.log(`Version: ${result.version}`);
+  console.log(`Bundle version: ${result.bundleVersion}`);
   console.log("This local Electron app bundle is unsigned; use bash scripts/build-release.sh <version> for signed, notarized DMG release.");
 } catch (error) {
   console.error(error instanceof Error ? error.message : String(error));

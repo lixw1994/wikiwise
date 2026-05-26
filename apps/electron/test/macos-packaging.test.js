@@ -17,6 +17,12 @@ function readJson(relativePath) {
   return JSON.parse(read(relativePath));
 }
 
+function plistStringValue(plist, key) {
+  const match = plist.match(new RegExp(`<key>${key}</key>\\s*<string>([^<]+)</string>`));
+  assert.ok(match, `Expected ${key} string value in plist`);
+  return match[1];
+}
+
 const inheritedElectronTemplatePlistKeys = [
   "NSCameraUsageDescription",
   "NSMicrophoneUsageDescription",
@@ -86,6 +92,28 @@ test("packaging script mirrors native minimum macOS metadata", () => {
   );
   assert.match(script, /LSMinimumSystemVersion:\s*"14\.0"/);
   assert.doesNotMatch(script, /LSMinimumSystemVersion:\s*"11\.0"/);
+});
+
+test("packaging script defaults Electron bundle version metadata to native app values", () => {
+  const script = read("scripts/package-electron-macos.mjs");
+  const releaseScript = read("scripts/build-release.sh");
+  const nativeInfoPlist = read("Wikiwise.app/Contents/Info.plist");
+
+  const nativeShortVersion = plistStringValue(nativeInfoPlist, "CFBundleShortVersionString");
+  const nativeBundleVersion = plistStringValue(nativeInfoPlist, "CFBundleVersion");
+
+  assert.notEqual(nativeShortVersion, "");
+  assert.notEqual(nativeBundleVersion, "");
+  assert.match(script, /nativeAppInfoPlistPath/);
+  assert.match(script, /readNativeAppVersionMetadata/);
+  assert.match(script, /resolveVersionMetadata/);
+  assert.match(script, /explicitReleaseVersion/);
+  assert.match(script, /CFBundleShortVersionString:\s*versionMetadata\.shortVersion/);
+  assert.match(script, /CFBundleVersion:\s*versionMetadata\.bundleVersion/);
+  assert.match(script, /shortVersion:\s*explicitReleaseVersion \|\| nativeVersionMetadata\.shortVersion/);
+  assert.match(script, /bundleVersion:\s*explicitReleaseVersion \|\| nativeVersionMetadata\.bundleVersion/);
+  assert.match(script, /Wikiwise\.app",\s*"Contents",\s*"Info\.plist"/);
+  assert.match(releaseScript, /npm run electron:package:mac -- "\$VERSION"/);
 });
 
 test("packaging script embeds the Electron app and shared core package layout", () => {
