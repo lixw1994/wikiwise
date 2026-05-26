@@ -117,7 +117,7 @@ const state = {
   currentProject: null,
   selectedFile: null,
   generatedPage: null,
-  detailMode: "file",
+  detailMode: "wiki",
   appearanceMode: "Auto",
   rightSidebarTab: "terminal",
   leftSidebarWidth: LEFT_SIDEBAR_DEFAULT_WIDTH,
@@ -521,8 +521,14 @@ function setSelectedFile(file) {
         isSaving: false
       }
     : null;
-  state.detailMode = hasCompiledPreview(file) ? "wiki" : "file";
+  state.detailMode = initialDetailModeForFile(file);
   renderDetail();
+}
+
+function initialDetailModeForFile(file) {
+  if (!file) return "wiki";
+  if (!isMarkdownFile(file.path)) return "file";
+  return "wiki";
 }
 
 async function setActiveSelectedFile(filePath = state.selectedFile?.path) {

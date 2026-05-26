@@ -91,6 +91,24 @@ test("renderer exposes File and Wiki modes with preview iframe wiring", () => {
   assert.match(htmlSource, /id="preview-frame"/);
 });
 
+test("renderer keeps WIKI selected for markdown fallback and FILE selected for non-markdown files", () => {
+  const rendererSource = read("src/renderer/renderer.js");
+
+  assert.match(
+    rendererSource,
+    /function initialDetailModeForFile\(file\)\s*\{[\s\S]*if \(!file\) return "wiki";[\s\S]*if \(!isMarkdownFile\(file\.path\)\) return "file";[\s\S]*return "wiki";[\s\S]*\}/
+  );
+  assert.doesNotMatch(rendererSource, /state\.detailMode = hasCompiledPreview\(file\) \? "wiki" : "file"/);
+  assert.match(
+    rendererSource,
+    /const shouldShowSourceEditor =[\s\S]*state\.detailMode === "file" \|\| \(state\.detailMode === "wiki" && !wikiAvailable\)/
+  );
+  assert.match(
+    rendererSource,
+    /modeWikiButton\.classList\.toggle\("selected",\s*state\.detailMode === "wiki"\)/
+  );
+});
+
 test("renderer mirrors native compiled preview scroll preservation", () => {
   const nativeContentViewSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const nativeWebViewSource = readRepository("Sources/Wikiwise/WebView.swift");

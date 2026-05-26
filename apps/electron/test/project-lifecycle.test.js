@@ -88,6 +88,27 @@ test("main process mirrors native standalone file open state", () => {
   assert.doesNotMatch(mainSource, /const tree = scanOneLevel\(projectRoot\);/);
 });
 
+test("renderer mirrors native standalone markdown initial WIKI mode with editor fallback", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+
+  assert.match(nativeSource, /@State private var detailMode:\s*DetailMode = \.compiled/);
+  assert.match(
+    nativeSource,
+    /case \.compiled:[\s\S]*if let url = compiledFileURL[\s\S]*else if let url = selectedFileURL[\s\S]*EditorWebView/
+  );
+  assert.match(rendererSource, /detailMode:\s*"wiki"/);
+  assert.match(
+    rendererSource,
+    /function initialDetailModeForFile\(file\)\s*\{[\s\S]*if \(!file\) return "wiki";[\s\S]*if \(!isMarkdownFile\(file\.path\)\) return "file";[\s\S]*return "wiki";[\s\S]*\}/
+  );
+  assert.match(rendererSource, /state\.detailMode = initialDetailModeForFile\(file\)/);
+  assert.match(
+    rendererSource,
+    /state\.detailMode === "wiki" && !wikiAvailable[\s\S]*sourceEditorFrame\.hidden = !shouldShowSourceEditor/
+  );
+});
+
 test("main process updates window project root ownership at project result boundaries", () => {
   const mainSource = read("src/main/main.js");
 

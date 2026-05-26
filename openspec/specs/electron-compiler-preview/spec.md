@@ -2,7 +2,6 @@
 
 ## Purpose
 Define Electron compiler-preview behavior for opening wiki projects, compiling selected Markdown pages through shared core logic, preserving preview state, and routing generated pages like the native app.
-
 ## Requirements
 ### Requirement: Node Compiler Wrapper
 
@@ -98,3 +97,17 @@ The Electron compiled Wiki preview SHALL preserve scroll position when switching
 - **WHEN** Electron reloads the same compiled preview file for the selected markdown page
 - **THEN** Electron captures the current preview scroll fraction before the reload
 - **AND** Electron restores that fraction after the preview iframe finishes loading
+
+### Requirement: Wiki Mode Fallback Selection
+The Electron renderer SHALL allow WIKI detail mode to remain selected for markdown files even when no compiled preview is currently available.
+
+#### Scenario: Markdown file lacks compiled preview
+- **WHEN** a markdown file is selected in WIKI detail mode
+- **AND** the file has no compiled preview URL
+- **THEN** the WIKI mode button remains selected
+- **AND** the detail area displays the editor fallback instead of a blank preview
+
+#### Scenario: Non-markdown file is selected
+- **WHEN** a selected file is not markdown
+- **THEN** the renderer selects FILE detail mode
+- **AND** the detail area displays the editor
