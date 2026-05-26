@@ -1475,7 +1475,9 @@ async function navigateFromPreviewResult(result) {
   }
 
   if (result.kind === "generated") {
-    showGeneratedPage(result);
+    showGeneratedPage(result, {
+      pushHistory: Boolean(state.selectedFile)
+    });
     return;
   }
 

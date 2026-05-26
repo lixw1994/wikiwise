@@ -72,6 +72,38 @@ test("renderer intercepts preview and generated frame links through app navigati
   assert.match(htmlSource, /sandbox="allow-scripts allow-same-origin"/);
 });
 
+test("generated preview links only push source-file history like native", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const nativeGeneratedLinkSource = sourceBetween(
+    nativeSource,
+    "else if let c = compiler {",
+    "    /// Find a .md file"
+  );
+  const rendererPreviewNavigationSource = sourceBetween(
+    rendererSource,
+    "async function navigateFromPreviewResult(result)",
+    "function toggleRightSidebar()"
+  );
+  const rendererToolbarMapSource = sourceBetween(
+    rendererSource,
+    "async function openMap()",
+    "async function refreshGeneratedPage()"
+  );
+
+  assert.match(
+    nativeGeneratedLinkSource,
+    /if let current = selectedFileURL \{\s*backHistory\.append\(current\)\s*forwardHistory = \[\]\s*\}/
+  );
+  assert.doesNotMatch(nativeGeneratedLinkSource, /else if let compiled = compiledFileURL/);
+  assert.match(
+    rendererPreviewNavigationSource,
+    /if \(result\.kind === "generated"\) \{\s*showGeneratedPage\(result,\s*\{\s*pushHistory:\s*Boolean\(state\.selectedFile\)\s*\}\);\s*return;\s*\}/
+  );
+  assert.doesNotMatch(rendererPreviewNavigationSource, /if \(result\.kind === "generated"\) \{\s*showGeneratedPage\(result\);\s*return;\s*\}/);
+  assert.match(rendererToolbarMapSource, /showGeneratedPage\(generatedPage\);/);
+});
+
 test("manual Refresh Page command stays scoped to selected markdown like native", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
