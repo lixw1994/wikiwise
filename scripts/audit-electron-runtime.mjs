@@ -29,6 +29,8 @@ const viewport = nativeDefaultWindowViewport;
 const scenarios = Object.freeze([
   { name: "welcome-light", kind: "welcome", appearanceMode: "Light" },
   { name: "welcome-dark", kind: "welcome", appearanceMode: "Dark" },
+  { name: "new-wiki-light", kind: "new-wiki", appearanceMode: "Light" },
+  { name: "new-wiki-dark", kind: "new-wiki", appearanceMode: "Dark" },
   { name: "project-light", kind: "project", appearanceMode: "Light" },
   { name: "project-dark", kind: "project", appearanceMode: "Dark" }
 ]);
@@ -46,6 +48,10 @@ let projectWatcherSender = null;
 let watcherRuntimeCaptureActive = false;
 let watcherRuntimeReadFilePaths = [];
 let watcherRuntimeCompilePayloads = [];
+let terminalStarted = false;
+let terminalStartedProjectRoot = "";
+let newWikiRuntimeCreatedScaffold = null;
+let newWikiRuntimeCreatedProject = null;
 const auditIpcChannels = Object.freeze([
   "wikiwise:getAppSettings",
   "wikiwise:setAppearanceMode",
@@ -114,6 +120,28 @@ function createAuditProject() {
         auditCompiledOutputPath: compiled.outputPath,
         outputPath: auditPreviewPath,
         fileUrl: pathToFileURL(auditPreviewPath).href
+      }
+    }
+  };
+}
+
+function createAuditProjectResult(projectRoot) {
+  const selectedPath = path.join(projectRoot, "wiki", "home.md");
+  const compiler = new WikiCompiler({ projectRoot, repositoryRoot });
+  compiler.scanPages();
+  const compiled = compiler.compileMarkdownFile(selectedPath);
+
+  return {
+    projectRoot,
+    projectName: path.basename(projectRoot),
+    tree: scanOneLevel(projectRoot),
+    selectedFile: {
+      path: selectedPath,
+      name: path.basename(selectedPath),
+      content: readTextFile(selectedPath),
+      compiled: {
+        ...compiled,
+        fileUrl: pathToFileURL(compiled.outputPath).href
       }
     }
   };
@@ -238,6 +266,8 @@ function registerAuditIpcHandlers() {
     return { ok: true };
   });
   ipcMain.handle("wikiwise:startTerminal", (event, payload) => {
+    terminalStarted = true;
+    terminalStartedProjectRoot = payload?.projectRoot ?? "";
     setTimeout(() => {
       if (!event.sender.isDestroyed()) {
         event.sender.send("wikiwise:terminalOutput", {
@@ -324,8 +354,27 @@ function registerAuditIpcHandlers() {
   ipcMain.handle("wikiwise:openExisting", () => ({ canceled: true }));
   ipcMain.handle("wikiwise:getDefaultWikiLocation", () => sampleProjectParent);
   ipcMain.handle("wikiwise:chooseNewWikiLocation", () => ({ canceled: true }));
-  ipcMain.handle("wikiwise:createNewWiki", () => {
-    throw new Error("Runtime audit does not create user projects.");
+  ipcMain.handle("wikiwise:createNewWiki", (_event, payload) => {
+    if (!payload?.name || !payload?.parentDir) {
+      throw new Error("Runtime audit createNewWiki requires name and parentDir.");
+    }
+
+    const parentDir = path.resolve(payload.parentDir);
+    const scaffold = createWikiScaffold({
+      name: payload.name,
+      parentDir,
+      repositoryRoot,
+      createdDate: "2026-05-25"
+    });
+    const project = createAuditProjectResult(scaffold.path);
+    newWikiRuntimeCreatedScaffold = scaffold;
+    newWikiRuntimeCreatedProject = project;
+
+    return {
+      created: true,
+      scaffold,
+      project
+    };
   });
   ipcMain.handle("wikiwise:saveFile", () => {
     throw new Error("Runtime audit is read-only.");
@@ -380,11 +429,18 @@ async function runScenario(window, scenario) {
   watcherRuntimeCaptureActive = false;
   watcherRuntimeReadFilePaths = [];
   watcherRuntimeCompilePayloads = [];
+  terminalStarted = false;
+  terminalStartedProjectRoot = "";
+  newWikiRuntimeCreatedScaffold = null;
+  newWikiRuntimeCreatedProject = null;
   nativeTheme.themeSource = scenario.appearanceMode.toLowerCase();
   console.log(`Running runtime audit scenario: ${scenario.name}`);
 
   await window.loadFile(rendererHtmlPath);
   await waitForScenario(window, scenario);
+  if (scenario.kind === "new-wiki") {
+    await captureNewWikiCreationEvidence(window, scenario);
+  }
   if (scenario.kind === "project") {
     await waitForCondition(
       window,
@@ -1013,6 +1069,203 @@ async function captureGeneratedMapFlowEvidence(window) {
   }));
 }
 
+async function captureNewWikiCreationEvidence(window, scenario) {
+  const wikiName = `Runtime Created Wiki ${scenario.appearanceMode}`;
+
+  await window.webContents.executeJavaScript(`(async () => {
+    const createButton = document.querySelector("#create-new");
+    const dialog = document.querySelector("#new-wiki-dialog");
+    const panel = document.querySelector(".new-wiki-panel");
+    const nameInput = document.querySelector("#new-wiki-name");
+    const locationLabel = document.querySelector("#new-wiki-location");
+    const chooseButton = document.querySelector("#choose-new-wiki-location");
+    const confirmButton = document.querySelector("#confirm-create-new");
+    const cancelButton = document.querySelector("#cancel-create-new");
+    const project = document.querySelector("#project");
+    const guide = document.querySelector("#post-create-guide");
+    const dismissButton = document.querySelector("#dismiss-post-create-guide");
+    const waitFor = async (predicate, timeoutMs = 5000) => {
+      const start = Date.now();
+      while (Date.now() - start < timeoutMs) {
+        if (predicate()) return true;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      return false;
+    };
+    const isVisible = (element) => Boolean(
+      element &&
+      !element.hidden &&
+      element.getBoundingClientRect().width > 0 &&
+      element.getBoundingClientRect().height > 0
+    );
+    const rectFor = (element) => {
+      const rect = element?.getBoundingClientRect();
+      if (!rect) return null;
+      return {
+        width: Math.round(rect.width),
+        height: Math.round(rect.height),
+        top: Math.round(rect.top),
+        left: Math.round(rect.left)
+      };
+    };
+    const textFor = (selector) => document.querySelector(selector)?.textContent?.trim() ?? "";
+    const evidence = {
+      newWikiRuntimeEvidence: true,
+      newWikiDialogEvidence: false,
+      newWikiDialogTitle: "",
+      newWikiDialogRect: null,
+      newWikiNameInputPresent: Boolean(nameInput),
+      newWikiLocationText: "",
+      newWikiLocationTitle: "",
+      newWikiLocationAriaLabel: "",
+      newWikiChooseLabel: "",
+      newWikiCancelLabel: "",
+      newWikiConfirmLabel: "",
+      newWikiCreateDisabledWhenEmpty: false,
+      newWikiCreateEnabledWhenNamed: false,
+      newWikiSubmittedName: ${JSON.stringify(wikiName)},
+      newWikiProjectOpened: false,
+      newWikiOpenedProjectName: "",
+      newWikiPostCreateGuideVisible: false,
+      newWikiGuideTitle: "",
+      newWikiGuideSummaryVisible: false,
+      newWikiGuideTerminalInstructionVisible: false,
+      newWikiGuideCommandEvidence: false,
+      newWikiSeedOptionCount: 0,
+      newWikiDismissActionLabel: "",
+      newWikiDismissedGuide: false,
+      newWikiHomeSelectedAfterDismiss: false,
+      newWikiPreviewVisibleAfterDismiss: false
+    };
+
+    createButton?.click();
+    await waitFor(() => isVisible(dialog) && Boolean(locationLabel?.textContent?.trim()));
+
+    evidence.newWikiDialogEvidence = isVisible(dialog) && isVisible(panel);
+    evidence.newWikiDialogTitle = textFor("#new-wiki-title");
+    evidence.newWikiDialogRect = rectFor(panel);
+    evidence.newWikiLocationText = locationLabel?.textContent?.trim() ?? "";
+    evidence.newWikiLocationTitle = locationLabel?.getAttribute("title") ?? "";
+    evidence.newWikiLocationAriaLabel = locationLabel?.getAttribute("aria-label") ?? "";
+    evidence.newWikiChooseLabel = chooseButton?.textContent?.trim() ?? "";
+    evidence.newWikiCancelLabel = cancelButton?.textContent?.trim() ?? "";
+    evidence.newWikiConfirmLabel = confirmButton?.textContent?.trim() ?? "";
+    evidence.newWikiCreateDisabledWhenEmpty = Boolean(confirmButton?.disabled);
+
+    if (nameInput) {
+      nameInput.value = ${JSON.stringify(wikiName)};
+      nameInput.dispatchEvent(new Event("input", { bubbles: true }));
+    }
+    await waitFor(() => Boolean(confirmButton && !confirmButton.disabled), 1500);
+    evidence.newWikiCreateEnabledWhenNamed = Boolean(confirmButton && !confirmButton.disabled);
+
+    confirmButton?.click();
+    await waitFor(() => (
+      Boolean(project && !project.hidden) &&
+      Boolean(guide && !guide.hidden) &&
+      textFor("#project-name")
+    ));
+
+    evidence.newWikiProjectOpened = Boolean(project && !project.hidden);
+    evidence.newWikiOpenedProjectName = textFor("#project-name") || textFor("#toolbar-project-name");
+    evidence.newWikiPostCreateGuideVisible = Boolean(guide && !guide.hidden);
+    evidence.newWikiGuideTitle = textFor("#post-create-guide h2");
+    evidence.newWikiGuideSummaryVisible = document.body.innerText.includes(
+      "WikiWise created the folder structure, build tools, and agent skills. Now seed it with sources."
+    );
+    evidence.newWikiGuideTerminalInstructionVisible = document.body.innerText.includes(
+      "Use the built-in terminal in the right sidebar, or open your own terminal:"
+    );
+    const commandText = [
+      textFor("#guide-claude-command"),
+      textFor("#guide-codex-command"),
+      textFor("#guide-cursor-command")
+    ].join("\\n");
+    evidence.newWikiGuideCommandEvidence =
+      /claude/.test(commandText) &&
+      /codex/.test(commandText) &&
+      /Cursor/.test(commandText) &&
+      commandText.includes(evidence.newWikiOpenedProjectName);
+    evidence.newWikiSeedOptionCount = document.querySelectorAll(".guide-seed-option").length;
+    evidence.newWikiDismissActionLabel = dismissButton?.textContent?.trim() ?? "";
+
+    dismissButton?.click();
+    await waitFor(() => (
+      Boolean(guide?.hidden) &&
+      textFor("#selected-file") === "home.md" &&
+      Boolean(document.querySelector("#preview-frame") && !document.querySelector("#preview-frame").hidden)
+    ));
+    evidence.newWikiDismissedGuide = Boolean(guide?.hidden);
+    evidence.newWikiHomeSelectedAfterDismiss = textFor("#selected-file") === "home.md";
+    evidence.newWikiPreviewVisibleAfterDismiss = Boolean(
+      document.querySelector("#preview-frame") &&
+      !document.querySelector("#preview-frame").hidden
+    );
+
+    window.__wikiwiseNewWikiRuntimeEvidence = evidence;
+    return evidence;
+  })()`, true).catch((error) => ({
+    newWikiRuntimeEvidence: false,
+    newWikiDialogEvidence: false,
+    newWikiDialogTitle: "",
+    newWikiDialogRect: null,
+    newWikiNameInputPresent: false,
+    newWikiLocationText: "",
+    newWikiLocationTitle: "",
+    newWikiLocationAriaLabel: "",
+    newWikiChooseLabel: "",
+    newWikiCancelLabel: "",
+    newWikiConfirmLabel: "",
+    newWikiCreateDisabledWhenEmpty: false,
+    newWikiCreateEnabledWhenNamed: false,
+    newWikiSubmittedName: wikiName,
+    newWikiProjectOpened: false,
+    newWikiOpenedProjectName: "",
+    newWikiPostCreateGuideVisible: false,
+    newWikiGuideTitle: "",
+    newWikiGuideSummaryVisible: false,
+    newWikiGuideTerminalInstructionVisible: false,
+    newWikiGuideCommandEvidence: false,
+    newWikiSeedOptionCount: 0,
+    newWikiDismissActionLabel: "",
+    newWikiDismissedGuide: false,
+    newWikiHomeSelectedAfterDismiss: false,
+    newWikiPreviewVisibleAfterDismiss: false,
+    error: error instanceof Error ? error.message : String(error)
+  }));
+
+  const createdProjectRoot = newWikiRuntimeCreatedProject?.projectRoot
+    ? path.resolve(newWikiRuntimeCreatedProject.projectRoot)
+    : "";
+  const hostEvidence = {
+    newWikiCreatedScaffoldEvidence: Boolean(newWikiRuntimeCreatedScaffold?.path && fs.existsSync(newWikiRuntimeCreatedScaffold.path)),
+    newWikiCreatedProjectRoot: createdProjectRoot,
+    newWikiCreatedProjectName: newWikiRuntimeCreatedProject?.projectName ?? "",
+    newWikiCreatedHomeExists: Boolean(createdProjectRoot && fs.existsSync(path.join(createdProjectRoot, "wiki", "home.md"))),
+    newWikiCreatedSettingsExists: Boolean(createdProjectRoot && fs.existsSync(path.join(createdProjectRoot, ".claude", "settings.json"))),
+    newWikiProjectWatcherStarted: Boolean(
+      createdProjectRoot &&
+      projectWatcherStarted &&
+      path.resolve(projectWatcherProjectRoot) === createdProjectRoot
+    ),
+    newWikiTerminalStarted: Boolean(
+      createdProjectRoot &&
+      terminalStarted &&
+      path.resolve(terminalStartedProjectRoot) === createdProjectRoot
+    )
+  };
+
+  return window.webContents.executeJavaScript(`(() => {
+    const hostEvidence = ${JSON.stringify(hostEvidence)};
+    const evidence = {
+      ...(window.__wikiwiseNewWikiRuntimeEvidence ?? {}),
+      ...hostEvidence
+    };
+    window.__wikiwiseNewWikiRuntimeEvidence = evidence;
+    return evidence;
+  })()`, true);
+}
+
 async function captureWatcherRuntimeEvidence(window) {
   const selectedMarkdownPath = auditProject?.selectedFile?.path
     ? path.resolve(auditProject.selectedFile.path)
@@ -1228,6 +1481,7 @@ async function readDomEvidence(window) {
 	    const previewScrollEvidence = window.__wikiwisePreviewScrollEvidence ?? {};
 	    const generatedMapEvidence = window.__wikiwiseGeneratedMapEvidence ?? {};
 	    const watcherRuntimeEvidence = window.__wikiwiseWatcherRuntimeEvidence ?? {};
+	    const newWikiRuntimeEvidence = window.__wikiwiseNewWikiRuntimeEvidence ?? {};
 	    const treeButtons = [...document.querySelectorAll(".tree-row")];
 	    const detailHeader = document.querySelector(".detail-header");
 	    const detailHeaderRect = detailHeader?.getBoundingClientRect();
@@ -1351,6 +1605,39 @@ async function readDomEvidence(window) {
       generatedMapBackSelectedFileLabel: generatedMapEvidence.generatedMapBackSelectedFileLabel ?? "",
       generatedMapBackPreviewVisible: Boolean(generatedMapEvidence.generatedMapBackPreviewVisible),
       generatedMapBackGeneratedFrameHidden: Boolean(generatedMapEvidence.generatedMapBackGeneratedFrameHidden),
+      newWikiRuntimeEvidence: Boolean(newWikiRuntimeEvidence.newWikiRuntimeEvidence),
+      newWikiDialogEvidence: Boolean(newWikiRuntimeEvidence.newWikiDialogEvidence),
+      newWikiDialogTitle: newWikiRuntimeEvidence.newWikiDialogTitle ?? "",
+      newWikiDialogRect: newWikiRuntimeEvidence.newWikiDialogRect ?? null,
+      newWikiNameInputPresent: Boolean(newWikiRuntimeEvidence.newWikiNameInputPresent),
+      newWikiLocationText: newWikiRuntimeEvidence.newWikiLocationText ?? "",
+      newWikiLocationTitle: newWikiRuntimeEvidence.newWikiLocationTitle ?? "",
+      newWikiLocationAriaLabel: newWikiRuntimeEvidence.newWikiLocationAriaLabel ?? "",
+      newWikiChooseLabel: newWikiRuntimeEvidence.newWikiChooseLabel ?? "",
+      newWikiCancelLabel: newWikiRuntimeEvidence.newWikiCancelLabel ?? "",
+      newWikiConfirmLabel: newWikiRuntimeEvidence.newWikiConfirmLabel ?? "",
+      newWikiCreateDisabledWhenEmpty: Boolean(newWikiRuntimeEvidence.newWikiCreateDisabledWhenEmpty),
+      newWikiCreateEnabledWhenNamed: Boolean(newWikiRuntimeEvidence.newWikiCreateEnabledWhenNamed),
+      newWikiSubmittedName: newWikiRuntimeEvidence.newWikiSubmittedName ?? "",
+      newWikiCreatedScaffoldEvidence: Boolean(newWikiRuntimeEvidence.newWikiCreatedScaffoldEvidence),
+      newWikiCreatedProjectRoot: newWikiRuntimeEvidence.newWikiCreatedProjectRoot ?? "",
+      newWikiCreatedProjectName: newWikiRuntimeEvidence.newWikiCreatedProjectName ?? "",
+      newWikiCreatedHomeExists: Boolean(newWikiRuntimeEvidence.newWikiCreatedHomeExists),
+      newWikiCreatedSettingsExists: Boolean(newWikiRuntimeEvidence.newWikiCreatedSettingsExists),
+      newWikiProjectOpened: Boolean(newWikiRuntimeEvidence.newWikiProjectOpened),
+      newWikiOpenedProjectName: newWikiRuntimeEvidence.newWikiOpenedProjectName ?? "",
+      newWikiProjectWatcherStarted: Boolean(newWikiRuntimeEvidence.newWikiProjectWatcherStarted),
+      newWikiTerminalStarted: Boolean(newWikiRuntimeEvidence.newWikiTerminalStarted),
+      newWikiPostCreateGuideVisible: Boolean(newWikiRuntimeEvidence.newWikiPostCreateGuideVisible),
+      newWikiGuideTitle: newWikiRuntimeEvidence.newWikiGuideTitle ?? "",
+      newWikiGuideSummaryVisible: Boolean(newWikiRuntimeEvidence.newWikiGuideSummaryVisible),
+      newWikiGuideTerminalInstructionVisible: Boolean(newWikiRuntimeEvidence.newWikiGuideTerminalInstructionVisible),
+      newWikiGuideCommandEvidence: Boolean(newWikiRuntimeEvidence.newWikiGuideCommandEvidence),
+      newWikiSeedOptionCount: newWikiRuntimeEvidence.newWikiSeedOptionCount ?? null,
+      newWikiDismissActionLabel: newWikiRuntimeEvidence.newWikiDismissActionLabel ?? "",
+      newWikiDismissedGuide: Boolean(newWikiRuntimeEvidence.newWikiDismissedGuide),
+      newWikiHomeSelectedAfterDismiss: Boolean(newWikiRuntimeEvidence.newWikiHomeSelectedAfterDismiss),
+      newWikiPreviewVisibleAfterDismiss: Boolean(newWikiRuntimeEvidence.newWikiPreviewVisibleAfterDismiss),
       watcherRuntimeEvidence: Boolean(watcherRuntimeEvidence.watcherRuntimeEvidence),
       watcherRuntimeStarted: Boolean(watcherRuntimeEvidence.watcherRuntimeStarted),
       watcherRuntimeProjectRoot: watcherRuntimeEvidence.watcherRuntimeProjectRoot ?? "",
@@ -1486,6 +1773,61 @@ function assertScenario(scenario, dom, screenshot) {
       if (!bodyText.includes(expectedText)) {
         failures.push(`Missing welcome text: ${expectedText}`);
       }
+    }
+  } else if (scenario.kind === "new-wiki") {
+    if (!dom.welcomeHidden || dom.projectHidden) {
+      failures.push("New-wiki scenario did not open the created project.");
+    }
+    if (!dom.newWikiRuntimeEvidence) {
+      failures.push("New-wiki runtime evidence is missing.");
+    }
+    if (
+      !dom.newWikiDialogEvidence ||
+      dom.newWikiDialogTitle !== "Create a New Wiki" ||
+      !dom.newWikiNameInputPresent ||
+      dom.newWikiChooseLabel !== "Choose…" ||
+      dom.newWikiCancelLabel !== "Cancel" ||
+      dom.newWikiConfirmLabel !== "Create" ||
+      !dom.newWikiCreateDisabledWhenEmpty ||
+      !dom.newWikiCreateEnabledWhenNamed ||
+      (dom.newWikiDialogRect?.width ?? 0) < 390
+    ) {
+      failures.push("New-wiki dialog did not match native creation sheet behavior.");
+    }
+    if (
+      !dom.newWikiCreatedScaffoldEvidence ||
+      !dom.newWikiCreatedHomeExists ||
+      !dom.newWikiCreatedSettingsExists ||
+      !dom.newWikiCreatedProjectRoot
+    ) {
+      failures.push("Runtime new-wiki scaffold was not created.");
+    }
+    if (
+      !dom.newWikiProjectOpened ||
+      dom.projectName !== dom.newWikiCreatedProjectName ||
+      !dom.newWikiProjectWatcherStarted ||
+      !dom.newWikiTerminalStarted
+    ) {
+      failures.push("Runtime new-wiki project did not open with services started.");
+    }
+    if (
+      !dom.newWikiPostCreateGuideVisible ||
+      dom.newWikiGuideTitle !== "Your wiki is ready" ||
+      !dom.newWikiGuideSummaryVisible ||
+      !dom.newWikiGuideTerminalInstructionVisible ||
+      !dom.newWikiGuideCommandEvidence ||
+      dom.newWikiSeedOptionCount !== 4 ||
+      dom.newWikiDismissActionLabel !== "Got it — start reading"
+    ) {
+      failures.push("Runtime new-wiki post-create guide did not render.");
+    }
+    if (
+      !dom.newWikiDismissedGuide ||
+      !dom.newWikiHomeSelectedAfterDismiss ||
+      dom.selectedFileLabel !== "home.md" ||
+      !dom.newWikiPreviewVisibleAfterDismiss
+    ) {
+      failures.push("Runtime new-wiki guide dismissal did not select home.");
     }
   } else {
     if (!dom.welcomeHidden || dom.projectHidden) {

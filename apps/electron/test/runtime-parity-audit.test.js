@@ -70,6 +70,8 @@ test("runtime audit script covers native shell scenarios and assertions", () => 
   assertSourceContains(script, [
     /welcome-light/,
     /welcome-dark/,
+    /new-wiki-light/,
+    /new-wiki-dark/,
     /project-light/,
     /project-dark/,
     /WikiWise helps you turn any folder/,
@@ -212,6 +214,44 @@ test("runtime audit script records generated map toolbar flow evidence", () => {
     /Generated map toolbar control is missing/,
     /Generated map page did not render/,
     /Generated map back navigation did not restore markdown/
+  ]);
+});
+
+test("runtime audit script records new-wiki creation workflow evidence", () => {
+  const script = read("scripts/audit-electron-runtime.mjs");
+
+  assertSourceContains(script, [
+    /new-wiki-light/,
+    /new-wiki-dark/,
+    /captureNewWikiCreationEvidence/,
+    /window\.__wikiwiseNewWikiRuntimeEvidence/,
+    /newWikiRuntimeEvidence/,
+    /newWikiDialogEvidence/,
+    /newWikiCreateDisabledWhenEmpty/,
+    /newWikiCreateEnabledWhenNamed/,
+    /newWikiCreatedScaffoldEvidence/,
+    /newWikiProjectOpened/,
+    /newWikiProjectWatcherStarted/,
+    /newWikiTerminalStarted/,
+    /newWikiPostCreateGuideVisible/,
+    /newWikiGuideCommandEvidence/,
+    /newWikiSeedOptionCount/,
+    /newWikiDismissedGuide/,
+    /newWikiHomeSelectedAfterDismiss/,
+    /wikiwise:createNewWiki/,
+    /createWikiScaffold/,
+    /#create-new/,
+    /#new-wiki-dialog/,
+    /#new-wiki-name/,
+    /#confirm-create-new/,
+    /#post-create-guide/,
+    /#dismiss-post-create-guide/,
+    /New-wiki runtime evidence is missing/,
+    /New-wiki dialog did not match native creation sheet behavior/,
+    /Runtime new-wiki scaffold was not created/,
+    /Runtime new-wiki project did not open with services started/,
+    /Runtime new-wiki post-create guide did not render/,
+    /Runtime new-wiki guide dismissal did not select home/
   ]);
 });
 
