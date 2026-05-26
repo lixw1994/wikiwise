@@ -368,6 +368,42 @@ test("runtime audit script records populated INFO tab evidence", () => {
   ]);
 });
 
+test("runtime audit script records first-publish dialog evidence", () => {
+  const script = read("scripts/audit-electron-runtime.mjs");
+
+  assertSourceContains(script, [
+    /capturePublishDialogRuntimeEvidence/,
+    /window\.__wikiwisePublishDialogRuntimeEvidence/,
+    /publishDialogRuntimeEvidence/,
+    /publishDialogOpened/,
+    /publishDialogTitle/,
+    /publishDialogSubdomain/,
+    /publishDialogUrlShape/,
+    /publishDialogTokenWarning/,
+    /publishDialogAvailabilityState/,
+    /publishDialogAvailabilityText/,
+    /publishDialogAvailabilityIndicatorText/,
+    /publishDialogConfirmDisabled/,
+    /publishDialogUnpublishHidden/,
+    /publishDialogClosedWithCancel/,
+    /publishDialogRestoredHome/,
+    /publishDialogRestoredEditorMode/,
+    /Publish your wiki/,
+    /A publish\.json file will be saved in your project/,
+    /Anyone with this link can view your wiki\./,
+    /wiki-wise\.com/,
+    /Publish dialog runtime evidence is missing/,
+    /Publish dialog did not open/,
+    /Publish dialog URL row evidence is missing/,
+    /Publish dialog token warning is missing/,
+    /Publish dialog availability evidence is missing/,
+    /Publish dialog allowed publishing before availability/,
+    /First-publish dialog showed unpublish action/,
+    /Publish dialog did not close through cancel/,
+    /Publish dialog capture did not restore home editor state/
+  ]);
+});
+
 test("runtime audit script creates scaffold project evidence through core helpers", () => {
   const script = read("scripts/audit-electron-runtime.mjs");
 

@@ -30,6 +30,12 @@ const viewport = nativeDefaultWindowViewport;
 const populatedInfoFixtureName = "info-runtime.md";
 const populatedInfoExpectedDirections = "Verify populated INFO runtime evidence";
 const populatedInfoExpectedLink = "home";
+const publishDialogExpectedTitle = "Publish your wiki";
+const publishDialogExpectedUrlPrefix = "https://";
+const publishDialogExpectedUrlSuffix = ".wiki-wise.com";
+const publishDialogExpectedAvailabilityText = "Anyone with this link can view your wiki.";
+const publishDialogExpectedTokenWarning =
+  "A publish.json file will be saved in your project — it contains your publish token. Treat it like a password: if you lose it, you won’t be able to update this site.";
 const scenarios = Object.freeze([
   { name: "welcome-light", kind: "welcome", appearanceMode: "Light" },
   { name: "welcome-dark", kind: "welcome", appearanceMode: "Dark" },
@@ -665,6 +671,7 @@ async function runScenario(window, scenario) {
     await delay(80);
     await captureInfoOptionalSectionEvidence(window);
     await captureInfoPopulatedSectionEvidence(window);
+    await capturePublishDialogRuntimeEvidence(window);
   }
   await delay(120);
 
@@ -1148,8 +1155,10 @@ async function captureInfoPopulatedSectionEvidence(window) {
     evidence.infoPopulatedLinksSectionVisible = isVisible(linksSection);
     evidence.infoPopulatedLinksText = textFor("#info-links");
 
-    treeFileButton("home.md")?.click();
-    await waitFor(() => selectedFileLabel() === "home.md");
+    if (selectedFileLabel() !== "home.md") {
+      treeFileButton("home.md")?.click();
+      await waitFor(() => selectedFileLabel() === "home.md");
+    }
     modeFile?.click();
     await waitFor(() => (
       selectedFileLabel() === "home.md" &&
@@ -1187,6 +1196,163 @@ async function captureInfoPopulatedSectionEvidence(window) {
     infoPopulatedRestoredHome: false,
     infoPopulatedRestoredEditorMode: false,
     infoPopulatedRestoredSelectedFileLabel: "",
+    error: error instanceof Error ? error.message : String(error)
+  }));
+}
+
+async function capturePublishDialogRuntimeEvidence(window) {
+  return window.webContents.executeJavaScript(`(async () => {
+    const expectedTitle = ${JSON.stringify(publishDialogExpectedTitle)};
+    const expectedUrlPrefix = ${JSON.stringify(publishDialogExpectedUrlPrefix)};
+    const expectedUrlSuffix = ${JSON.stringify(publishDialogExpectedUrlSuffix)};
+    const expectedAvailabilityText = ${JSON.stringify(publishDialogExpectedAvailabilityText)};
+    const expectedTokenWarning = ${JSON.stringify(publishDialogExpectedTokenWarning)};
+    const publishButton = document.querySelector("#publish-wiki");
+    const publishDialog = document.querySelector("#publish-dialog");
+    const publishSubdomainInput = document.querySelector("#publish-subdomain");
+    const publishAvailability = document.querySelector("#publish-availability");
+    const publishAvailabilityIndicator = document.querySelector("#publish-availability-indicator");
+    const confirmPublishButton = document.querySelector("#confirm-publish");
+    const cancelPublishButton = document.querySelector("#cancel-publish");
+    const unpublishButton = document.querySelector("#unpublish-wiki");
+    const modeFile = document.querySelector("#mode-file");
+    const sourceEditorFrame = document.querySelector("#source-editor-frame");
+    const previewFrame = document.querySelector("#preview-frame");
+    const selectedFileLabel = () => document.querySelector("#selected-file")?.textContent?.trim() ?? "";
+    const normalizeText = (value) => String(value ?? "").replace(/\\s+/g, " ").trim();
+    const textFor = (selector) => normalizeText(document.querySelector(selector)?.textContent);
+    const isVisible = (element) => Boolean(
+      element &&
+      !element.hidden &&
+      element.getBoundingClientRect().width > 0 &&
+      element.getBoundingClientRect().height > 0
+    );
+    const treeFileButton = (name) => [...document.querySelectorAll(".tree-file-button")]
+      .find((button) => button.textContent.trim() === name);
+    const waitFor = async (predicate, timeoutMs = 3500) => {
+      const start = Date.now();
+      while (Date.now() - start < timeoutMs) {
+        if (predicate()) return true;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      return false;
+    };
+    const nextFrame = () => new Promise((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(resolve));
+    });
+    const evidence = {
+      publishDialogRuntimeEvidence: true,
+      publishDialogExpectedTitle: expectedTitle,
+      publishDialogExpectedUrlPrefix: expectedUrlPrefix,
+      publishDialogExpectedUrlSuffix: expectedUrlSuffix,
+      publishDialogExpectedAvailabilityText: expectedAvailabilityText,
+      publishDialogExpectedTokenWarning: expectedTokenWarning,
+      publishDialogOpenControlPresent: Boolean(publishButton),
+      publishDialogOpened: false,
+      publishDialogTitle: "",
+      publishDialogSubdomain: "",
+      publishDialogUrlPrefix: "",
+      publishDialogUrlSuffix: "",
+      publishDialogUrlShape: "",
+      publishDialogTokenWarning: "",
+      publishDialogAvailabilityState: "",
+      publishDialogAvailabilityText: "",
+      publishDialogAvailabilityIndicatorState: "",
+      publishDialogAvailabilityIndicatorText: "",
+      publishDialogConfirmDisabled: false,
+      publishDialogConfirmLabel: "",
+      publishDialogUnpublishHidden: false,
+      publishDialogClosedWithCancel: false,
+      publishDialogHiddenAfterCancel: false,
+      publishDialogRestoredHome: false,
+      publishDialogRestoredEditorMode: false,
+      publishDialogRestoredSelectedFileLabel: ""
+    };
+
+    if (!publishButton || !publishDialog || !cancelPublishButton) {
+      window.__wikiwisePublishDialogRuntimeEvidence = evidence;
+      return evidence;
+    }
+
+    publishButton.click();
+    await waitFor(() => isVisible(publishDialog));
+    await nextFrame();
+
+    const affixes = [...document.querySelectorAll(".publish-url-affix")]
+      .map((element) => normalizeText(element.textContent));
+    evidence.publishDialogOpened = isVisible(publishDialog);
+    evidence.publishDialogTitle = textFor("#publish-title");
+    evidence.publishDialogSubdomain = publishSubdomainInput?.value?.trim() ?? "";
+    evidence.publishDialogUrlPrefix = affixes[0] ?? "";
+    evidence.publishDialogUrlSuffix = affixes[1] ?? "";
+    evidence.publishDialogUrlShape =
+      evidence.publishDialogUrlPrefix + evidence.publishDialogSubdomain + evidence.publishDialogUrlSuffix;
+    evidence.publishDialogTokenWarning = textFor(".publish-token-warning");
+    evidence.publishDialogAvailabilityState = publishAvailability?.dataset.state ?? "";
+    evidence.publishDialogAvailabilityText = textFor("#publish-availability");
+    evidence.publishDialogAvailabilityIndicatorState = publishAvailabilityIndicator?.dataset.state ?? "";
+    evidence.publishDialogAvailabilityIndicatorText = normalizeText(publishAvailabilityIndicator?.textContent);
+    evidence.publishDialogConfirmDisabled = Boolean(confirmPublishButton?.disabled);
+    evidence.publishDialogConfirmLabel = normalizeText(confirmPublishButton?.textContent);
+    evidence.publishDialogUnpublishHidden = Boolean(unpublishButton?.hidden);
+
+    cancelPublishButton.click();
+    await waitFor(() => Boolean(publishDialog.hidden));
+    evidence.publishDialogHiddenAfterCancel = Boolean(publishDialog.hidden);
+    evidence.publishDialogClosedWithCancel = evidence.publishDialogHiddenAfterCancel;
+
+    if (selectedFileLabel() !== "home.md") {
+      treeFileButton("home.md")?.click();
+      await waitFor(() => selectedFileLabel() === "home.md");
+    }
+    modeFile?.click();
+    await waitFor(() => (
+      selectedFileLabel() === "home.md" &&
+      Boolean(sourceEditorFrame && !sourceEditorFrame.hidden) &&
+      Boolean(sourceEditorFrame?.contentDocument?.querySelector(".cm-editor")) &&
+      Boolean(previewFrame?.hidden)
+    ));
+    await nextFrame();
+
+    evidence.publishDialogRestoredSelectedFileLabel = selectedFileLabel();
+    evidence.publishDialogRestoredHome = evidence.publishDialogRestoredSelectedFileLabel === "home.md";
+    evidence.publishDialogRestoredEditorMode = Boolean(
+      modeFile?.classList.contains("selected") &&
+      sourceEditorFrame &&
+      !sourceEditorFrame.hidden &&
+      sourceEditorFrame.contentDocument?.querySelector(".cm-editor") &&
+      previewFrame?.hidden
+    );
+
+    window.__wikiwisePublishDialogRuntimeEvidence = evidence;
+    return evidence;
+  })()`, true).catch((error) => ({
+    publishDialogRuntimeEvidence: false,
+    publishDialogExpectedTitle: publishDialogExpectedTitle,
+    publishDialogExpectedUrlPrefix: publishDialogExpectedUrlPrefix,
+    publishDialogExpectedUrlSuffix: publishDialogExpectedUrlSuffix,
+    publishDialogExpectedAvailabilityText: publishDialogExpectedAvailabilityText,
+    publishDialogExpectedTokenWarning: publishDialogExpectedTokenWarning,
+    publishDialogOpenControlPresent: false,
+    publishDialogOpened: false,
+    publishDialogTitle: "",
+    publishDialogSubdomain: "",
+    publishDialogUrlPrefix: "",
+    publishDialogUrlSuffix: "",
+    publishDialogUrlShape: "",
+    publishDialogTokenWarning: "",
+    publishDialogAvailabilityState: "",
+    publishDialogAvailabilityText: "",
+    publishDialogAvailabilityIndicatorState: "",
+    publishDialogAvailabilityIndicatorText: "",
+    publishDialogConfirmDisabled: false,
+    publishDialogConfirmLabel: "",
+    publishDialogUnpublishHidden: false,
+    publishDialogClosedWithCancel: false,
+    publishDialogHiddenAfterCancel: false,
+    publishDialogRestoredHome: false,
+    publishDialogRestoredEditorMode: false,
+    publishDialogRestoredSelectedFileLabel: "",
     error: error instanceof Error ? error.message : String(error)
   }));
 }
@@ -1933,6 +2099,7 @@ async function readDomEvidence(window) {
 	    const leftSidebarVisibilityEvidence = window.__wikiwiseLeftSidebarVisibilityEvidence ?? {};
 	    const infoOptionalEvidence = window.__wikiwiseInfoOptionalSectionEvidence ?? {};
 	    const infoPopulatedEvidence = window.__wikiwiseInfoPopulatedSectionEvidence ?? {};
+	    const publishDialogEvidence = window.__wikiwisePublishDialogRuntimeEvidence ?? {};
 	    const defaultWikiPreviewEvidence = window.__wikiwiseDefaultWikiPreviewEvidence ?? {};
 	    const previewScrollEvidence = window.__wikiwisePreviewScrollEvidence ?? {};
 	    const generatedMapEvidence = window.__wikiwiseGeneratedMapEvidence ?? {};
@@ -2059,6 +2226,33 @@ async function readDomEvidence(window) {
         document.body.scrollHeight <= window.innerHeight + 1
       ),
       publishDialogHidden: Boolean(document.querySelector("#publish-dialog")?.hidden),
+      publishDialogRuntimeEvidence: Boolean(publishDialogEvidence.publishDialogRuntimeEvidence),
+      publishDialogExpectedTitle: publishDialogEvidence.publishDialogExpectedTitle ?? "",
+      publishDialogExpectedUrlPrefix: publishDialogEvidence.publishDialogExpectedUrlPrefix ?? "",
+      publishDialogExpectedUrlSuffix: publishDialogEvidence.publishDialogExpectedUrlSuffix ?? "",
+      publishDialogExpectedAvailabilityText: publishDialogEvidence.publishDialogExpectedAvailabilityText ?? "",
+      publishDialogExpectedTokenWarning: publishDialogEvidence.publishDialogExpectedTokenWarning ?? "",
+      publishDialogOpenControlPresent: Boolean(publishDialogEvidence.publishDialogOpenControlPresent),
+      publishDialogOpened: Boolean(publishDialogEvidence.publishDialogOpened),
+      publishDialogTitle: publishDialogEvidence.publishDialogTitle ?? "",
+      publishDialogSubdomain: publishDialogEvidence.publishDialogSubdomain ?? "",
+      publishDialogUrlPrefix: publishDialogEvidence.publishDialogUrlPrefix ?? "",
+      publishDialogUrlSuffix: publishDialogEvidence.publishDialogUrlSuffix ?? "",
+      publishDialogUrlShape: publishDialogEvidence.publishDialogUrlShape ?? "",
+      publishDialogTokenWarning: publishDialogEvidence.publishDialogTokenWarning ?? "",
+      publishDialogAvailabilityState: publishDialogEvidence.publishDialogAvailabilityState ?? "",
+      publishDialogAvailabilityText: publishDialogEvidence.publishDialogAvailabilityText ?? "",
+      publishDialogAvailabilityIndicatorState: publishDialogEvidence.publishDialogAvailabilityIndicatorState ?? "",
+      publishDialogAvailabilityIndicatorText: publishDialogEvidence.publishDialogAvailabilityIndicatorText ?? "",
+      publishDialogConfirmDisabled: Boolean(publishDialogEvidence.publishDialogConfirmDisabled),
+      publishDialogConfirmLabel: publishDialogEvidence.publishDialogConfirmLabel ?? "",
+      publishDialogUnpublishHidden: Boolean(publishDialogEvidence.publishDialogUnpublishHidden),
+      publishDialogClosedWithCancel: Boolean(publishDialogEvidence.publishDialogClosedWithCancel),
+      publishDialogHiddenAfterCancel: Boolean(publishDialogEvidence.publishDialogHiddenAfterCancel),
+      publishDialogRestoredHome: Boolean(publishDialogEvidence.publishDialogRestoredHome),
+      publishDialogRestoredEditorMode: Boolean(publishDialogEvidence.publishDialogRestoredEditorMode),
+      publishDialogRestoredSelectedFileLabel:
+        publishDialogEvidence.publishDialogRestoredSelectedFileLabel ?? "",
       newWikiDialogHidden: Boolean(document.querySelector("#new-wiki-dialog")?.hidden),
       sourceEditorFramePresent: Boolean(sourceEditorFrame),
       sourceEditorFrameReady: Boolean(sourceEditorFrame?.contentWindow?.getContent),
@@ -2661,6 +2855,53 @@ function assertScenario(scenario, dom, screenshot) {
 	      dom.infoPopulatedRestoredSelectedFileLabel !== "home.md"
 	    ) {
 	      failures.push("Populated INFO capture did not restore home editor state.");
+	    }
+	    if (!dom.publishDialogRuntimeEvidence) {
+	      failures.push("Publish dialog runtime evidence is missing.");
+	    }
+	    if (
+	      !dom.publishDialogOpenControlPresent ||
+	      !dom.publishDialogOpened ||
+	      dom.publishDialogTitle !== publishDialogExpectedTitle
+	    ) {
+	      failures.push("Publish dialog did not open.");
+	    }
+	    if (
+	      !dom.publishDialogSubdomain ||
+	      dom.publishDialogUrlPrefix !== publishDialogExpectedUrlPrefix ||
+	      dom.publishDialogUrlSuffix !== publishDialogExpectedUrlSuffix ||
+	      dom.publishDialogUrlShape !==
+	        `${publishDialogExpectedUrlPrefix}${dom.publishDialogSubdomain}${publishDialogExpectedUrlSuffix}`
+	    ) {
+	      failures.push("Publish dialog URL row evidence is missing.");
+	    }
+	    if (dom.publishDialogTokenWarning !== publishDialogExpectedTokenWarning) {
+	      failures.push("Publish dialog token warning is missing.");
+	    }
+	    const publishDialogAvailabilityBlocksPublishing =
+	      !["available", "owned"].includes(dom.publishDialogAvailabilityState);
+	    if (
+	      !dom.publishDialogAvailabilityState ||
+	      dom.publishDialogAvailabilityText !== publishDialogExpectedAvailabilityText ||
+	      dom.publishDialogAvailabilityIndicatorState !== dom.publishDialogAvailabilityState
+	    ) {
+	      failures.push("Publish dialog availability evidence is missing.");
+	    }
+	    if (!publishDialogAvailabilityBlocksPublishing || !dom.publishDialogConfirmDisabled) {
+	      failures.push("Publish dialog allowed publishing before availability.");
+	    }
+	    if (!dom.publishDialogUnpublishHidden) {
+	      failures.push("First-publish dialog showed unpublish action.");
+	    }
+	    if (!dom.publishDialogClosedWithCancel || !dom.publishDialogHiddenAfterCancel) {
+	      failures.push("Publish dialog did not close through cancel.");
+	    }
+	    if (
+	      !dom.publishDialogRestoredHome ||
+	      !dom.publishDialogRestoredEditorMode ||
+	      dom.publishDialogRestoredSelectedFileLabel !== "home.md"
+	    ) {
+	      failures.push("Publish dialog capture did not restore home editor state.");
 	    }
 	    if (dom.sourceEditorFrameHidden) {
 	      failures.push("Source editor frame is hidden.");
