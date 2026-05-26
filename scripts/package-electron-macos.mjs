@@ -37,7 +37,13 @@ const inheritedElectronTemplateInfoPlistKeys = Object.freeze([
   "NSMicrophoneUsageDescription",
   "NSBluetoothAlwaysUsageDescription",
   "NSBluetoothPeripheralUsageDescription",
-  "NSAppTransportSecurity"
+  "NSAppTransportSecurity",
+  "DTCompiler",
+  "DTSDKBuild",
+  "DTSDKName",
+  "DTXcode",
+  "DTXcodeBuild",
+  "LSApplicationCategoryType"
 ]);
 
 const electronPackage = JSON.parse(
@@ -151,8 +157,7 @@ function rewriteInfoPlist() {
     CFBundleShortVersionString: versionMetadata.shortVersion,
     CFBundleVersion: versionMetadata.bundleVersion,
     CFBundleIconFile: productName,
-    LSMinimumSystemVersion: "14.0",
-    LSApplicationCategoryType: "public.app-category.productivity"
+    LSMinimumSystemVersion: "14.0"
   };
 
   for (const [key, value] of Object.entries(updates)) {

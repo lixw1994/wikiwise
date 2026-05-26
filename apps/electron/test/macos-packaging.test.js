@@ -30,6 +30,14 @@ const inheritedElectronTemplatePlistKeys = [
   "NSBluetoothPeripheralUsageDescription",
   "NSAppTransportSecurity"
 ];
+const nonNativeElectronTemplatePlistKeys = [
+  "DTCompiler",
+  "DTSDKBuild",
+  "DTSDKName",
+  "DTXcode",
+  "DTXcodeBuild",
+  "LSApplicationCategoryType"
+];
 const nativeMinimumMacOSVersion = "14.0";
 
 test("package manifests expose Electron macOS packaging commands", () => {
@@ -76,6 +84,20 @@ test("packaging script strips unused Electron template privacy plist metadata", 
     assert.doesNotMatch(nativeInfoPlist, new RegExp(`<key>${key}</key>`));
     assert.match(script, new RegExp(`"${key}"`));
   }
+});
+
+test("packaging script strips non-native Electron template build plist metadata", () => {
+  const script = read("scripts/package-electron-macos.mjs");
+  const nativeInfoPlist = read("Wikiwise.app/Contents/Info.plist");
+
+  assert.match(script, /removeElectronTemplateInfoPlistKeys/);
+
+  for (const key of nonNativeElectronTemplatePlistKeys) {
+    assert.doesNotMatch(nativeInfoPlist, new RegExp(`<key>${key}</key>`));
+    assert.match(script, new RegExp(`"${key}"`));
+  }
+
+  assert.doesNotMatch(script, /LSApplicationCategoryType:\s*"/);
 });
 
 test("packaging script mirrors native minimum macOS metadata", () => {
