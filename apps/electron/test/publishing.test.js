@@ -178,7 +178,8 @@ test("renderer mirrors native toolbar busy state during unpublish", () => {
     /private func performUnpublish\(\) \{[\s\S]*isPublishing = true/
   );
   assert.match(nativeSource, /\.disabled\(isPublishing \|\| compiler == nil\)/);
-  assert.match(rendererSource, /publishButton\.disabled = !state\.currentProject \|\| publishBusy/);
+  assert.match(rendererSource, /function isProjectFolder\(\)/);
+  assert.match(rendererSource, /publishButton\.disabled = !isProjectFolder\(\) \|\| publishBusy/);
   assert.match(confirmUnpublishBody, /state\.isUnpublishing = true;[\s\S]*renderPublishStatus\(\)/);
 });
 

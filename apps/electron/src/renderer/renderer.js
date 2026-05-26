@@ -172,6 +172,10 @@ function setError(error) {
   errorMessage.textContent = error instanceof Error ? error.message : String(error);
 }
 
+function isProjectFolder() {
+  return Boolean(state.currentProject && state.currentProject.projectKind !== "file");
+}
+
 function middleTruncatePath(pathValue, maxLength = newWikiLocationDisplayLimit) {
   if (!pathValue || pathValue.length <= maxLength) return pathValue || "";
   if (maxLength <= 1) return "…";
@@ -647,7 +651,7 @@ function publishButtonHelpText() {
 function renderPublishStatus() {
   const publishHelpText = publishButtonHelpText();
   const publishBusy = state.isPublishing || state.isUnpublishing;
-  publishButton.disabled = !state.currentProject || publishBusy;
+  publishButton.disabled = !isProjectFolder() || publishBusy;
   publishBusyIndicator.hidden = !publishBusy;
   publishLabel.textContent = publishBusy ? "PUBLISHING…" : "PUBLISH ↑";
   publishButton.title = publishHelpText;
@@ -1084,6 +1088,7 @@ function sendTerminalResize() {
 async function applyProjectResult(projectResult, options = {}) {
   state.currentProject = {
     projectRoot: projectResult.projectRoot,
+    projectKind: projectResult.projectKind ?? "folder",
     projectName: projectResult.projectName
   };
   state.tree = normalizeTreeNodes(projectResult.tree);
@@ -1096,7 +1101,9 @@ async function applyProjectResult(projectResult, options = {}) {
   setSelectedFile(projectResult.selectedFile);
 
   renderApp();
-  await autoExpandInitialTree();
+  if (isProjectFolder()) {
+    await autoExpandInitialTree();
+  }
   await setActiveSelectedFile();
   await startProjectServices();
 }
@@ -1325,7 +1332,7 @@ async function navigateForward() {
 }
 
 async function openMap() {
-  if (!state.currentProject) return;
+  if (!isProjectFolder()) return;
 
   setError(null);
   try {
@@ -1342,7 +1349,7 @@ async function openMap() {
 }
 
 async function refreshGeneratedPage() {
-  if (!state.currentProject || !state.generatedPage?.name) return null;
+  if (!isProjectFolder() || !state.generatedPage?.name) return null;
 
   const refreshed = await window.wikiwise.openGeneratedPage({
     projectRoot: state.currentProject.projectRoot,
@@ -1479,7 +1486,7 @@ async function startProjectServices() {
 }
 
 async function refreshPublishConfig() {
-  if (!state.currentProject) {
+  if (!state.currentProject || !isProjectFolder()) {
     state.publishConfig = null;
     renderPublishStatus();
     return null;
@@ -1494,7 +1501,7 @@ async function refreshPublishConfig() {
 }
 
 async function openPublishDialog() {
-  if (!state.currentProject) return;
+  if (!isProjectFolder()) return;
 
   setError(null);
   state.publishError = null;
@@ -1755,7 +1762,7 @@ async function startProjectWatcher() {
     state.projectWatcherCleanup();
     state.projectWatcherCleanup = null;
   }
-  if (!state.currentProject) {
+  if (!state.currentProject || !isProjectFolder()) {
     await window.wikiwise.stopProjectWatcher();
     return;
   }
@@ -1777,7 +1784,7 @@ async function startTerminal() {
     state.terminalOutputCleanup();
     state.terminalOutputCleanup = null;
   }
-  if (!state.currentProject) {
+  if (!state.currentProject || !isProjectFolder()) {
     await window.wikiwise.stopTerminal();
     state.terminalInstance?.clear?.();
     renderTerminalTab();

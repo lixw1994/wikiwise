@@ -79,3 +79,15 @@ The Electron live rebuild watching phase SHALL include runtime QA evidence that 
 - **AND** Electron refreshes the selected compiled preview with invalidate semantics
 - **AND** Electron refreshes the selected compiled preview with CSS reload semantics
 - **AND** Electron preserves the selected markdown page after the watcher refresh
+
+### Requirement: Standalone File Watcher Boundary
+The Electron app SHALL not start project file watching for standalone-file opens.
+
+#### Scenario: Standalone file opens
+- **WHEN** the renderer applies a standalone-file project result
+- **THEN** it does not start the project watcher
+- **AND** any previous project watcher subscription is stopped or cleaned up
+
+#### Scenario: Folder project opens
+- **WHEN** the renderer applies a folder project result
+- **THEN** existing project watcher startup behavior is retained

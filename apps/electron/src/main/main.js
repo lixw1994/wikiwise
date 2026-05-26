@@ -867,11 +867,12 @@ function compileWikiHomeIfPresent(projectRoot) {
 function createProjectResult(targetPath) {
   const stat = fs.statSync(targetPath);
   const isDirectory = stat.isDirectory();
+  const projectKind = isDirectory ? "folder" : "file";
   const projectRoot = isDirectory ? targetPath : path.dirname(targetPath);
   if (isDirectory) {
     getCompiler(projectRoot).scanPages();
   }
-  const tree = scanOneLevel(projectRoot);
+  const tree = isDirectory ? scanOneLevel(projectRoot) : [];
   const selectedFile = isDirectory
     ? compileWikiHomeIfPresent(projectRoot)
     : {
@@ -885,6 +886,7 @@ function createProjectResult(targetPath) {
 
   return {
     projectRoot,
+    projectKind,
     projectName: path.basename(projectRoot),
     tree,
     selectedFile

@@ -32,16 +32,19 @@ const scenarios = Object.freeze([
   { name: "welcome-dark", kind: "welcome", appearanceMode: "Dark" },
   { name: "new-wiki-light", kind: "new-wiki", appearanceMode: "Light" },
   { name: "new-wiki-dark", kind: "new-wiki", appearanceMode: "Dark" },
+  { name: "standalone-file-light", kind: "standalone-file", appearanceMode: "Light" },
   { name: "project-light", kind: "project", appearanceMode: "Light" },
   { name: "project-dark", kind: "project", appearanceMode: "Dark" }
 ]);
 
 let activeScenario = null;
 let auditProject = null;
+let auditStandaloneFileProject = null;
 let terminalResizeObserved = false;
 let terminalResizeCount = 0;
 let terminalInputObserved = false;
 let activeFileObserved = false;
+let generatedPageOpenObserved = false;
 let rightSidebarTerminalResizeObserved = false;
 let projectWatcherStarted = false;
 let projectWatcherProjectRoot = "";
@@ -117,6 +120,7 @@ function createAuditProject() {
 
   return {
     projectRoot,
+    projectKind: "folder",
     projectName: path.basename(projectRoot),
     tree: scanOneLevel(projectRoot),
     backgroundCompilationEvidence,
@@ -134,6 +138,29 @@ function createAuditProject() {
   };
 }
 
+function createAuditStandaloneFileProject() {
+  const standaloneRoot = path.join(sampleProjectParent, "standalone-file-parent");
+  const selectedPath = path.join(standaloneRoot, "standalone.md");
+  fs.mkdirSync(standaloneRoot, { recursive: true });
+  fs.writeFileSync(
+    selectedPath,
+    "# Standalone Audit File\n\nThis markdown file is opened directly, not as a wiki folder.\n"
+  );
+  fs.writeFileSync(path.join(standaloneRoot, "sibling.md"), "# Sibling\n\nThis should not render in the tree.\n");
+
+  return {
+    projectRoot: standaloneRoot,
+    projectKind: "file",
+    projectName: path.basename(standaloneRoot),
+    tree: [],
+    selectedFile: {
+      path: selectedPath,
+      name: path.basename(selectedPath),
+      content: readTextFile(selectedPath)
+    }
+  };
+}
+
 function createAuditProjectResult(projectRoot) {
   const selectedPath = path.join(projectRoot, "wiki", "home.md");
   const compiler = new WikiCompiler({ projectRoot, repositoryRoot });
@@ -142,6 +169,7 @@ function createAuditProjectResult(projectRoot) {
 
   return {
     projectRoot,
+    projectKind: "folder",
     projectName: path.basename(projectRoot),
     tree: scanOneLevel(projectRoot),
     selectedFile: {
@@ -341,7 +369,9 @@ function registerAuditIpcHandlers() {
     lastFolderPath: activeScenario?.kind === "project" ? auditProject.projectRoot : ""
   }));
   ipcMain.handle("wikiwise:restoreLastProject", () => {
-    return activeScenario?.kind === "project" ? auditProject : null;
+    if (activeScenario?.kind === "project") return auditProject;
+    if (activeScenario?.kind === "standalone-file") return auditStandaloneFileProject;
+    return null;
   });
   ipcMain.handle("wikiwise:startProjectWatcher", (event, payload) => {
     projectWatcherStarted = true;
@@ -437,6 +467,7 @@ function registerAuditIpcHandlers() {
   });
   ipcMain.handle("wikiwise:getTerminalResource", () => getAuditTerminalResource());
   ipcMain.handle("wikiwise:openGeneratedPage", (_event, payload) => {
+    generatedPageOpenObserved = true;
     const projectRoot = path.resolve(payload.projectRoot);
     const compiler = new WikiCompiler({ projectRoot, repositoryRoot });
     compiler.compileAll();
@@ -532,6 +563,7 @@ async function runScenario(window, scenario) {
   terminalResizeCount = 0;
   terminalInputObserved = false;
   activeFileObserved = false;
+  generatedPageOpenObserved = false;
   rightSidebarTerminalResizeObserved = false;
   projectWatcherStarted = false;
   projectWatcherProjectRoot = "";
@@ -551,6 +583,10 @@ async function runScenario(window, scenario) {
   await waitForScenario(window, scenario);
   if (scenario.kind === "new-wiki") {
     await captureNewWikiCreationEvidence(window, scenario);
+  }
+  if (scenario.kind === "standalone-file") {
+    await window.webContents.executeJavaScript(`document.querySelector("#open-map")?.click()`, true);
+    await delay(80);
   }
   if (scenario.kind === "project") {
     await waitForCondition(
@@ -631,6 +667,9 @@ async function runScenario(window, scenario) {
   dom.rightSidebarTerminalResizeObserved = rightSidebarTerminalResizeObserved;
   dom.terminalInputObserved = terminalInputObserved;
   dom.activeFileObserved = activeFileObserved;
+  dom.standaloneFileWatcherStopped = scenario.kind !== "standalone-file" || !projectWatcherStarted;
+  dom.standaloneFileTerminalStopped = scenario.kind !== "standalone-file" || !terminalStarted;
+  dom.standaloneFileGeneratedMapServiceStopped = scenario.kind !== "standalone-file" || !generatedPageOpenObserved;
   const screenshot = screenshotStats(image);
   const assertions = assertScenario(scenario, dom, screenshot);
   console.log(`Captured runtime audit scenario: ${scenario.name}`);
@@ -1647,7 +1686,7 @@ async function captureWatcherRuntimeEvidence(window) {
 }
 
 async function waitForScenario(window, scenario) {
-  const expression = scenario.kind === "project"
+  const expression = scenario.kind === "project" || scenario.kind === "standalone-file"
     ? `Boolean(
         document.querySelector("#welcome")?.hidden &&
         !document.querySelector("#project")?.hidden &&
@@ -1867,6 +1906,13 @@ async function readDomEvidence(window) {
       toolbarIconText: toolbarIconEvidence.toolbarIconText,
       toolbarIconTextVisible: toolbarIconEvidence.toolbarIconTextVisible,
       selectedFileLabel: textFor("#selected-file"),
+      standaloneFileEvidence: Boolean(
+        textFor("#selected-file") === "standalone.md" &&
+        !document.querySelector("#project")?.hidden
+      ),
+      standaloneFileTreeEmpty: document.querySelectorAll("#file-tree .tree-row").length === 0,
+      standaloneFilePublishDisabled: Boolean(document.querySelector("#publish-wiki")?.disabled),
+      standaloneFileGeneratedMapStayedHidden: Boolean(document.querySelector("#generated-preview-frame")?.hidden),
       detailHeaderVisible,
       detailSaveChromeTextVisible: /\\bSaved\\b\\s*\\n\\s*Save\\b/.test(document.body.innerText),
       projectViewportBounded: !document.querySelector("#project") || (
@@ -2188,6 +2234,25 @@ function assertScenario(scenario, dom, screenshot) {
     ) {
       failures.push("Runtime new-wiki guide dismissal did not select home.");
     }
+  } else if (scenario.kind === "standalone-file") {
+    if (dom.welcomeHidden !== true || dom.projectHidden !== false) {
+      failures.push("Standalone file scenario did not render the project shell.");
+    }
+    if (!dom.standaloneFileEvidence || dom.selectedFileLabel !== "standalone.md") {
+      failures.push("Standalone file runtime evidence is missing.");
+    }
+    if (!dom.standaloneFileTreeEmpty) {
+      failures.push("Standalone file tree is not empty.");
+    }
+    if (!dom.standaloneFileWatcherStopped || !dom.standaloneFileTerminalStopped) {
+      failures.push("Standalone file project services started.");
+    }
+    if (!dom.standaloneFilePublishDisabled) {
+      failures.push("Standalone file publish action is enabled.");
+    }
+    if (!dom.standaloneFileGeneratedMapStayedHidden || !dom.standaloneFileGeneratedMapServiceStopped) {
+      failures.push("Standalone file generated map flow ran.");
+    }
   } else {
     if (!dom.welcomeHidden || dom.projectHidden) {
       failures.push("Project scenario did not render the opened-project state.");
@@ -2472,6 +2537,7 @@ function delay(ms) {
 export async function runElectronRuntimeAudit() {
   resetOutput();
   auditProject = createAuditProject();
+  auditStandaloneFileProject = createAuditStandaloneFileProject();
   registerAuditIpcHandlers();
 
   const window = createAuditWindow();
