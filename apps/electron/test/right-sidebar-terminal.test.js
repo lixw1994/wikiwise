@@ -363,7 +363,7 @@ test("renderer info metadata mirrors native about document section", () => {
   assert.match(rendererSource, /infoAboutSection\.hidden = !hasDocument/);
   assert.match(rendererSource, /infoPath\.textContent = hasDocument \? \(info\?\.name \?\? file\.name\) : ""/);
   assert.match(rendererSource, /infoEdited\.textContent = hasDocument && info\?\.modifiedAt \? formatEditedTime\(info\.modifiedAt\) : ""/);
-  assert.match(rendererSource, /infoWords\.textContent = hasDocument && info \? String\(info\.wordCount\) : ""/);
+  assert.match(rendererSource, /infoWords\.textContent = hasDocument && info \? formatWordCount\(info\.wordCount\) : ""/);
   assert.match(infoAboutSectionBlock, /gap:\s*8px/);
   assert.match(infoListBlock, /gap:\s*6px/);
   assert.match(infoListBlock, /margin:\s*0/);
@@ -378,6 +378,25 @@ test("renderer info metadata mirrors native about document section", () => {
   assert.match(infoValueBlock, /color:\s*var\(--color-info-value\)/);
   assert.match(infoSectionHeadingBlock, /font-size:\s*9px/);
   assert.match(infoSectionHeadingBlock, /letter-spacing:\s*1\.6px/);
+});
+
+test("renderer mirrors native decimal word-count formatting", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const coreSource = readRepository("packages/wikiwise-core/src/index.js");
+  const nativeFormatterSource =
+    nativeSource.match(/private func formattedWordCount[\s\S]*?\n    \}/)?.[0] ?? "";
+
+  assert.notEqual(nativeFormatterSource, "");
+  assert.match(
+    nativeFormatterSource,
+    /let formatter = NumberFormatter\(\)[\s\S]*formatter\.numberStyle = \.decimal[\s\S]*formatter\.string\(from:\s*NSNumber\(value:\s*words\.count\)\)/
+  );
+  assert.match(coreSource, /wordCount:\s*countWords\(content\)/);
+  assert.match(rendererSource, /function formatWordCount\(wordCount\)/);
+  assert.match(rendererSource, /new Intl\.NumberFormat\(\)\.format\(numericWordCount\)/);
+  assert.match(rendererSource, /infoWords\.textContent = hasDocument && info \? formatWordCount\(info\.wordCount\) : ""/);
+  assert.doesNotMatch(rendererSource, /infoWords\.textContent = hasDocument && info \? String\(info\.wordCount\) : ""/);
 });
 
 test("renderer right sidebar tabs mirror native compact pill switcher", () => {

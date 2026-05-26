@@ -937,7 +937,7 @@ function renderInfoTab() {
   infoAboutSection.hidden = !hasDocument;
   infoPath.textContent = hasDocument ? (info?.name ?? file.name) : "";
   infoEdited.textContent = hasDocument && info?.modifiedAt ? formatEditedTime(info.modifiedAt) : "";
-  infoWords.textContent = hasDocument && info ? String(info.wordCount) : "";
+  infoWords.textContent = hasDocument && info ? formatWordCount(info.wordCount) : "";
 
   const hasDirections = Boolean(info?.directions);
   infoDirectionsSection.hidden = !hasDirections;
@@ -1991,6 +1991,11 @@ function formatEditedTime(modifiedAt) {
     dateStyle: "medium",
     timeStyle: "short"
   }).format(date);
+}
+
+function formatWordCount(wordCount) {
+  const numericWordCount = Number(wordCount);
+  return Number.isFinite(numericWordCount) ? new Intl.NumberFormat().format(numericWordCount) : "";
 }
 
 function renderSaveState() {
