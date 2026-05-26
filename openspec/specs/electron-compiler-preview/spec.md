@@ -1,7 +1,8 @@
 # electron-compiler-preview Specification
 
 ## Purpose
-TBD - created by archiving change migrate-electron-compiler-preview. Update Purpose after archive.
+Define Electron compiler-preview behavior for opening wiki projects, compiling selected Markdown pages through shared core logic, preserving preview state, and routing generated pages like the native app.
+
 ## Requirements
 ### Requirement: Node Compiler Wrapper
 

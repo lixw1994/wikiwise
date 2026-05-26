@@ -1,7 +1,8 @@
 # wikiwise-core-package Specification
 
 ## Purpose
-TBD - created by archiving change add-electron-workspace. Update Purpose after archive.
+Define the shared JavaScript core package that mirrors native wiki compilation, file-tree, scaffold, watcher, publishing, and resource-path behavior for Electron reuse.
+
 ## Requirements
 ### Requirement: Workspace Core Package
 

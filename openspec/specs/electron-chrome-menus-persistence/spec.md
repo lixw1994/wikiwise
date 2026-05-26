@@ -1,7 +1,8 @@
 # electron-chrome-menus-persistence Specification
 
 ## Purpose
-TBD - created by archiving change migrate-electron-chrome-menus-persistence. Update Purpose after archive.
+Define Electron app chrome, menu commands, startup restore, appearance persistence, toolbar navigation, and sidebar state behavior needed to match the native macOS shell.
+
 ## Requirements
 ### Requirement: Persistent App Settings
 

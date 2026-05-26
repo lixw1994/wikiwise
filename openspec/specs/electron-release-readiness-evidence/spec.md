@@ -1,7 +1,8 @@
 # electron-release-readiness-evidence Specification
 
 ## Purpose
-TBD - created by archiving change record-electron-release-readiness-evidence. Update Purpose after archive.
+Define retained Electron release readiness evidence for credential-dependent signing and notarization prerequisites without producing release artifacts.
+
 ## Requirements
 ### Requirement: Structured Release Readiness Report
 The repository SHALL provide a command that records Electron release readiness evidence without creating signed, notarized, or packaged release artifacts.

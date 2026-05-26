@@ -1,7 +1,8 @@
 # electron-preview-navigation-map-graph Specification
 
 ## Purpose
-TBD - created by archiving change migrate-electron-preview-navigation-map-graph. Update Purpose after archive.
+Define Electron preview navigation, generated map/graph routing, external-link handling, and back-navigation behavior needed to match the native preview experience.
+
 ## Requirements
 ### Requirement: Preview Local Link Routing
 

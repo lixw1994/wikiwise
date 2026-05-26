@@ -1,7 +1,8 @@
 # electron-macos-packaging Specification
 
 ## Purpose
-TBD - created by archiving change package-electron-macos-app. Update Purpose after archive.
+Define local Electron macOS packaging behavior, app bundle metadata parity, reviewed Electron runtime plist deltas, and the separation between unsigned local packages and signed release distribution.
+
 ## Requirements
 ### Requirement: Electron macOS Package Command
 

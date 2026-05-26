@@ -1043,7 +1043,7 @@ app.whenReady().then(async () => {
     );
     await auditModule.runElectronRuntimeAudit();
     process.exitCode = 0;
-    app.exit(0);
+    app.quit();
     return;
   }
 

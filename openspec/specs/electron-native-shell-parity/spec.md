@@ -1,7 +1,8 @@
 # electron-native-shell-parity Specification
 
 ## Purpose
-TBD - created by archiving change polish-electron-native-shell-parity. Update Purpose after archive.
+Define Electron native shell visual parity for product branding, welcome content, toolbar chrome, window geometry, and removal of migration-only debug surfaces.
+
 ## Requirements
 ### Requirement: Product Shell Branding
 
@@ -86,4 +87,3 @@ The Electron no-folder state SHALL include the native SwiftUI welcome toolbar br
 - **AND** the toolbar includes the `WikiWise` label
 - **AND** the toolbar uses native toolbar spacing, typography, and warm toolbar background
 - **AND** the existing Create a New Wiki and Open Existing Folder actions remain available
-

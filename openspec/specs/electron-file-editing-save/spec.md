@@ -1,7 +1,8 @@
 # electron-file-editing-save Specification
 
 ## Purpose
-TBD - created by archiving change migrate-electron-file-editing-save. Update Purpose after archive.
+Define Electron file editing and save behavior, including source editor integration, path-safe writes, markdown recompilation, and native-compatible editor parity boundaries.
+
 ## Requirements
 ### Requirement: Editable Source Mode
 

@@ -1,7 +1,8 @@
 # electron-project-lifecycle Specification
 
 ## Purpose
-TBD - created by archiving change migrate-electron-project-lifecycle. Update Purpose after archive.
+Define Electron project lifecycle behavior for opening folders/files, restoring recent projects, service boundaries for standalone files, and path-safe project IPC.
+
 ## Requirements
 ### Requirement: Welcome Entry Points
 

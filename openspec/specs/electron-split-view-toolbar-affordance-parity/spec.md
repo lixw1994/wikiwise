@@ -1,7 +1,8 @@
 # electron-split-view-toolbar-affordance-parity Specification
 
 ## Purpose
-TBD - created by archiving change align-electron-split-view-toolbar-affordance-parity. Update Purpose after archive.
+Define Electron split-view toolbar affordance parity for visible native sidebar controls, hidden restore controls, accessibility metadata, and runtime evidence.
+
 ## Requirements
 ### Requirement: Left Sidebar Split-View Toolbar Affordance
 The Electron opened-project toolbar SHALL expose native split-view left-sidebar affordance semantics for both visible and hidden sidebar states.

@@ -29,6 +29,19 @@ test("package manifests expose Electron runtime audit commands", () => {
   assert.equal(electronPackage.scripts["audit:runtime"], "electron . --audit-runtime");
 });
 
+test("runtime audit success path uses graceful Electron shutdown", () => {
+  const mainProcessSource = read("apps/electron/src/main/main.js");
+
+  assert.match(
+    mainProcessSource,
+    /await auditModule\.runElectronRuntimeAudit\(\);\s*process\.exitCode = 0;\s*app\.quit\(\);\s*return;/s
+  );
+  assert.doesNotMatch(
+    mainProcessSource,
+    /await auditModule\.runElectronRuntimeAudit\(\);\s*process\.exitCode = 0;\s*app\.exit\(0\);/s
+  );
+});
+
 test("runtime audit script loads real renderer through Electron BrowserWindow", () => {
   const scriptPath = path.join(repositoryRoot, "scripts/audit-electron-runtime.mjs");
 
@@ -490,7 +503,7 @@ test("main process delegates audit mode to checked-in runtime audit script", () 
     /audit-electron-runtime\.mjs/,
     /runElectronRuntimeAudit/,
     /process\.exitCode\s*=\s*0/,
-    /app\.exit\(0\)/
+    /app\.quit\(\)/
   ]);
 });
 

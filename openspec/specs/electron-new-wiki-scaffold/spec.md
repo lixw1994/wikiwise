@@ -1,7 +1,8 @@
 # electron-new-wiki-scaffold Specification
 
 ## Purpose
-TBD - created by archiving change migrate-electron-new-wiki-scaffold. Update Purpose after archive.
+Define Electron new-wiki creation parity, including native sheet behavior, scaffold generation, post-create guide presentation, and runtime evidence for opening the created wiki.
+
 ## Requirements
 ### Requirement: New Wiki Dialog
 

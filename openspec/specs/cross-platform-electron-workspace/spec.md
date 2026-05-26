@@ -1,7 +1,8 @@
 # cross-platform-electron-workspace Specification
 
 ## Purpose
-TBD - created by archiving change add-electron-workspace. Update Purpose after archive.
+Define the npm workspace, package boundaries, and dependency-light verification contract for the Electron migration alongside the existing SwiftUI macOS app.
+
 ## Requirements
 ### Requirement: Parallel Electron Workspace
 

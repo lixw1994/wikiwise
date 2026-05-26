@@ -1,7 +1,8 @@
 # electron-live-rebuild-watching Specification
 
 ## Purpose
-TBD - created by archiving change migrate-electron-live-rebuild-watching. Update Purpose after archive.
+Define Electron live rebuild watching behavior for project file changes, watcher lifecycle, selected-page refresh, CSS reload semantics, and retained watcher evidence.
+
 ## Requirements
 ### Requirement: Project Watch Lifecycle
 
