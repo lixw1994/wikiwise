@@ -35,14 +35,14 @@ The Electron app SHALL restore the previous wiki folder when possible.
 - **AND** no project restore error is shown
 
 ### Requirement: App Menu Commands
-
 The Electron app SHALL expose native-compatible app menu commands in the same File command group placement as the SwiftUI app.
 
 #### Scenario: File command group contains navigation actions
 
 - **WHEN** the Electron application menu is created
-- **THEN** the File menu contains New Window, Open Existing Folder, Go Back, Go Forward, and Refresh Page in that order
+- **THEN** the File menu contains New Window, Go Back, Go Forward, and Refresh Page in that order
 - **AND** New Window uses the native new-window accelerator
+- **AND** Open Existing Folder is not exposed as a File-menu command because the current SwiftUI command group does not add it
 - **AND** no separate top-level Navigate menu is exposed for those commands
 
 #### Scenario: New window command is selected
@@ -58,11 +58,11 @@ The Electron app SHALL expose native-compatible app menu commands in the same Fi
 - **AND** each renderer handles the command through its existing project state
 - **AND** this matches the native global `NotificationCenter` command path received by every live `ContentView`
 
-#### Scenario: Open Existing Folder command is selected
+#### Scenario: Welcome open-existing action is selected
 
-- **WHEN** the user selects Open Existing Folder from the Electron app menu
-- **THEN** Electron sends the command only to the focused renderer or first available renderer
-- **AND** the file chooser is not broadcast to every open window
+- **WHEN** the user selects Open Existing Folder from the Electron welcome screen
+- **THEN** Electron uses the existing open picker flow through the focused renderer
+- **AND** the picker is not exposed through an additional File-menu command
 
 #### Scenario: Refresh Page command is selected for Markdown
 

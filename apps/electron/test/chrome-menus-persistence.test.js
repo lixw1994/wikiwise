@@ -104,10 +104,13 @@ test("file menu exposes native New Window command before Wikiwise commands", () 
   assert.match(swiftSource, /WindowGroup\s*\{/);
   assert.match(swiftSource, /CommandGroup\(after:\s*\.newItem\)/);
   assert.doesNotMatch(swiftSource, /CommandGroup\(replacing:\s*\.newItem\)/);
+  assert.doesNotMatch(swiftSource, /Button\("Open Existing Folder"\)/);
   assert.match(
     menuSource,
-    /label:\s*"File"[\s\S]*label:\s*"New Window"[\s\S]*accelerator:\s*"CommandOrControl\+N"[\s\S]*click:\s*\(\) => createMainWindow\(\)[\s\S]*label:\s*"Open Existing Folder"[\s\S]*label:\s*"Go Back"[\s\S]*label:\s*"Go Forward"[\s\S]*label:\s*"Refresh Page"/
+    /label:\s*"File"[\s\S]*label:\s*"New Window"[\s\S]*accelerator:\s*"CommandOrControl\+N"[\s\S]*click:\s*\(\) => createMainWindow\(\)[\s\S]*label:\s*"Go Back"[\s\S]*label:\s*"Go Forward"[\s\S]*label:\s*"Refresh Page"/
   );
+  assert.doesNotMatch(menuSource, /label:\s*"Open Existing Folder"/);
+  assert.doesNotMatch(menuSource, /sendAppCommand\("openExisting"\)/);
   assert.doesNotMatch(menuSource, /sendAppCommand\("newWindow"\)/);
 });
 
@@ -121,8 +124,9 @@ test("app menu navigation commands match the native File command group", () => {
   );
   assert.match(
     mainSource,
-    /label:\s*"File"[\s\S]*submenu:\s*\[[\s\S]*label:\s*"New Window"[\s\S]*label:\s*"Open Existing Folder"[\s\S]*label:\s*"Go Back"[\s\S]*accelerator:\s*"CommandOrControl\+\["[\s\S]*label:\s*"Go Forward"[\s\S]*accelerator:\s*"CommandOrControl\+\]"[\s\S]*label:\s*"Refresh Page"[\s\S]*accelerator:\s*"CommandOrControl\+R"/
+    /label:\s*"File"[\s\S]*submenu:\s*\[[\s\S]*label:\s*"New Window"[\s\S]*label:\s*"Go Back"[\s\S]*accelerator:\s*"CommandOrControl\+\["[\s\S]*label:\s*"Go Forward"[\s\S]*accelerator:\s*"CommandOrControl\+\]"[\s\S]*label:\s*"Refresh Page"[\s\S]*accelerator:\s*"CommandOrControl\+R"/
   );
+  assert.doesNotMatch(mainSource, /label:\s*"Open Existing Folder"[\s\S]*accelerator:\s*"CommandOrControl\+O"/);
   assert.doesNotMatch(mainSource, /label:\s*"Navigate"/);
 });
 
@@ -146,11 +150,10 @@ test("app menu navigation and refresh commands broadcast like native global noti
   assert.match(nativeBroadcastDeclaration, /"goForward"/);
   assert.match(nativeBroadcastDeclaration, /"refreshWiki"/);
   assert.doesNotMatch(nativeBroadcastDeclaration, /"openExisting"/);
-  assert.match(sendAppCommandSource, /nativeBroadcastAppCommands\.has\(command\)/);
   assert.match(sendAppCommandSource, /BrowserWindow\.getAllWindows\(\)/);
-  assert.match(sendAppCommandSource, /BrowserWindow\.getFocusedWindow\(\) \?\? BrowserWindow\.getAllWindows\(\)\[0\]/);
   assert.match(sendAppCommandSource, /for \(const targetWindow of targetWindows\)/);
   assert.match(sendAppCommandSource, /targetWindow\.webContents\.send\("wikiwise:appCommand", \{ command \}\)/);
+  assert.doesNotMatch(sendAppCommandSource, /BrowserWindow\.getFocusedWindow\(\) \?\? BrowserWindow\.getAllWindows\(\)\[0\]/);
 });
 
 test("application menu preserves standard macOS app edit and window roles", () => {
@@ -179,8 +182,9 @@ test("standard menu expansion preserves Wikiwise File and View commands", () => 
 
   assert.match(
     mainSource,
-    /label:\s*"File"[\s\S]*label:\s*"Open Existing Folder"[\s\S]*click:\s*\(\) => sendAppCommand\("openExisting"\)[\s\S]*label:\s*"Go Back"[\s\S]*click:\s*\(\) => sendAppCommand\("goBack"\)[\s\S]*label:\s*"Go Forward"[\s\S]*click:\s*\(\) => sendAppCommand\("goForward"\)[\s\S]*label:\s*"Refresh Page"[\s\S]*click:\s*\(\) => sendAppCommand\("refreshWiki"\)[\s\S]*role:\s*"close"/
+    /label:\s*"File"[\s\S]*label:\s*"New Window"[\s\S]*label:\s*"Go Back"[\s\S]*click:\s*\(\) => sendAppCommand\("goBack"\)[\s\S]*label:\s*"Go Forward"[\s\S]*click:\s*\(\) => sendAppCommand\("goForward"\)[\s\S]*label:\s*"Refresh Page"[\s\S]*click:\s*\(\) => sendAppCommand\("refreshWiki"\)[\s\S]*role:\s*"close"/
   );
+  assert.doesNotMatch(mainSource, /label:\s*"Open Existing Folder"[\s\S]*click:\s*\(\) => sendAppCommand\("openExisting"\)/);
   assert.match(
     mainSource,
     /label:\s*"View"[\s\S]*submenu:\s*\[\{ role:\s*"togglefullscreen" \}\]/

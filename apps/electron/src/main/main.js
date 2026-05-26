@@ -497,9 +497,9 @@ async function openExternalUrl(url) {
 }
 
 function sendAppCommand(command) {
-  const targetWindows = nativeBroadcastAppCommands.has(command)
-    ? BrowserWindow.getAllWindows()
-    : [BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]];
+  if (!nativeBroadcastAppCommands.has(command)) return false;
+
+  const targetWindows = BrowserWindow.getAllWindows();
   let sentCommand = false;
 
   for (const targetWindow of targetWindows) {
@@ -536,12 +536,6 @@ function createApplicationMenu() {
           label: "New Window",
           accelerator: "CommandOrControl+N",
           click: () => createMainWindow()
-        },
-        { type: "separator" },
-        {
-          label: "Open Existing Folder",
-          accelerator: "CommandOrControl+O",
-          click: () => sendAppCommand("openExisting")
         },
         { type: "separator" },
         {
