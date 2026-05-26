@@ -528,7 +528,7 @@ function setSelectedFile(file) {
 
 function initialDetailModeForFile(file) {
   if (!file) return "wiki";
-  if (!isMarkdownFile(file.path)) return "file";
+  if (!isMarkdownFile(file.path)) return state.detailMode;
   return "wiki";
 }
 

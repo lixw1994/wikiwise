@@ -99,7 +99,7 @@ The Electron compiled Wiki preview SHALL preserve scroll position when switching
 - **AND** Electron restores that fraction after the preview iframe finishes loading
 
 ### Requirement: Wiki Mode Fallback Selection
-The Electron renderer SHALL allow WIKI detail mode to remain selected for markdown files even when no compiled preview is currently available.
+The Electron renderer SHALL allow WIKI detail mode to remain selected when the selected file cannot currently render a compiled wiki preview, matching the native separation between selected detail mode and editor fallback rendering.
 
 #### Scenario: Markdown file lacks compiled preview
 - **WHEN** a markdown file is selected in WIKI detail mode
@@ -109,5 +109,5 @@ The Electron renderer SHALL allow WIKI detail mode to remain selected for markdo
 
 #### Scenario: Non-markdown file is selected
 - **WHEN** a selected file is not markdown
-- **THEN** the renderer selects FILE detail mode
-- **AND** the detail area displays the editor
+- **THEN** the renderer preserves the current FILE/WIKI detail mode selection
+- **AND** the detail area displays the editor because non-Markdown files cannot render compiled wiki previews

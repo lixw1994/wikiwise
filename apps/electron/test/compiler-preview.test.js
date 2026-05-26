@@ -91,13 +91,23 @@ test("renderer exposes File and Wiki modes with preview iframe wiring", () => {
   assert.match(htmlSource, /id="preview-frame"/);
 });
 
-test("renderer keeps WIKI selected for markdown fallback and FILE selected for non-markdown files", () => {
+test("renderer preserves selected mode for non-markdown editor fallback", () => {
+  const nativeContentViewSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
 
   assert.match(
-    rendererSource,
-    /function initialDetailModeForFile\(file\)\s*\{[\s\S]*if \(!file\) return "wiki";[\s\S]*if \(!isMarkdownFile\(file\.path\)\) return "file";[\s\S]*return "wiki";[\s\S]*\}/
+    nativeContentViewSource,
+    /else if let url = selectedFileURL,\s*url\.pathExtension\.lowercased\(\) != "md" \{[\s\S]*EditorWebView\(fileURL:\s*url,[\s\S]*\}\s*else\s*\{[\s\S]*switch detailMode/
   );
+  assert.match(
+    nativeContentViewSource,
+    /private func navigateTo\(_ url: URL\) \{[\s\S]*selectedFileURL = url[\s\S]*loadFile\(url\)[\s\S]*webViewReloadToken \+= 1[\s\S]*\}/
+  );
+  assert.match(
+    rendererSource,
+    /function initialDetailModeForFile\(file\)\s*\{[\s\S]*if \(!file\) return "wiki";[\s\S]*if \(!isMarkdownFile\(file\.path\)\) return state\.detailMode;[\s\S]*return "wiki";[\s\S]*\}/
+  );
+  assert.doesNotMatch(rendererSource, /if \(!isMarkdownFile\(file\.path\)\) return "file"/);
   assert.doesNotMatch(rendererSource, /state\.detailMode = hasCompiledPreview\(file\) \? "wiki" : "file"/);
   assert.match(
     rendererSource,

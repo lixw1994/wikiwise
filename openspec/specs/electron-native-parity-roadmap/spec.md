@@ -138,6 +138,7 @@ The migration roadmap SHALL record Electron file-tree expansion parity as a nati
 - **WHEN** the Electron file-tree expansion parity change is archived
 - **THEN** retained verification records native ordering, default top-level expansion, lazy nested expansion, path-safe expansion IPC, nested file selection, and runtime audit evidence
 - **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation
+
 ### Requirement: Viewport Detail Chrome Parity Phase Completion Tracking
 The migration roadmap SHALL record Electron viewport/detail chrome parity as a visible shell polish phase.
 
@@ -525,4 +526,12 @@ The migration roadmap SHALL record Electron INFO metadata fallback parity as a r
 #### Scenario: Info metadata fallback parity phase is archived
 - **WHEN** the Electron INFO metadata fallback parity change is archived
 - **THEN** retained verification records native em-dash fallback evidence, Electron renderer fallback coverage, quiet metadata-refresh failure handling, and runtime audit evidence
+- **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation
+
+### Requirement: Non-Markdown Detail Mode Parity Phase Completion Tracking
+The migration roadmap SHALL record Electron non-Markdown detail-mode parity as a native project/detail behavior correction phase.
+
+#### Scenario: Non-Markdown detail-mode parity phase is archived
+- **WHEN** the Electron non-Markdown detail-mode parity change is archived
+- **THEN** retained verification records native SwiftUI detail-mode preservation evidence, Electron renderer mode preservation coverage, non-Markdown editor fallback evidence, and package/build evidence
 - **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation
