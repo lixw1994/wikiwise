@@ -457,7 +457,7 @@ function findMarkdownFileForSlug(projectRoot, slug) {
       if (!entry.isFile() || !isMarkdownFile(entry.name)) continue;
 
       const filePath = path.join(searchDir, entry.name);
-      if (markdownSlugForPath(filePath) === slug || slugForPath(filePath) === slug) {
+      if (markdownSlugForPath(filePath) === slug) {
         return filePath;
       }
     }

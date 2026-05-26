@@ -104,6 +104,34 @@ test("generated preview links only push source-file history like native", () => 
   assert.match(rendererToolbarMapSource, /showGeneratedPage\(generatedPage\);/);
 });
 
+test("raw generated preview links fall through to generated HTML like native", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const mainSource = read("src/main/main.js");
+  const coreSource = readRepository("packages/wikiwise-core/src/index.js");
+  const nativeMarkdownLookupSource = sourceBetween(
+    nativeSource,
+    "private func findMarkdownFile(slug: String, in dir: URL) -> URL?",
+    "    // MARK: - Actions"
+  );
+  const electronMarkdownLookupSource = sourceBetween(
+    mainSource,
+    "function findMarkdownFileForSlug(projectRoot, slug)",
+    "function markdownSlugForPath(filePath)"
+  );
+  const electronCompileSource = sourceBetween(
+    mainSource,
+    "function compileMarkdownFile(projectRoot, filePath, options = {})",
+    "function settingsPath()"
+  );
+
+  assert.match(nativeMarkdownLookupSource, /self\.slug\(for: file\) == slug/);
+  assert.doesNotMatch(nativeMarkdownLookupSource, /raw-/);
+  assert.match(coreSource, /if \(parts\.includes\("raw"\)[\s\S]*slug = `raw-\$\{slug\}`/);
+  assert.match(electronCompileSource, /compiler\.invalidatePage\(slugForPath\(filePath\)\)/);
+  assert.match(electronMarkdownLookupSource, /markdownSlugForPath\(filePath\) === slug/);
+  assert.doesNotMatch(electronMarkdownLookupSource, /slugForPath\(filePath\) === slug/);
+});
+
 test("manual Refresh Page command stays scoped to selected markdown like native", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
