@@ -138,6 +138,7 @@ The migration roadmap SHALL record Electron file-tree expansion parity as a nati
 - **WHEN** the Electron file-tree expansion parity change is archived
 - **THEN** retained verification records native ordering, default top-level expansion, lazy nested expansion, path-safe expansion IPC, nested file selection, and runtime audit evidence
 - **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation
+
 ### Requirement: Viewport Detail Chrome Parity Phase Completion Tracking
 The migration roadmap SHALL record Electron viewport/detail chrome parity as a visible shell polish phase.
 
@@ -274,4 +275,14 @@ The migration roadmap SHALL record Electron standalone-file open parity as a nat
 #### Scenario: Standalone-file phase is archived
 - **WHEN** the Electron standalone-file open parity change is archived
 - **THEN** retained verification records native file-open source evidence, Electron project result behavior, renderer service boundaries, and runtime audit evidence
+- **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation
+
+### Requirement: Open Existing Picker Parity Phase Completion Tracking
+
+The migration roadmap SHALL record Electron open-existing picker parity as a native project-lifecycle gap closure phase.
+
+#### Scenario: Open existing picker parity phase is archived
+
+- **WHEN** the Electron open-existing picker parity change is archived
+- **THEN** retained verification records native SwiftUI picker constraints, Electron dialog filter constraints, focused project-lifecycle coverage, and package/build evidence
 - **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation

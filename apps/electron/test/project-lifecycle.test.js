@@ -26,6 +26,29 @@ test("main process exposes project lifecycle IPC channels", () => {
   assert.match(mainSource, /readTextFile/);
 });
 
+test("open existing picker mirrors native folder and plain text contract", () => {
+  const mainSource = read("src/main/main.js");
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const openExistingStart = mainSource.indexOf("async function openExistingProject");
+  const openExistingEnd = mainSource.indexOf("function createMainWindow", openExistingStart);
+  const openExistingSource = mainSource.slice(openExistingStart, openExistingEnd);
+
+  assert.notEqual(openExistingStart, -1);
+  assert.notEqual(openExistingEnd, -1);
+  assert.match(nativeSource, /panel\.canChooseDirectories = true/);
+  assert.match(nativeSource, /panel\.canChooseFiles = true/);
+  assert.match(nativeSource, /panel\.allowedContentTypes = \[\.folder, \.plainText\]/);
+  assert.match(nativeSource, /panel\.allowsMultipleSelection = false/);
+  assert.match(openExistingSource, /properties:\s*\["openFile", "openDirectory"\]/);
+  assert.match(
+    openExistingSource,
+    /filters:\s*\[\s*\{\s*name:\s*"Markdown or text files",\s*extensions:\s*\["md", "markdown", "txt", "text"\]\s*\}\s*\]/
+  );
+  assert.doesNotMatch(openExistingSource, /"css"|"js"|"json"|"html"/);
+  assert.doesNotMatch(openExistingSource, /All Files/);
+  assert.doesNotMatch(openExistingSource, /multiSelections/);
+});
+
 test("preload bridge exposes project lifecycle APIs", () => {
   const preloadSource = read("src/preload/preload.cjs");
 

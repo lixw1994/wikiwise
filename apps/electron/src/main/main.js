@@ -899,8 +899,7 @@ async function openExistingProject(browserWindow) {
     message: "Choose a markdown file or a folder",
     properties: ["openFile", "openDirectory"],
     filters: [
-      { name: "Wikiwise files", extensions: ["md", "css", "js", "json", "html"] },
-      { name: "All Files", extensions: ["*"] }
+      { name: "Markdown or text files", extensions: ["md", "markdown", "txt", "text"] }
     ]
   });
 

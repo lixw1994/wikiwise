@@ -16,7 +16,16 @@ The Electron app SHALL show a welcome state with entry points for creating a new
 
 ### Requirement: Open Existing Folder or File
 
-The Electron app SHALL let the user choose an existing directory or file through the operating system picker, SHALL initialize compiler state for wiki folders when compiler resources are available, and SHALL open newly created scaffolded wikis through the same project state path.
+The Electron app SHALL let the user choose an existing directory or markdown/plain-text file through the operating system picker, SHALL match the native SwiftUI open panel's folder/plain-text and single-selection contract, SHALL initialize compiler state for wiki folders when compiler resources are available, and SHALL open newly created scaffolded wikis through the same project state path.
+
+#### Scenario: Open picker matches native allowed content
+
+- **WHEN** the user opens the Electron "Open Existing" picker
+- **THEN** the picker allows directory selection
+- **AND** the picker allows file selection
+- **AND** the picker is constrained to markdown/plain-text file extensions
+- **AND** the picker does not advertise code, web asset, JSON, or all-file filters
+- **AND** the picker does not allow multiple selections
 
 #### Scenario: User opens a folder
 
