@@ -31,6 +31,11 @@ the shared `@wikiwise/core` package for native-compatible project behavior.
 `node_modules/electron/dist/Electron.app`.
 
 This app bundle is unsigned and intended for local migration verification.
+During packaging, the script audits package-only Electron runtime `Info.plist` keys
+against the checked-in native app bundle. The allowed package-only keys are limited
+to reviewed Electron runtime metadata such as `ElectronAsarIntegrity`, and the
+command fails if an unexpected package-only plist key remains before any signed and
+notarized release is produced.
 Production release distribution uses `bash scripts/build-release.sh <version>`,
 which runs the Electron runtime audit, signs the Electron app with a Developer ID
 identity, creates `Wikiwise-macOS.dmg`, submits Apple notarization, staples the

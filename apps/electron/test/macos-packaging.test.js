@@ -39,6 +39,17 @@ const nonNativeElectronTemplatePlistKeys = [
   "LSApplicationCategoryType"
 ];
 const nativeMinimumMacOSVersion = "14.0";
+const electronRuntimeInfoPlistKeys = [
+  "CFBundleInfoDictionaryVersion",
+  "ElectronAsarIntegrity",
+  "LSEnvironment",
+  "NSMainNibFile",
+  "NSPrefersDisplaySafeAreaCompatibilityMode",
+  "NSPrincipalClass",
+  "NSQuitAlwaysKeepsWindows",
+  "NSRequiresAquaSystemAppearance",
+  "NSSupportsAutomaticGraphicsSwitching"
+];
 
 test("package manifests expose Electron macOS packaging commands", () => {
   const rootPackage = readJson("package.json");
@@ -129,6 +140,26 @@ test("packaging script removes unused Electron template PkgInfo file", () => {
   assert.match(script, /Contents\/Resources\/default_app\.asar/);
 });
 
+test("packaging script allowlists only reviewed package-only Electron runtime plist keys", () => {
+  const script = read("scripts/package-electron-macos.mjs");
+  const nativeInfoPlist = read("Wikiwise.app/Contents/Info.plist");
+
+  assert.match(script, /electronRuntimeInfoPlistKeyAllowlist/);
+  assert.match(script, /topLevelPlistKeys/);
+  assert.match(script, /assertPackagedInfoPlistKeyDelta/);
+  assert.match(script, /Unexpected package-only Info\.plist keys/);
+  assert.match(script, /nativeAppInfoPlistPath/);
+
+  for (const key of electronRuntimeInfoPlistKeys) {
+    assert.doesNotMatch(nativeInfoPlist, new RegExp(`<key>${key}</key>`));
+    assert.match(script, new RegExp(`"${key}"`));
+  }
+
+  for (const nestedRuntimeValueKey of ["Resources/default_app.asar", "algorithm", "hash", "MallocNanoZone"]) {
+    assert.doesNotMatch(script, new RegExp(`"${nestedRuntimeValueKey}"`));
+  }
+});
+
 test("packaging script mirrors native minimum macOS metadata", () => {
   const script = read("scripts/package-electron-macos.mjs");
   const packageManifest = read("Package.swift");
@@ -191,6 +222,15 @@ test("README documents local unsigned packaging and release guardrails", () => {
   assert.match(readme, /signed/i);
   assert.match(readme, /notarized/i);
   assert.match(readme, /DMG/);
+});
+
+test("README documents package-only Electron runtime plist delta auditing", () => {
+  const readme = read("apps/electron/README.md");
+
+  assert.match(readme, /package-only Electron runtime `Info\.plist` keys/i);
+  assert.match(readme, /ElectronAsarIntegrity/);
+  assert.match(readme, /unexpected package-only plist key/i);
+  assert.match(readme, /signed and notarized release/i);
 });
 
 test("canonical release script builds a signed notarized Electron DMG", () => {

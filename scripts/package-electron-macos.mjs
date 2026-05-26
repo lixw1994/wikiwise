@@ -50,6 +50,17 @@ const inheritedElectronTemplateInfoPlistKeys = Object.freeze([
   "DTXcodeBuild",
   "LSApplicationCategoryType"
 ]);
+const electronRuntimeInfoPlistKeyAllowlist = Object.freeze([
+  "CFBundleInfoDictionaryVersion",
+  "ElectronAsarIntegrity",
+  "LSEnvironment",
+  "NSMainNibFile",
+  "NSPrefersDisplaySafeAreaCompatibilityMode",
+  "NSPrincipalClass",
+  "NSQuitAlwaysKeepsWindows",
+  "NSRequiresAquaSystemAppearance",
+  "NSSupportsAutomaticGraphicsSwitching"
+]);
 
 const electronPackage = JSON.parse(
   fs.readFileSync(path.join(electronPackageRoot, "package.json"), "utf8")
@@ -109,6 +120,29 @@ function setPlistString(plist, key, value) {
 function plistStringValue(plist, key) {
   const match = plist.match(new RegExp(`<key>${key}</key>\\s*<string>([^<]*)</string>`));
   return match?.[1] ?? "";
+}
+
+function topLevelPlistKeys(plist) {
+  const keys = [];
+  const tokenPattern = /<\/?(?:dict|array)>|<key>([^<]+)<\/key>/g;
+
+  let depth = 0;
+  for (const match of plist.matchAll(tokenPattern)) {
+    const [token, key] = match;
+    if (token === "<dict>" || token === "<array>") {
+      depth += 1;
+      continue;
+    }
+    if (token === "</dict>" || token === "</array>") {
+      depth = Math.max(0, depth - 1);
+      continue;
+    }
+    if (key && depth === 1) {
+      keys.push(key);
+    }
+  }
+
+  return keys;
 }
 
 function readNativeAppVersionMetadata() {
@@ -178,6 +212,22 @@ function rewriteInfoPlist() {
   plist = removeElectronTemplateInfoPlistKeys(plist);
 
   fs.writeFileSync(infoPlistPath, plist);
+}
+
+function assertPackagedInfoPlistKeyDelta() {
+  const infoPlistPath = path.join(outputAppPath, ...packagedInfoPlistRelativePath.split("/"));
+  assertFile(nativeAppInfoPlistPath, "Missing native app Info.plist for package-only plist key audit.");
+
+  const packagedKeys = topLevelPlistKeys(fs.readFileSync(infoPlistPath, "utf8"));
+  const nativeKeys = new Set(topLevelPlistKeys(fs.readFileSync(nativeAppInfoPlistPath, "utf8")));
+  const allowedPackageOnlyKeys = new Set(electronRuntimeInfoPlistKeyAllowlist);
+  const unexpectedPackageOnlyKeys = packagedKeys.filter(
+    (key) => !nativeKeys.has(key) && !allowedPackageOnlyKeys.has(key)
+  );
+
+  if (unexpectedPackageOnlyKeys.length > 0) {
+    throw new Error(`Unexpected package-only Info.plist keys: ${unexpectedPackageOnlyKeys.join(", ")}`);
+  }
 }
 
 function renameExecutable() {
@@ -315,6 +365,7 @@ function packageElectronMacApp() {
   copyElectronRuntimeDependencies();
   copyNativeResources();
   rewriteInfoPlist();
+  assertPackagedInfoPlistKeyDelta();
   assertRequiredPackagedFiles();
 
   return {
