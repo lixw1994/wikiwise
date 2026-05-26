@@ -1,5 +1,7 @@
 import assert from "node:assert/strict";
+import { spawnSync } from "node:child_process";
 import fs from "node:fs";
+import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
@@ -21,6 +23,10 @@ test("package manifests expose Electron macOS packaging commands", () => {
 
   assert.equal(rootPackage.scripts["electron:package:mac"], "npm --workspace @wikiwise/electron-app run package:mac");
   assert.equal(rootPackage.scripts["electron:release:preflight"], "bash scripts/build-release.sh --preflight");
+  assert.equal(
+    rootPackage.scripts["electron:release:readiness"],
+    "bash scripts/build-release.sh --preflight --preflight-report apps/electron/out/release-readiness/report.json"
+  );
   assert.equal(electronPackage.scripts["package:mac"], "node ../../scripts/package-electron-macos.mjs");
 });
 
@@ -102,6 +108,63 @@ test("canonical release script exposes a no-artifact preflight mode", () => {
   assert.ok(auditStepIndex > preflightSuccessIndex);
 });
 
+test("canonical release script can write retained preflight readiness reports", () => {
+  const script = read("scripts/build-release.sh");
+
+  assert.match(script, /PREFLIGHT_REPORT_PATH/);
+  assert.match(script, /--preflight-report/);
+  assert.match(script, /write_preflight_report/);
+  assert.match(script, /"status"/);
+  assert.match(script, /"releaseCommand"/);
+  assert.match(script, /"preflightCommand"/);
+  assert.match(script, /"checks"/);
+  assert.match(script, /"blockers"/);
+  assert.match(script, /"artifactProduction"/);
+  assert.match(script, /signedOrNotarizedReleaseProduced/);
+});
+
+test("blocked release preflight writes a readiness report without running release steps", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "wikiwise-release-readiness-"));
+  const reportPath = path.join(tempDir, "report.json");
+  const result = spawnSync(
+    "bash",
+    [
+      "scripts/build-release.sh",
+      "--preflight",
+      "--preflight-report",
+      reportPath,
+      "0.0.0"
+    ],
+    {
+      cwd: repositoryRoot,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        WIKIWISE_RELEASE_SIGNING_IDENTITY: "__Wikiwise Missing Identity For Test__",
+        WIKIWISE_NOTARY_PROFILE: "__wikiwise-missing-notary-profile__"
+      }
+    }
+  );
+
+  assert.notEqual(result.status, 0);
+  assert.equal(fs.existsSync(reportPath), true);
+  assert.doesNotMatch(result.stdout, /\[1\/7\] Running Electron runtime parity audit/);
+  assert.doesNotMatch(result.stdout, /Electron app packaged, signed with Developer ID, notarized, stapled, and assessed/);
+
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  assert.equal(report.version, "0.0.0");
+  assert.equal(report.status, "blocked");
+  assert.equal(report.releaseCommand, "bash scripts/build-release.sh 0.0.0");
+  assert.equal(report.preflightCommand, `bash scripts/build-release.sh --preflight --preflight-report ${reportPath} 0.0.0`);
+  assert.equal(report.artifactProduction.signedOrNotarizedReleaseProduced, false);
+  assert.equal(report.artifactProduction.releaseArtifactsProduced, false);
+  assert.ok(Array.isArray(report.checks));
+  assert.ok(report.checks.length > 0);
+  assert.ok(Array.isArray(report.blockers));
+  assert.ok(report.blockers.length > 0);
+  assert.match(report.finalMigrationRequirement, /actual signed and notarized release run/i);
+});
+
 test("Electron release script uses checked-in hardened runtime entitlements", () => {
   const entitlementsPath = path.join(repositoryRoot, "apps", "electron", "build", "entitlements.mac.plist");
 
@@ -126,4 +189,14 @@ test("release documentation describes the Electron signed DMG path", () => {
     assert.match(document, /Developer ID/i);
     assert.match(document, /notar/i);
   }
+});
+
+test("Electron documentation describes retained release readiness evidence", () => {
+  const electronReadme = read("apps/electron/README.md");
+
+  assert.match(electronReadme, /npm run electron:release:readiness/);
+  assert.match(electronReadme, /apps\/electron\/out\/release-readiness\/report\.json/);
+  assert.match(electronReadme, /blocker/i);
+  assert.match(electronReadme, /actual signed and notarized release run/i);
+  assert.match(electronReadme, /accepted OpenSpec deviation/i);
 });

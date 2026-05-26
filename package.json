@@ -10,6 +10,7 @@
     "electron:dev": "npm --workspace @wikiwise/electron-app run dev",
     "electron:package:mac": "npm --workspace @wikiwise/electron-app run package:mac",
     "electron:audit:runtime": "npm --workspace @wikiwise/electron-app run audit:runtime",
-    "electron:release:preflight": "bash scripts/build-release.sh --preflight"
+    "electron:release:preflight": "bash scripts/build-release.sh --preflight",
+    "electron:release:readiness": "bash scripts/build-release.sh --preflight --preflight-report apps/electron/out/release-readiness/report.json"
   }
 }

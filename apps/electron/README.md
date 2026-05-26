@@ -12,6 +12,7 @@ npm run electron:dev
 npm run electron:package:mac
 npm run electron:audit:runtime
 npm run electron:release:preflight
+npm run electron:release:readiness
 ```
 
 `npm run electron:dev` requires dependencies to be installed first:
@@ -37,6 +38,11 @@ ticket, assesses the final DMG, and only then reports a notarized release.
 `bash scripts/build-release.sh --preflight <version>` checks release tooling,
 Developer ID signing identity, and Apple notarization profile availability
 without producing app, DMG, signed, or notarized release artifacts.
+`npm run electron:release:readiness` runs the same preflight with retained JSON
+evidence at `apps/electron/out/release-readiness/report.json`. A blocked report
+lists prerequisite blocker names and messages, records that no release artifacts
+were produced, and keeps the final gate explicit: Electron migration completion
+still requires an actual signed and notarized release run, or an accepted OpenSpec deviation.
 
 ## Runtime parity audit
 

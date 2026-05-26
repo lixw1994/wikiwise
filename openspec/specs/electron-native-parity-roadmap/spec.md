@@ -252,3 +252,11 @@ The migration roadmap SHALL record Electron split-view toolbar affordance parity
 - **WHEN** the Electron split-view toolbar affordance parity change is archived
 - **THEN** retained verification records visible system split-view toggle semantics, hidden custom restore semantics, and runtime audit evidence
 - **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation
+
+### Requirement: Release Readiness Evidence Phase Completion Tracking
+The migration roadmap SHALL record Electron release readiness evidence as a final distribution gate support phase.
+
+#### Scenario: Release readiness evidence phase is archived
+- **WHEN** the Electron release readiness evidence change is archived
+- **THEN** retained verification records the release readiness command, generated report schema coverage, blocker evidence, and no-artifact behavior
+- **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation
