@@ -91,9 +91,11 @@ test("renderer exposes File and Wiki modes with preview iframe wiring", () => {
   assert.match(htmlSource, /id="preview-frame"/);
 });
 
-test("renderer preserves selected mode for non-markdown editor fallback", () => {
+test("renderer preserves selected mode for subsequent file selections like native", () => {
   const nativeContentViewSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
+  const nativeNavigateToSource =
+    nativeContentViewSource.match(/private func navigateTo\(_ url: URL\) \{[\s\S]*?\n    \}/)?.[0] ?? "";
 
   assert.match(
     nativeContentViewSource,
@@ -103,11 +105,24 @@ test("renderer preserves selected mode for non-markdown editor fallback", () => 
     nativeContentViewSource,
     /private func navigateTo\(_ url: URL\) \{[\s\S]*selectedFileURL = url[\s\S]*loadFile\(url\)[\s\S]*webViewReloadToken \+= 1[\s\S]*\}/
   );
+  assert.doesNotMatch(nativeNavigateToSource, /detailMode\s*=/);
   assert.match(
     rendererSource,
-    /function initialDetailModeForFile\(file\)\s*\{[\s\S]*if \(!file\) return "wiki";[\s\S]*if \(!isMarkdownFile\(file\.path\)\) return state\.detailMode;[\s\S]*return "wiki";[\s\S]*\}/
+    /function detailModeForSelectedFile\(file,\s*options = \{\}\)\s*\{[\s\S]*if \(!file\) return "wiki";[\s\S]*if \(options\.preserveDetailMode\) return state\.detailMode;[\s\S]*if \(!isMarkdownFile\(file\.path\)\) return state\.detailMode;[\s\S]*return "wiki";[\s\S]*\}/
+  );
+  assert.match(
+    rendererSource,
+    /function setSelectedFile\(file,\s*options = \{\}\)[\s\S]*state\.detailMode = detailModeForSelectedFile\(file,\s*options\)/
+  );
+  assert.match(
+    rendererSource,
+    /setSelectedFile\(nextFile,\s*\{\s*preserveDetailMode:\s*options\.preserveDetailMode !== false\s*\}\)/
   );
   assert.doesNotMatch(rendererSource, /if \(!isMarkdownFile\(file\.path\)\) return "file"/);
+  assert.doesNotMatch(
+    rendererSource,
+    /function initialDetailModeForFile\(file\)\s*\{[\s\S]*if \(!isMarkdownFile\(file\.path\)\) return state\.detailMode;[\s\S]*return "wiki";[\s\S]*\}/
+  );
   assert.doesNotMatch(rendererSource, /state\.detailMode = hasCompiledPreview\(file\) \? "wiki" : "file"/);
   assert.match(
     rendererSource,

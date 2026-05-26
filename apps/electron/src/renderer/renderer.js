@@ -498,7 +498,9 @@ async function selectFile(node, options = {}) {
       }
     }
 
-    setSelectedFile(nextFile);
+    setSelectedFile(nextFile, {
+      preserveDetailMode: options.preserveDetailMode !== false
+    });
     await setActiveSelectedFile(nextFile.path);
     renderTree(state.tree);
     renderProjectToolbar();
@@ -508,7 +510,7 @@ async function selectFile(node, options = {}) {
   }
 }
 
-function setSelectedFile(file) {
+function setSelectedFile(file, options = {}) {
   captureEditorScrollFraction();
   clearAutosave();
   state.documentInfo = null;
@@ -523,12 +525,13 @@ function setSelectedFile(file) {
         isSaving: false
       }
     : null;
-  state.detailMode = initialDetailModeForFile(file);
+  state.detailMode = detailModeForSelectedFile(file, options);
   renderDetail();
 }
 
-function initialDetailModeForFile(file) {
+function detailModeForSelectedFile(file, options = {}) {
   if (!file) return "wiki";
+  if (options.preserveDetailMode) return state.detailMode;
   if (!isMarkdownFile(file.path)) return state.detailMode;
   return "wiki";
 }

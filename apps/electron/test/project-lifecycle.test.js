@@ -108,10 +108,11 @@ test("renderer mirrors native standalone file initial WIKI mode with editor fall
   assert.match(rendererSource, /detailMode:\s*"wiki"/);
   assert.match(
     rendererSource,
-    /function initialDetailModeForFile\(file\)\s*\{[\s\S]*if \(!file\) return "wiki";[\s\S]*if \(!isMarkdownFile\(file\.path\)\) return state\.detailMode;[\s\S]*return "wiki";[\s\S]*\}/
+    /function detailModeForSelectedFile\(file,\s*options = \{\}\)\s*\{[\s\S]*if \(!file\) return "wiki";[\s\S]*if \(options\.preserveDetailMode\) return state\.detailMode;[\s\S]*if \(!isMarkdownFile\(file\.path\)\) return state\.detailMode;[\s\S]*return "wiki";[\s\S]*\}/
   );
   assert.doesNotMatch(rendererSource, /if \(!isMarkdownFile\(file\.path\)\) return "file"/);
-  assert.match(rendererSource, /state\.detailMode = initialDetailModeForFile\(file\)/);
+  assert.match(rendererSource, /state\.detailMode = detailModeForSelectedFile\(file,\s*options\)/);
+  assert.match(rendererSource, /setSelectedFile\(projectResult\.selectedFile\);/);
   assert.match(
     rendererSource,
     /state\.detailMode === "wiki" && !wikiAvailable[\s\S]*sourceEditorFrame\.hidden = !shouldShowSourceEditor/
