@@ -32,6 +32,43 @@ test("summarizeDocumentInfo returns native-compatible markdown info", () => {
   assert.deepEqual(info.wikilinks, ["Alpha", "Beta"]);
 });
 
+test("summarizeDocumentInfo ignores directions syntax native RightSidebar ignores", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "wikiwise-document-info-directions-"));
+  const fixtures = [
+    {
+      name: "leading-open.md",
+      content: [" ---", "directions: Leading marker", "---", "Body"].join("\n")
+    },
+    {
+      name: "trailing-open.md",
+      content: ["--- ", "directions: Trailing marker", "---", "Body"].join("\n")
+    },
+    {
+      name: "indented-key.md",
+      content: ["---", "  directions: Indented key", "---", "Body"].join("\n")
+    }
+  ];
+
+  for (const fixture of fixtures) {
+    const target = path.join(root, "wiki", fixture.name);
+    fs.mkdirSync(path.dirname(target), { recursive: true });
+    fs.writeFileSync(target, fixture.content, "utf8");
+
+    assert.equal(summarizeDocumentInfo(target).directions, null, fixture.name);
+  }
+});
+
+test("summarizeDocumentInfo uses only exact native closing marker before directions", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "wikiwise-document-info-closing-"));
+  const target = path.join(root, "wiki", "loose-closing.md");
+  const content = ["---", "--- ", "directions: Still native", "---", "Body"].join("\n");
+
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, content, "utf8");
+
+  assert.equal(summarizeDocumentInfo(target).directions, "Still native");
+});
+
 test("summarizeDocumentInfo rejects missing files", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "wikiwise-document-info-missing-"));
   const target = path.join(root, "wiki", "missing.md");

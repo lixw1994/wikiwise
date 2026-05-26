@@ -857,14 +857,21 @@ function countWords(content) {
 }
 
 function extractDirections(content) {
-  const lines = String(content).split(/\r?\n/);
-  if (lines[0]?.trim() !== "---") return null;
+  const text = String(content);
+  if (!text.startsWith("---")) return null;
 
-  for (const line of lines.slice(1)) {
-    const trimmed = line.trim();
-    if (trimmed === "---") return null;
-    if (trimmed.startsWith("directions:")) {
-      const directions = trimmed.slice("directions:".length).trim();
+  const lines = text.split(/\r?\n/);
+  if (lines.length <= 1) return null;
+
+  let inFrontmatter = false;
+  for (const line of lines) {
+    if (line === "---") {
+      if (inFrontmatter) return null;
+      inFrontmatter = true;
+      continue;
+    }
+    if (inFrontmatter && line.startsWith("directions:")) {
+      const directions = line.slice("directions:".length).trim();
       return directions || null;
     }
   }
