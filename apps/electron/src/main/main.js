@@ -417,7 +417,7 @@ function resolvePreviewNavigation(payload) {
   }
 
   const targetPath = fileURLToPath(targetUrl);
-  const pageSlug = path.basename(targetPath, path.extname(targetPath)).toLowerCase();
+  const pageSlug = markdownSlugForPath(targetPath);
   if (!pageSlug) return null;
 
   const markdownFile = findMarkdownFileForSlug(projectRoot, pageSlug);

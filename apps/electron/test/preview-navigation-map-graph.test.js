@@ -132,6 +132,31 @@ test("raw generated preview links fall through to generated HTML like native", (
   assert.doesNotMatch(electronMarkdownLookupSource, /slugForPath\(filePath\) === slug/);
 });
 
+test("preview navigation normalizes clicked HTML target slugs like native", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const mainSource = read("src/main/main.js");
+  const nativeSlugSource = sourceBetween(
+    nativeSource,
+    "private func slug(for url: URL) -> String",
+    "    /// Map an HTML URL"
+  );
+  const electronResolveSource = sourceBetween(
+    mainSource,
+    "function resolvePreviewNavigation(payload)",
+    "function findMarkdownFileForSlug(projectRoot, slug)"
+  );
+
+  assert.match(nativeSlugSource, /deletingPathExtension\(\)\.lastPathComponent/);
+  assert.match(nativeSlugSource, /\.lowercased\(\)\.replacingOccurrences\(of: " ", with: "-"\)/);
+  assert.match(electronResolveSource, /const pageSlug = markdownSlugForPath\(targetPath\);/);
+  assert.doesNotMatch(
+    electronResolveSource,
+    /const pageSlug = path\.basename\(targetPath,\s*path\.extname\(targetPath\)\)\.toLowerCase\(\);/
+  );
+  assert.match(electronResolveSource, /findMarkdownFileForSlug\(projectRoot,\s*pageSlug\)/);
+  assert.match(electronResolveSource, /const pageName = `\$\{pageSlug\}\.html`;/);
+});
+
 test("manual Refresh Page command stays scoped to selected markdown like native", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
