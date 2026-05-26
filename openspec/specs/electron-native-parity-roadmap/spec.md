@@ -455,3 +455,11 @@ The migration roadmap SHALL record Electron window resource cleanup parity as a 
 - **WHEN** the Electron window resource cleanup parity change is archived
 - **THEN** retained verification records native Swift `onDisappear` cleanup evidence, Electron webContents project-root ownership, watcher cleanup, background compilation cleanup, terminal cleanup, and package/build/runtime evidence
 - **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation
+
+### Requirement: Standard Menu Parity Phase Completion Tracking
+The migration roadmap SHALL record Electron standard macOS menu parity as a native shell gap closure phase.
+
+#### Scenario: Standard menu parity phase is archived
+- **WHEN** the Electron standard menu parity change is archived
+- **THEN** retained verification records native SwiftUI default-menu preservation evidence, Electron App/Edit/Window standard role coverage, existing File command preservation, and package/build/runtime evidence
+- **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation

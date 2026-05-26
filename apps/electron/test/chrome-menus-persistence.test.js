@@ -90,6 +90,41 @@ test("app menu navigation commands match the native File command group", () => {
   assert.doesNotMatch(mainSource, /label:\s*"Navigate"/);
 });
 
+test("application menu preserves standard macOS app edit and window roles", () => {
+  const mainSource = read("src/main/main.js");
+  const swiftSource = readRepository("Sources/Wikiwise/WikiwiseApp.swift");
+
+  assert.match(swiftSource, /\.commands\s*\{[\s\S]*CommandGroup\(after:\s*\.newItem\)/);
+  assert.doesNotMatch(swiftSource, /CommandMenu\(/);
+  assert.doesNotMatch(swiftSource, /CommandGroup\(replacing:/);
+  assert.match(
+    mainSource,
+    /label:\s*app\.name[\s\S]*role:\s*"about"[\s\S]*role:\s*"services"[\s\S]*role:\s*"hide"[\s\S]*role:\s*"hideOthers"[\s\S]*role:\s*"unhide"[\s\S]*role:\s*"quit"/
+  );
+  assert.match(
+    mainSource,
+    /label:\s*"Edit"[\s\S]*role:\s*"undo"[\s\S]*role:\s*"redo"[\s\S]*role:\s*"cut"[\s\S]*role:\s*"copy"[\s\S]*role:\s*"paste"[\s\S]*role:\s*"pasteAndMatchStyle"[\s\S]*role:\s*"delete"[\s\S]*role:\s*"selectAll"/
+  );
+  assert.match(
+    mainSource,
+    /label:\s*"Window"[\s\S]*role:\s*"minimize"[\s\S]*role:\s*"zoom"[\s\S]*role:\s*"front"/
+  );
+});
+
+test("standard menu expansion preserves Wikiwise File and View commands", () => {
+  const mainSource = read("src/main/main.js");
+
+  assert.match(
+    mainSource,
+    /label:\s*"File"[\s\S]*label:\s*"Open Existing Folder"[\s\S]*click:\s*\(\) => sendAppCommand\("openExisting"\)[\s\S]*label:\s*"Go Back"[\s\S]*click:\s*\(\) => sendAppCommand\("goBack"\)[\s\S]*label:\s*"Go Forward"[\s\S]*click:\s*\(\) => sendAppCommand\("goForward"\)[\s\S]*label:\s*"Refresh Page"[\s\S]*click:\s*\(\) => sendAppCommand\("refreshWiki"\)[\s\S]*role:\s*"close"/
+  );
+  assert.match(
+    mainSource,
+    /label:\s*"View"[\s\S]*submenu:\s*\[\{ role:\s*"togglefullscreen" \}\]/
+  );
+  assert.doesNotMatch(mainSource, /sendAppCommand\("undo"\)|sendAppCommand\("copy"\)|sendAppCommand\("minimize"\)/);
+});
+
 test("preload exposes settings, restore, generated page, and app command APIs", () => {
   const preloadSource = read("src/preload/preload.cjs");
 
