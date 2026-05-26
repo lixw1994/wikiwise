@@ -124,6 +124,26 @@ test("matches native welcome toolbar brand chrome", () => {
   assert.match(welcomeContentBlock, /gap:\s*32px/);
 });
 
+test("matches native welcome copy line spacing", () => {
+  const welcomeSummaryBlock = cssBlock(".welcome-panel .summary");
+  const welcomeHintBlock = cssBlock(".welcome-hint");
+
+  assert.match(
+    nativeContentViewSource,
+    /Text\("WikiWise helps you turn any folder\\nof markdown files into a browsable,\\npublishable wiki\."\)[\s\S]*\.font\(\.system\(size:\s*15,\s*weight:\s*\.regular\)\)[\s\S]*\.lineSpacing\(4\)/
+  );
+  assert.match(
+    nativeContentViewSource,
+    /Text\("Don't have a wiki yet\? Create one above and\\nuse Claude Code, Codex, or Cursor to build it out\."\)[\s\S]*\.font\(\.system\(size:\s*12\)\)[\s\S]*\.lineSpacing\(3\)/
+  );
+  assert.match(welcomeSummaryBlock, /font-size:\s*15px/);
+  assert.match(welcomeSummaryBlock, /line-height:\s*19px/);
+  assert.match(welcomeSummaryBlock, /white-space:\s*pre-line/);
+  assert.match(welcomeHintBlock, /font-size:\s*12px/);
+  assert.match(welcomeHintBlock, /line-height:\s*15px/);
+  assert.match(welcomeHintBlock, /white-space:\s*pre-line/);
+});
+
 test("matches native macOS default and minimum window geometry", () => {
   assert.match(nativeAppSource, /\.defaultSize\(width:\s*1500,\s*height:\s*1000\)/);
   assert.match(nativeContentViewSource, /\.frame\(minWidth:\s*800,\s*minHeight:\s*500\)/);
