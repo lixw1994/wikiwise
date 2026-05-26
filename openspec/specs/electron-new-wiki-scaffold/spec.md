@@ -2,7 +2,6 @@
 
 ## Purpose
 Define Electron new-wiki creation parity, including native sheet behavior, scaffold generation, post-create guide presentation, and runtime evidence for opening the created wiki.
-
 ## Requirements
 ### Requirement: New Wiki Dialog
 
@@ -286,3 +285,14 @@ The Electron scaffold/new-wiki phase SHALL retain runtime evidence for the compl
 - **AND** it starts project services for the created wiki
 - **AND** it displays the native post-create guide
 - **AND** dismissing the guide starts reading `wiki/home.md`
+
+### Requirement: New Wiki Failure Dismissal Parity
+The Electron new-wiki flow SHALL mirror native SwiftUI scaffold failure behavior by dismissing the create dialog without opening a project or showing the post-create guide.
+
+#### Scenario: Scaffold creation fails
+- **WHEN** the user submits a valid new-wiki name and location
+- **AND** scaffold creation fails
+- **THEN** the Electron create dialog is dismissed
+- **AND** no project result is applied
+- **AND** the post-create guide is not shown
+- **AND** the renderer does not keep a visible create-failure error panel in the shell

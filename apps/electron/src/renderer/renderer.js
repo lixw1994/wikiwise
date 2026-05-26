@@ -1205,7 +1205,9 @@ async function createNewWiki() {
     state.isNewWikiDialogOpen = false;
     await applyProjectResult(result.project, { showPostCreateGuide: true });
   } catch (error) {
-    setError(error);
+    console.error(error);
+    state.isNewWikiDialogOpen = false;
+    state.showPostCreateGuide = false;
   } finally {
     state.isCreatingWiki = false;
     renderNewWikiDialog();

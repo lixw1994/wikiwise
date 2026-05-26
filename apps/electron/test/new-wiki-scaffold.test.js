@@ -80,6 +80,34 @@ test("renderer contains new-wiki dialog state, create flow, and post-create guid
   assert.doesNotMatch(htmlSource, /later OpenSpec phase/);
 });
 
+test("renderer mirrors native scaffold failure dismissal behavior", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const nativeStart = nativeSource.indexOf("private func createNewWiki()");
+  const nativeEnd = nativeSource.indexOf("/// Tracks how many ContentViews", nativeStart);
+  const rendererStart = rendererSource.indexOf("async function createNewWiki()");
+  const rendererEnd = rendererSource.indexOf("function renderPostCreateGuide", rendererStart);
+  const nativeCreateSource = nativeSource.slice(nativeStart, nativeEnd);
+  const nativeCatchSource = nativeCreateSource.slice(nativeCreateSource.indexOf("} catch {"));
+  const createNewWikiSource = rendererSource.slice(rendererStart, rendererEnd);
+
+  assert.notEqual(nativeCreateSource, "");
+  assert.notEqual(createNewWikiSource, "");
+  assert.match(
+    nativeCatchSource,
+    /print\("\[scaffold\] Error creating wiki: \\\(error\)"\)[\s\S]*showNewWikiSheet = false/
+  );
+  assert.doesNotMatch(nativeCatchSource, /showPostCreateGuide = true/);
+  assert.doesNotMatch(nativeCatchSource, /openURL\(wikiURL\)/);
+
+  assert.match(
+    createNewWikiSource,
+    /catch \(error\) \{[\s\S]*console\.error\(error\)[\s\S]*state\.isNewWikiDialogOpen = false[\s\S]*state\.showPostCreateGuide = false/
+  );
+  assert.doesNotMatch(createNewWikiSource, /catch \(error\) \{[\s\S]*setError\(error\)/);
+  assert.doesNotMatch(createNewWikiSource, /catch \(error\) \{[\s\S]*applyProjectResult/);
+});
+
 test("renderer mirrors native new-wiki sheet layout and typography", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const htmlSource = read("src/renderer/index.html");
