@@ -454,7 +454,7 @@ function findMarkdownFileForSlug(projectRoot, slug) {
     }
 
     for (const entry of entries) {
-      if (!entry.isFile() || !isMarkdownFile(entry.name)) continue;
+      if (!entry.isFile() || !isPreviewMarkdownLookupCandidate(entry.name)) continue;
 
       const filePath = path.join(searchDir, entry.name);
       if (markdownSlugForPath(filePath) === slug) {
@@ -468,6 +468,10 @@ function findMarkdownFileForSlug(projectRoot, slug) {
 
 function markdownSlugForPath(filePath) {
   return path.basename(filePath, path.extname(filePath)).toLowerCase().replace(/ /g, "-");
+}
+
+function isPreviewMarkdownLookupCandidate(filePath) {
+  return path.extname(filePath) === ".md";
 }
 
 function generatedPageResult(pagePath) {

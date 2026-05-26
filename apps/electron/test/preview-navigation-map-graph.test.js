@@ -157,6 +157,31 @@ test("preview navigation normalizes clicked HTML target slugs like native", () =
   assert.match(electronResolveSource, /const pageName = `\$\{pageSlug\}\.html`;/);
 });
 
+test("preview markdown lookup uses native lowercase md extension candidates", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const mainSource = read("src/main/main.js");
+  const nativeMarkdownLookupSource = sourceBetween(
+    nativeSource,
+    "private func findMarkdownFile(slug: String, in dir: URL) -> URL?",
+    "    // MARK: - Actions"
+  );
+  const electronMarkdownLookupSource = sourceBetween(
+    mainSource,
+    "function findMarkdownFileForSlug(projectRoot, slug)",
+    "function markdownSlugForPath(filePath)"
+  );
+  const electronGlobalMarkdownHelperSource = sourceBetween(
+    mainSource,
+    "function isMarkdownFile(filePath)",
+    "\n}"
+  );
+
+  assert.match(nativeMarkdownLookupSource, /for file in files where file\.pathExtension == "md"/);
+  assert.match(electronMarkdownLookupSource, /isPreviewMarkdownLookupCandidate\(entry\.name\)/);
+  assert.doesNotMatch(electronMarkdownLookupSource, /isMarkdownFile\(entry\.name\)/);
+  assert.match(electronGlobalMarkdownHelperSource, /\/\\\.md\$\/i\.test\(filePath\)/);
+});
+
 test("manual Refresh Page command stays scoped to selected markdown like native", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
