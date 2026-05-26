@@ -75,6 +75,25 @@ test("startup restore is limited to the native first window scope", () => {
   );
 });
 
+test("file menu exposes native New Window command before Wikiwise commands", () => {
+  const mainSource = read("src/main/main.js");
+  const swiftSource = readRepository("Sources/Wikiwise/WikiwiseApp.swift");
+  const menuStart = mainSource.indexOf("function createApplicationMenu()");
+  const menuEnd = mainSource.indexOf("function startProjectWatcher", menuStart);
+  const menuSource = mainSource.slice(menuStart, menuEnd);
+
+  assert.notEqual(menuStart, -1);
+  assert.notEqual(menuEnd, -1);
+  assert.match(swiftSource, /WindowGroup\s*\{/);
+  assert.match(swiftSource, /CommandGroup\(after:\s*\.newItem\)/);
+  assert.doesNotMatch(swiftSource, /CommandGroup\(replacing:\s*\.newItem\)/);
+  assert.match(
+    menuSource,
+    /label:\s*"File"[\s\S]*label:\s*"New Window"[\s\S]*accelerator:\s*"CommandOrControl\+N"[\s\S]*click:\s*\(\) => createMainWindow\(\)[\s\S]*label:\s*"Open Existing Folder"[\s\S]*label:\s*"Go Back"[\s\S]*label:\s*"Go Forward"[\s\S]*label:\s*"Refresh Page"/
+  );
+  assert.doesNotMatch(menuSource, /sendAppCommand\("newWindow"\)/);
+});
+
 test("app menu navigation commands match the native File command group", () => {
   const mainSource = read("src/main/main.js");
   const swiftSource = readRepository("Sources/Wikiwise/WikiwiseApp.swift");
@@ -85,7 +104,7 @@ test("app menu navigation commands match the native File command group", () => {
   );
   assert.match(
     mainSource,
-    /label:\s*"File"[\s\S]*submenu:\s*\[[\s\S]*label:\s*"Open Existing Folder"[\s\S]*label:\s*"Go Back"[\s\S]*accelerator:\s*"CommandOrControl\+\["[\s\S]*label:\s*"Go Forward"[\s\S]*accelerator:\s*"CommandOrControl\+\]"[\s\S]*label:\s*"Refresh Page"[\s\S]*accelerator:\s*"CommandOrControl\+R"/
+    /label:\s*"File"[\s\S]*submenu:\s*\[[\s\S]*label:\s*"New Window"[\s\S]*label:\s*"Open Existing Folder"[\s\S]*label:\s*"Go Back"[\s\S]*accelerator:\s*"CommandOrControl\+\["[\s\S]*label:\s*"Go Forward"[\s\S]*accelerator:\s*"CommandOrControl\+\]"[\s\S]*label:\s*"Refresh Page"[\s\S]*accelerator:\s*"CommandOrControl\+R"/
   );
   assert.doesNotMatch(mainSource, /label:\s*"Navigate"/);
 });

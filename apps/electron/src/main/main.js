@@ -521,6 +521,12 @@ function createApplicationMenu() {
       label: "File",
       submenu: [
         {
+          label: "New Window",
+          accelerator: "CommandOrControl+N",
+          click: () => createMainWindow()
+        },
+        { type: "separator" },
+        {
           label: "Open Existing Folder",
           accelerator: "CommandOrControl+O",
           click: () => sendAppCommand("openExisting")
