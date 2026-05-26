@@ -825,6 +825,7 @@ body.resizing-left-sidebar * {
   font-size: 10px;
   font-weight: 400;
   letter-spacing: 0.8px;
+  transition: background-color 150ms ease-in-out, color 150ms ease-in-out, box-shadow 150ms ease-in-out;
 }
 
 .right-tab + .right-tab {

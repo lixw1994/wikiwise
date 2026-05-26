@@ -255,3 +255,11 @@ The Electron INFO tab SHALL mirror native right-sidebar fallback behavior when s
 - **WHEN** a selected document-info refresh rejects or cannot read metadata
 - **THEN** Electron clears stale document metadata and re-renders the native fallback rows
 - **AND** it does not show the generic shell error message for that metadata miss
+
+### Requirement: Right Sidebar Tab Animation Parity
+The Electron right sidebar SHALL animate INFO/TERMINAL tab selection state changes with the same native timing as the SwiftUI right-sidebar tab switcher.
+
+#### Scenario: User switches right-sidebar tabs
+- **WHEN** the user changes the active right-sidebar tab between INFO and TERMINAL
+- **THEN** Electron transitions the visible tab text color, active tab background, and active tab shadow with a 150ms ease-in-out animation
+- **AND** right tab IDs, selected state, default Terminal tab, panel switching behavior, terminal behavior, Info tab behavior, and right sidebar resizing behavior are unchanged

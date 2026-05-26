@@ -480,6 +480,10 @@ test("renderer right sidebar tabs mirror native compact pill switcher", () => {
     nativeSource,
     /\.padding\(2\)[\s\S]*RoundedRectangle\(cornerRadius:\s*5\)[\s\S]*\.fill\(Color\.tabBarBg\)[\s\S]*\.padding\(\.horizontal,\s*12\)[\s\S]*\.padding\(\.vertical,\s*8\)/
   );
+  assert.match(
+    nativeSource,
+    /Button \{[\s\S]*withAnimation\(\.easeInOut\(duration:\s*0\.15\)\)\s*\{[\s\S]*activeTab = tab/
+  );
 
   assert.match(
     htmlSource,
@@ -501,6 +505,10 @@ test("renderer right sidebar tabs mirror native compact pill switcher", () => {
   assert.match(rightTabBlock, /font-weight:\s*400/);
   assert.match(rightTabBlock, /letter-spacing:\s*0\.8px/);
   assert.match(rightTabBlock, /color:\s*var\(--color-tab-inactive\)/);
+  assert.match(
+    rightTabBlock,
+    /transition:\s*background-color 150ms ease-in-out,\s*color 150ms ease-in-out,\s*box-shadow 150ms ease-in-out/
+  );
   assert.match(selectedRightTabBlock, /border-radius:\s*4px/);
   assert.match(selectedRightTabBlock, /background:\s*var\(--color-tab-active-bg\)/);
   assert.match(selectedRightTabBlock, /color:\s*var\(--color-tab-active\)/);
