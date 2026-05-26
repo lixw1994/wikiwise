@@ -1980,17 +1980,15 @@ function formatEditedTime(modifiedAt) {
   const date = new Date(modifiedAt);
   const deltaSeconds = Math.round((date.getTime() - Date.now()) / 1000);
   const absoluteSeconds = Math.abs(deltaSeconds);
-  const relativeFormatter = new Intl.RelativeTimeFormat(undefined, { numeric: "auto" });
+  const relativeFormatter = new Intl.RelativeTimeFormat(undefined, { numeric: "always", style: "long" });
 
   if (absoluteSeconds < 60) return relativeFormatter.format(deltaSeconds, "second");
   if (absoluteSeconds < 3600) return relativeFormatter.format(Math.round(deltaSeconds / 60), "minute");
   if (absoluteSeconds < 86400) return relativeFormatter.format(Math.round(deltaSeconds / 3600), "hour");
   if (absoluteSeconds < 604800) return relativeFormatter.format(Math.round(deltaSeconds / 86400), "day");
-
-  return new Intl.DateTimeFormat(undefined, {
-    dateStyle: "medium",
-    timeStyle: "short"
-  }).format(date);
+  if (absoluteSeconds < 2629800) return relativeFormatter.format(Math.round(deltaSeconds / 604800), "week");
+  if (absoluteSeconds < 31557600) return relativeFormatter.format(Math.round(deltaSeconds / 2629800), "month");
+  return relativeFormatter.format(Math.round(deltaSeconds / 31557600), "year");
 }
 
 function formatWordCount(wordCount) {

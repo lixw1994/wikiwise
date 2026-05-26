@@ -399,6 +399,34 @@ test("renderer mirrors native decimal word-count formatting", () => {
   assert.doesNotMatch(rendererSource, /infoWords\.textContent = hasDocument && info \? String\(info\.wordCount\) : ""/);
 });
 
+test("renderer mirrors native numeric relative edited-time formatting", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const nativeFormatterSource =
+    nativeSource.match(/private func formattedModDate[\s\S]*?\n    \}/)?.[0] ?? "";
+  const rendererFormatterSource =
+    rendererSource.match(/function formatEditedTime\(modifiedAt\) \{[\s\S]*?\n\}/)?.[0] ?? "";
+
+  assert.notEqual(nativeFormatterSource, "");
+  assert.notEqual(rendererFormatterSource, "");
+  assert.match(
+    nativeFormatterSource,
+    /let formatter = RelativeDateTimeFormatter\(\)[\s\S]*formatter\.unitsStyle = \.full[\s\S]*formatter\.localizedString\(for:\s*date,\s*relativeTo:\s*Date\(\)\)/
+  );
+  assert.match(
+    rendererFormatterSource,
+    /new Intl\.RelativeTimeFormat\(undefined,\s*\{\s*numeric:\s*"always",\s*style:\s*"long"\s*\}\)/
+  );
+  assert.match(rendererFormatterSource, /604800/);
+  assert.match(rendererFormatterSource, /2629800/);
+  assert.match(rendererFormatterSource, /31557600/);
+  assert.match(rendererFormatterSource, /relativeFormatter\.format\(Math\.round\(deltaSeconds \/ 604800\),\s*"week"\)/);
+  assert.match(rendererFormatterSource, /relativeFormatter\.format\(Math\.round\(deltaSeconds \/ 2629800\),\s*"month"\)/);
+  assert.match(rendererFormatterSource, /relativeFormatter\.format\(Math\.round\(deltaSeconds \/ 31557600\),\s*"year"\)/);
+  assert.doesNotMatch(rendererFormatterSource, /numeric:\s*"auto"/);
+  assert.doesNotMatch(rendererFormatterSource, /Intl\.DateTimeFormat/);
+});
+
 test("renderer right sidebar tabs mirror native compact pill switcher", () => {
   const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
   const htmlSource = read("src/renderer/index.html");
