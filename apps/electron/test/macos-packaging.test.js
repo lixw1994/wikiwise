@@ -24,6 +24,7 @@ const inheritedElectronTemplatePlistKeys = [
   "NSBluetoothPeripheralUsageDescription",
   "NSAppTransportSecurity"
 ];
+const nativeMinimumMacOSVersion = "14.0";
 
 test("package manifests expose Electron macOS packaging commands", () => {
   const rootPackage = readJson("package.json");
@@ -69,6 +70,22 @@ test("packaging script strips unused Electron template privacy plist metadata", 
     assert.doesNotMatch(nativeInfoPlist, new RegExp(`<key>${key}</key>`));
     assert.match(script, new RegExp(`"${key}"`));
   }
+});
+
+test("packaging script mirrors native minimum macOS metadata", () => {
+  const script = read("scripts/package-electron-macos.mjs");
+  const packageManifest = read("Package.swift");
+  const readme = read("README.md");
+  const nativeInfoPlist = read("Wikiwise.app/Contents/Info.plist");
+
+  assert.match(packageManifest, /platforms:\s*\[\.macOS\(\.v14\)\]/);
+  assert.match(readme, /Requires macOS 14\+/);
+  assert.match(
+    nativeInfoPlist,
+    new RegExp(`<key>LSMinimumSystemVersion</key>\\s*<string>${nativeMinimumMacOSVersion}</string>`)
+  );
+  assert.match(script, /LSMinimumSystemVersion:\s*"14\.0"/);
+  assert.doesNotMatch(script, /LSMinimumSystemVersion:\s*"11\.0"/);
 });
 
 test("packaging script embeds the Electron app and shared core package layout", () => {

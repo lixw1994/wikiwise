@@ -118,6 +118,7 @@ function rewriteInfoPlist() {
     CFBundleShortVersionString: version,
     CFBundleVersion: version,
     CFBundleIconFile: productName,
+    LSMinimumSystemVersion: "14.0",
     LSApplicationCategoryType: "public.app-category.productivity"
   };
 
