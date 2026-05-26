@@ -41,7 +41,24 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-VERSION="${1:-0.1.0}"
+NATIVE_APP_INFO_PLIST="Wikiwise.app/Contents/Info.plist"
+FALLBACK_RELEASE_VERSION="0.1.0"
+
+resolve_default_version() {
+  local native_version=""
+
+  if [[ -f "$NATIVE_APP_INFO_PLIST" ]] && command -v plutil >/dev/null 2>&1; then
+    native_version="$(plutil -extract CFBundleShortVersionString raw -o - "$NATIVE_APP_INFO_PLIST" 2>/dev/null || true)"
+  fi
+
+  if [[ -n "$native_version" ]]; then
+    printf '%s' "$native_version"
+  else
+    printf '%s' "$FALLBACK_RELEASE_VERSION"
+  fi
+}
+
+VERSION="${1:-$(resolve_default_version)}"
 PRODUCT_NAME="Wikiwise"
 SIGNING_IDENTITY="${WIKIWISE_RELEASE_SIGNING_IDENTITY:-Developer ID Application: Readwise, Inc (QV36BMA4LN)}"
 NOTARY_PROFILE="${WIKIWISE_NOTARY_PROFILE:-notarytool}"

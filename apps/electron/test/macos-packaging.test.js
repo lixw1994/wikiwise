@@ -377,6 +377,45 @@ test("blocked release preflight writes a readiness report without running releas
   assert.match(report.finalMigrationRequirement, /actual signed and notarized release run/i);
 });
 
+test("blocked release readiness defaults to native app bundle version", () => {
+  const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "wikiwise-release-default-version-"));
+  const reportPath = path.join(tempDir, "report.json");
+  const nativeInfoPlist = read("Wikiwise.app/Contents/Info.plist");
+  const nativeShortVersion = plistStringValue(nativeInfoPlist, "CFBundleShortVersionString");
+  const result = spawnSync(
+    "bash",
+    [
+      "scripts/build-release.sh",
+      "--preflight",
+      "--preflight-report",
+      reportPath
+    ],
+    {
+      cwd: repositoryRoot,
+      encoding: "utf8",
+      env: {
+        ...process.env,
+        WIKIWISE_RELEASE_SIGNING_IDENTITY: "__Wikiwise Missing Identity For Test__",
+        WIKIWISE_NOTARY_PROFILE: "__wikiwise-missing-notary-profile__"
+      }
+    }
+  );
+
+  assert.notEqual(result.status, 0);
+  assert.equal(fs.existsSync(reportPath), true);
+  assert.doesNotMatch(result.stdout, /\[1\/7\] Running Electron runtime parity audit/);
+
+  const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
+  assert.equal(report.version, nativeShortVersion);
+  assert.equal(report.releaseCommand, `bash scripts/build-release.sh ${nativeShortVersion}`);
+  assert.equal(
+    report.preflightCommand,
+    `bash scripts/build-release.sh --preflight --preflight-report ${reportPath} ${nativeShortVersion}`
+  );
+  assert.equal(report.artifactProduction.signedOrNotarizedReleaseProduced, false);
+  assert.equal(report.artifactProduction.releaseArtifactsProduced, false);
+});
+
 test("Electron release script uses checked-in hardened runtime entitlements", () => {
   const entitlementsPath = path.join(repositoryRoot, "apps", "electron", "build", "entitlements.mac.plist");
 
