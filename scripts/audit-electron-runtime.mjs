@@ -818,13 +818,13 @@ async function simulateRightSidebarResize(window) {
       ...pointer,
       clientX: startX - 80
     }));
+    const after = Math.round(rightSidebar.getBoundingClientRect().width);
     handle.dispatchEvent(new PointerEvent("pointerup", {
       ...pointer,
       buttons: 0,
       clientX: startX - 80
     }));
 
-    const after = Math.round(rightSidebar.getBoundingClientRect().width);
     const evidence = {
       rightSidebarResizeHandlePresent: true,
       rightSidebarInitialWidth: before,
@@ -845,11 +845,15 @@ async function simulateRightSidebarResize(window) {
 }
 
 async function simulateLeftSidebarToggle(window) {
-  return window.webContents.executeJavaScript(`(() => {
+  return window.webContents.executeJavaScript(`(async () => {
     const leftSidebar = document.querySelector("#left-sidebar");
     const toggle = document.querySelector("#toggle-left-sidebar");
     const detail = document.querySelector(".detail");
     const toolbarTitle = document.querySelector("#toolbar-project-name");
+    const sidebarVisibilityAnimationSettleMs = 240;
+    const waitForSidebarVisibilityAnimation = () => (
+      new Promise((resolve) => setTimeout(resolve, sidebarVisibilityAnimationSettleMs))
+    );
     const selectedTreeText = () => document.querySelector(".tree-file-button.selected")?.textContent?.trim() ?? "";
     const expandedFolderNames = () => [...document.querySelectorAll(".tree-folder-button")]
       .filter((button) => button.getAttribute("aria-expanded") === "true")
@@ -931,6 +935,7 @@ async function simulateLeftSidebarToggle(window) {
     }
 
     toggle.click();
+    await waitForSidebarVisibilityAnimation();
     const hidden = {
       visible: isVisible(leftSidebar),
       detailWidth: detailWidth(),
@@ -938,6 +943,7 @@ async function simulateLeftSidebarToggle(window) {
       toolbarAffordance: toolbarAffordance()
     };
     toggle.click();
+    await waitForSidebarVisibilityAnimation();
     const restored = {
       visible: isVisible(leftSidebar),
       leftSidebarWidth: leftSidebarWidth(),
@@ -1075,13 +1081,14 @@ async function simulateLeftSidebarResize(window) {
       ...pointer,
       clientX: startX + 60
     }));
+    const after = Math.round(leftSidebar.getBoundingClientRect().width);
+    const afterTitleOffset = titleOffset();
     handle.dispatchEvent(new PointerEvent("pointerup", {
       ...pointer,
       buttons: 0,
       clientX: startX + 60
     }));
 
-    const after = Math.round(leftSidebar.getBoundingClientRect().width);
     const evidence = {
       leftSidebarResizeHandlePresent: true,
       leftSidebarNativeMinWidth: native.min,
@@ -1090,7 +1097,7 @@ async function simulateLeftSidebarResize(window) {
       leftSidebarInitialWidth: before,
       leftSidebarResizedWidth: after,
       leftSidebarResizeObserved: before !== after,
-      leftSidebarResizedTitleOffset: titleOffset()
+      leftSidebarResizedTitleOffset: afterTitleOffset
     };
     window.__wikiwiseLeftSidebarResizeEvidence = evidence;
     return evidence;

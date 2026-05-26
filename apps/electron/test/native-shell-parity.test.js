@@ -269,8 +269,7 @@ test("offsets toolbar project title like native left-sidebar compensation", () =
   assert.match(styleSource, /--toolbar-title-offset:\s*0px/);
   assert.match(toolbarTitleBlock, /transform:\s*translateX\(var\(--toolbar-title-offset\)\)/);
   assert.match(rendererSource, /function updateToolbarTitleOffset/);
-  assert.match(rendererSource, /leftSidebar\.getBoundingClientRect\(\)\.width/);
-  assert.match(rendererSource, /-Math\.round\(leftSidebarWidth \/ 2\)/);
+  assert.match(rendererSource, /-Math\.round\(state\.leftSidebarWidth \/ 2\)/);
   assert.match(rendererSource, /project\.style\.setProperty\("--toolbar-title-offset",\s*`\$\{toolbarTitleOffset\}px`\)/);
 });
 

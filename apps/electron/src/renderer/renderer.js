@@ -760,11 +760,8 @@ function setToolbarButtonSymbol(button, symbol) {
 }
 
 function updateToolbarTitleOffset() {
-  const leftSidebarWidth = state.isLeftSidebarVisible
-    ? Math.round(leftSidebar.getBoundingClientRect().width)
-    : 0;
   const toolbarTitleOffset = state.isLeftSidebarVisible
-    ? -Math.round(leftSidebarWidth / 2)
+    ? -Math.round(state.leftSidebarWidth / 2)
     : 0;
   project.style.setProperty("--toolbar-title-offset", `${toolbarTitleOffset}px`);
 }

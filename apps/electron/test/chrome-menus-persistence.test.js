@@ -629,6 +629,18 @@ test("right sidebar toolbar visibility toggle mirrors native layout animation", 
   );
 });
 
+test("active sidebar resize bypasses visibility animation", () => {
+  const cssSource = read("src/renderer/styles.css");
+  const projectShellBlock = cssBlock(cssSource, ".project-shell");
+  const resizeTransitionBypassMatch = cssSource.match(
+    /body\.resizing-left-sidebar\s+\.project-shell,\s*body\.resizing-right-sidebar\s+\.project-shell\s*\{([^}]+)\}/
+  );
+
+  assert.match(projectShellBlock, /transition:\s*grid-template-columns 200ms ease-in-out/);
+  assert.ok(resizeTransitionBypassMatch, "Expected resize-specific project-shell transition bypass");
+  assert.match(resizeTransitionBypassMatch[1], /transition:\s*none/);
+});
+
 test("project toolbar groups mirror native horizontal spacing", () => {
   const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const cssSource = read("src/renderer/styles.css");

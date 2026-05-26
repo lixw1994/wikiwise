@@ -165,6 +165,7 @@ test("runtime audit script covers native shell scenarios and assertions", () => 
     /rightSidebarResizedWidth/,
     /rightSidebarResizeObserved/,
     /terminalResizeObserved/,
+    /rightSidebarTerminalResizeObserved/,
     /terminalInputObserved/,
     /computedShellColors/,
     /rootAppearance/,
@@ -213,6 +214,26 @@ test("runtime audit script covers native shell scenarios and assertions", () => 
     /Right sidebar resize handle is missing/,
     /Right sidebar width did not change after drag/,
     /differentFromFirstPixelCount/
+  ]);
+});
+
+test("runtime audit waits for native sidebar visibility animation before measuring", () => {
+  const script = read("scripts/audit-electron-runtime.mjs");
+
+  assertSourceContains(script, [
+    /const sidebarVisibilityAnimationSettleMs = 240;/,
+    /const waitForSidebarVisibilityAnimation = \(\) => \([\s\S]*new Promise\(\(resolve\) => setTimeout\(resolve,\s*sidebarVisibilityAnimationSettleMs\)\)/,
+    /toggle\.click\(\);\s*await waitForSidebarVisibilityAnimation\(\);[\s\S]*const hidden = \{/,
+    /toggle\.click\(\);\s*await waitForSidebarVisibilityAnimation\(\);[\s\S]*const restored = \{/
+  ]);
+});
+
+test("runtime audit measures sidebar resize while drag transition bypass is active", () => {
+  const script = read("scripts/audit-electron-runtime.mjs");
+
+  assertSourceContains(script, [
+    /handle\.dispatchEvent\(new PointerEvent\("pointermove",\s*\{[\s\S]*clientX:\s*startX - 80[\s\S]*\}\)\);\s*const after = Math\.round\(rightSidebar\.getBoundingClientRect\(\)\.width\);\s*handle\.dispatchEvent\(new PointerEvent\("pointerup"/,
+    /handle\.dispatchEvent\(new PointerEvent\("pointermove",\s*\{[\s\S]*clientX:\s*startX \+ 60[\s\S]*\}\)\);\s*const after = Math\.round\(leftSidebar\.getBoundingClientRect\(\)\.width\);\s*const afterTitleOffset = titleOffset\(\);\s*handle\.dispatchEvent\(new PointerEvent\("pointerup"/
   ]);
 });
 

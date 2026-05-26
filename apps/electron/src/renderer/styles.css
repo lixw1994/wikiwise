@@ -301,6 +301,11 @@ button:disabled {
   grid-template-columns: 0px minmax(0, 1fr) 0px;
 }
 
+body.resizing-left-sidebar .project-shell,
+body.resizing-right-sidebar .project-shell {
+  transition: none;
+}
+
 .project-toolbar {
   grid-column: 1 / -1;
   display: grid;

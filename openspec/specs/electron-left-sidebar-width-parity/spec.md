@@ -36,3 +36,12 @@ The Electron left-sidebar resize handle SHALL visually match the native macOS sp
 - **AND** hover and focus-visible states remain visually transparent
 - **AND** the handle does not use the generic resize hover fill
 - **AND** left-sidebar width constraints, hide/show behavior, toolbar-title offset behavior, file-tree behavior, right-sidebar behavior, and project layout are not changed for this requirement
+
+### Requirement: Active Resize Transition Bypass
+The Electron project shell SHALL bypass the sidebar visibility animation while a sidebar resize drag is active.
+
+#### Scenario: User drags a sidebar resize handle
+- **WHEN** the user is actively resizing the left or right sidebar
+- **THEN** the project grid updates immediately without the 200ms visibility-toggle transition
+- **AND** toolbar hide/show controls keep the native 200ms ease-in-out layout animation when no resize drag is active
+- **AND** sidebar width constraints, toolbar title offset behavior, terminal refit behavior, and file tree behavior are unchanged
