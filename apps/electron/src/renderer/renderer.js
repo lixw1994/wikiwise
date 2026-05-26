@@ -475,7 +475,8 @@ async function openExisting() {
 async function selectFile(node, options = {}) {
   setError(null);
   state.showPostCreateGuide = false;
-  if (options.pushHistory !== false) {
+  const isActiveFileReselect = state.selectedFile?.path === node.path;
+  if (options.pushHistory !== false && !isActiveFileReselect) {
     pushHistoryEntry(currentHistoryEntry());
     state.forwardHistory = [];
   }

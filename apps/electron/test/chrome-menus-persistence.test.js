@@ -20,6 +20,23 @@ function cssBlock(source, selector) {
   return source.match(pattern)?.[1] ?? "";
 }
 
+function functionSource(source, name, nextName) {
+  const start = source.indexOf(`function ${name}`);
+  const end = source.indexOf(`function ${nextName}`, start);
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+  return source.slice(start, end);
+}
+
+function swiftFunctionSource(source, name, nextName) {
+  const startMatch = source.match(new RegExp(`(?:private\\s+)?func ${name}\\(`));
+  assert.ok(startMatch);
+  const start = startMatch.index;
+  const nextMatch = source.slice(start).match(new RegExp(`(?:private\\s+)?func ${nextName}\\(`));
+  assert.ok(nextMatch);
+  return source.slice(start, start + nextMatch.index);
+}
+
 test("main process owns app settings, appearance, restore, generated pages, and menu commands", () => {
   const mainSource = read("src/main/main.js");
 
@@ -182,6 +199,50 @@ test("renderer contains startup restore, appearance, toolbar, history, map, refr
   assert.match(rendererSource, /wikiwise\.restoreLastProject/);
   assert.match(rendererSource, /wikiwise\.openGeneratedPage/);
   assert.match(rendererSource, /onAppCommand/);
+});
+
+test("renderer preserves native history when the active file is reselected", () => {
+  const rendererSource = read("src/renderer/renderer.js");
+  const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const swiftNavigateSource = swiftFunctionSource(swiftSource, "navigateTo", "goBack");
+  const selectFileSource = functionSource(rendererSource, "selectFile", "setSelectedFile");
+
+  assert.match(
+    swiftNavigateSource,
+    /if let current = selectedFileURL,\s*current != url \{[\s\S]*backHistory\.append\(current\)[\s\S]*forwardHistory = \[\]/
+  );
+  assert.match(
+    swiftNavigateSource,
+    /else if selectedFileURL == nil,\s*let compiled = compiledFileURL \{[\s\S]*backHistory\.append\(compiled\)[\s\S]*forwardHistory = \[\]/
+  );
+  assert.match(selectFileSource, /const isActiveFileReselect = state\.selectedFile\?\.path === node\.path/);
+  assert.match(
+    selectFileSource,
+    /if \(options\.pushHistory !== false && !isActiveFileReselect\) \{[\s\S]*pushHistoryEntry\(currentHistoryEntry\(\)\);[\s\S]*state\.forwardHistory = \[\];[\s\S]*\}/
+  );
+  assert.match(selectFileSource, /state\.generatedPage = null/);
+  assert.match(selectFileSource, /const content = await window\.wikiwise\.readFile\(node\.path\)/);
+  assert.match(selectFileSource, /await setActiveSelectedFile\(nextFile\.path\)/);
+  assert.match(selectFileSource, /await refreshDocumentInfo\(\)/);
+  assert.doesNotMatch(selectFileSource, /if \(isActiveFileReselect\)\s*return/);
+});
+
+test("renderer keeps different-file and generated-page navigation on the history path", () => {
+  const rendererSource = read("src/renderer/renderer.js");
+  const currentHistorySource = functionSource(rendererSource, "currentHistoryEntry", "pushHistoryEntry");
+  const selectFileSource = functionSource(rendererSource, "selectFile", "setSelectedFile");
+  const historyGate = selectFileSource.match(
+    /if \(options\.pushHistory !== false && !isActiveFileReselect\) \{[\s\S]*?state\.forwardHistory = \[\];[\s\S]*?\}/
+  )?.[0] ?? "";
+
+  assert.match(currentHistorySource, /if \(state\.generatedPage\) \{/);
+  assert.match(currentHistorySource, /kind:\s*"generated"/);
+  assert.match(currentHistorySource, /if \(state\.selectedFile\) \{/);
+  assert.match(currentHistorySource, /kind:\s*"file"/);
+  assert.match(historyGate, /pushHistoryEntry\(currentHistoryEntry\(\)\)/);
+  assert.match(historyGate, /state\.forwardHistory = \[\]/);
+  assert.doesNotMatch(historyGate, /state\.generatedPage/);
+  assert.doesNotMatch(historyGate, /node\.path !== state\.generatedPage/);
 });
 
 test("renderer markup and styles include native-like project toolbar controls", () => {

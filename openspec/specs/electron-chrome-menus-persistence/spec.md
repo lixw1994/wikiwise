@@ -76,9 +76,16 @@ The Electron renderer SHALL maintain navigation history for selected files and g
 
 #### Scenario: User navigates between pages
 
-- **WHEN** the user selects files or opens the generated 3D map
+- **WHEN** the user selects a different file or opens the generated 3D map
 - **THEN** the previous view is pushed to back history
 - **AND** forward history is cleared
+
+#### Scenario: User reselects the active file
+
+- **WHEN** the user selects the file that is already active
+- **THEN** the back history is not changed
+- **AND** forward history is not cleared
+- **AND** the current file may still be reloaded and its document info refreshed
 
 #### Scenario: User navigates back and forward
 
