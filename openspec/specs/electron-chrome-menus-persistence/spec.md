@@ -54,8 +54,15 @@ The Electron app SHALL expose native-compatible app menu commands in the same Fi
 #### Scenario: Navigation command is selected
 
 - **WHEN** the user selects Go Back, Go Forward, or Refresh Page from the app menu
-- **THEN** the focused renderer receives the matching app command event
-- **AND** the renderer handles the command through its existing project state
+- **THEN** every live renderer receives the matching app command event
+- **AND** each renderer handles the command through its existing project state
+- **AND** this matches the native global `NotificationCenter` command path received by every live `ContentView`
+
+#### Scenario: Open Existing Folder command is selected
+
+- **WHEN** the user selects Open Existing Folder from the Electron app menu
+- **THEN** Electron sends the command only to the focused renderer or first available renderer
+- **AND** the file chooser is not broadcast to every open window
 
 #### Scenario: Refresh Page command is selected for Markdown
 

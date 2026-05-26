@@ -42,6 +42,7 @@ const nativeResourcesRoot = path.join(repositoryRoot, "Sources", "Wikiwise", "Re
 const nativeAppIconPath = path.join(nativeResourcesRoot, "Wikiwise.icns");
 const nativeWindowDefaultSize = Object.freeze({ width: 1500, height: 1000 });
 const nativeWindowMinimumSize = Object.freeze({ width: 800, height: 500 });
+const nativeBroadcastAppCommands = new Set(["goBack", "goForward", "refreshWiki"]);
 const terminalRuntimeDependencies = Object.freeze(["node-pty", "@xterm/xterm", "@xterm/addon-fit"]);
 const defaultAppSettings = Object.freeze({
   appearanceMode: "Auto",
@@ -492,11 +493,18 @@ async function openExternalUrl(url) {
 }
 
 function sendAppCommand(command) {
-  const targetWindow = BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0];
-  if (!targetWindow || targetWindow.webContents.isDestroyed()) return false;
+  const targetWindows = nativeBroadcastAppCommands.has(command)
+    ? BrowserWindow.getAllWindows()
+    : [BrowserWindow.getFocusedWindow() ?? BrowserWindow.getAllWindows()[0]];
+  let sentCommand = false;
 
-  targetWindow.webContents.send("wikiwise:appCommand", { command });
-  return true;
+  for (const targetWindow of targetWindows) {
+    if (!targetWindow || targetWindow.webContents.isDestroyed()) continue;
+    targetWindow.webContents.send("wikiwise:appCommand", { command });
+    sentCommand = true;
+  }
+
+  return sentCommand;
 }
 
 function createApplicationMenu() {

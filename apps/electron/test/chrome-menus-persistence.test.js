@@ -126,6 +126,33 @@ test("app menu navigation commands match the native File command group", () => {
   assert.doesNotMatch(mainSource, /label:\s*"Navigate"/);
 });
 
+test("app menu navigation and refresh commands broadcast like native global notifications", () => {
+  const mainSource = read("src/main/main.js");
+  const swiftAppSource = readRepository("Sources/Wikiwise/WikiwiseApp.swift");
+  const swiftContentSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const sendAppCommandSource = functionSource(mainSource, "sendAppCommand", "createApplicationMenu");
+  const nativeBroadcastDeclaration =
+    mainSource.match(/const nativeBroadcastAppCommands = new Set\(\[[\s\S]*?\]\);/)?.[0] ?? "";
+
+  assert.match(
+    swiftAppSource,
+    /NotificationCenter\.default\.post\(name:\s*\.goBack,\s*object:\s*nil\)[\s\S]*NotificationCenter\.default\.post\(name:\s*\.goForward,\s*object:\s*nil\)[\s\S]*NotificationCenter\.default\.post\(name:\s*\.refreshWiki,\s*object:\s*nil\)/
+  );
+  assert.match(
+    swiftContentSource,
+    /\.onReceive\(NotificationCenter\.default\.publisher\(for:\s*\.goBack\)\)[\s\S]*\.onReceive\(NotificationCenter\.default\.publisher\(for:\s*\.goForward\)\)[\s\S]*\.onReceive\(NotificationCenter\.default\.publisher\(for:\s*\.refreshWiki\)\)/
+  );
+  assert.match(nativeBroadcastDeclaration, /"goBack"/);
+  assert.match(nativeBroadcastDeclaration, /"goForward"/);
+  assert.match(nativeBroadcastDeclaration, /"refreshWiki"/);
+  assert.doesNotMatch(nativeBroadcastDeclaration, /"openExisting"/);
+  assert.match(sendAppCommandSource, /nativeBroadcastAppCommands\.has\(command\)/);
+  assert.match(sendAppCommandSource, /BrowserWindow\.getAllWindows\(\)/);
+  assert.match(sendAppCommandSource, /BrowserWindow\.getFocusedWindow\(\) \?\? BrowserWindow\.getAllWindows\(\)\[0\]/);
+  assert.match(sendAppCommandSource, /for \(const targetWindow of targetWindows\)/);
+  assert.match(sendAppCommandSource, /targetWindow\.webContents\.send\("wikiwise:appCommand", \{ command \}\)/);
+});
+
 test("application menu preserves standard macOS app edit and window roles", () => {
   const mainSource = read("src/main/main.js");
   const swiftSource = readRepository("Sources/Wikiwise/WikiwiseApp.swift");
