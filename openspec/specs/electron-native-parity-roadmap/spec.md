@@ -388,3 +388,13 @@ The migration roadmap SHALL record publish feedback runtime evidence as a native
 - **THEN** retained verification records runtime audit coverage for first-publish success feedback, external browser routing, publish error feedback, unpublish confirmation, unpublish cleanup, and restore-state evidence
 - **AND** retained verification states that the evidence uses audit-only mocked publishing IPC and does not contact the production publishing service
 - **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation
+
+### Requirement: Release Success Evidence Phase Completion Tracking
+
+The migration roadmap SHALL record retained signed Electron release success evidence as the final distribution proof needed before migration completion can be claimed.
+
+#### Scenario: Release success evidence phase is archived
+
+- **WHEN** the release success evidence change is archived
+- **THEN** retained verification records the release success report contract, report mode separation from readiness/preflight evidence, artifact checksum evidence, and documentation coverage
+- **AND** retained verification states that final migration completion still requires an actual successful `bash scripts/build-release.sh --release-report <path> <version>` run or an explicitly accepted OpenSpec deviation

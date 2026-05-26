@@ -13,6 +13,7 @@ npm run electron:package:mac
 npm run electron:audit:runtime
 npm run electron:release:preflight
 npm run electron:release:readiness
+npm run electron:release:evidence
 ```
 
 `npm run electron:dev` requires dependencies to be installed first:
@@ -48,6 +49,11 @@ evidence at `apps/electron/out/release-readiness/report.json`. A blocked report
 lists prerequisite blocker names and messages, records that no release artifacts
 were produced, and keeps the final gate explicit: Electron migration completion
 still requires an actual signed and notarized release run, or an accepted OpenSpec deviation.
+`npm run electron:release:evidence` runs the full production release command with
+a retained release success report at `apps/electron/out/release/report.json`.
+That report is written only after runtime audit, packaging, signing, notarization, stapling, and assessment complete,
+and it records the DMG path plus SHA-256 checksum. It is not a substitute for a completed production release;
+it is the structured evidence retained by that completed release.
 
 ## Runtime parity audit
 

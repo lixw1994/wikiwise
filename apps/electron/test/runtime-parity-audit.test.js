@@ -490,7 +490,7 @@ test("main process delegates audit mode to checked-in runtime audit script", () 
     /audit-electron-runtime\.mjs/,
     /runElectronRuntimeAudit/,
     /process\.exitCode\s*=\s*0/,
-    /app\.quit\(\)/
+    /app\.exit\(0\)/
   ]);
 });
 

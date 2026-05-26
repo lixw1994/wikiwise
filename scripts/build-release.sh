@@ -3,6 +3,7 @@ set -euo pipefail
 
 PREFLIGHT_ONLY=0
 PREFLIGHT_REPORT_PATH=""
+RELEASE_REPORT_PATH=""
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -14,6 +15,14 @@ while [[ $# -gt 0 ]]; do
       PREFLIGHT_REPORT_PATH="${2:-}"
       if [[ -z "$PREFLIGHT_REPORT_PATH" ]]; then
         echo "Release prerequisite failed: --preflight-report requires a path" >&2
+        exit 1
+      fi
+      shift 2
+      ;;
+    --release-report)
+      RELEASE_REPORT_PATH="${2:-}"
+      if [[ -z "$RELEASE_REPORT_PATH" ]]; then
+        echo "Release prerequisite failed: --release-report requires a path" >&2
         exit 1
       fi
       shift 2
@@ -45,6 +54,7 @@ PREFLIGHT_CHECK_STATUSES=()
 PREFLIGHT_CHECK_MESSAGES=()
 PREFLIGHT_BLOCKER_NAMES=()
 PREFLIGHT_BLOCKER_MESSAGES=()
+RELEASE_GATES=()
 
 fail() {
   echo "Release prerequisite failed: $*" >&2
@@ -61,6 +71,10 @@ require_file() {
 
 require_directory() {
   [[ -d "$1" ]] || fail "missing required directory '$1'"
+}
+
+record_release_gate() {
+  RELEASE_GATES+=("$1")
 }
 
 json_escape() {
@@ -188,6 +202,45 @@ write_preflight_report() {
   } > "$PREFLIGHT_REPORT_PATH"
 }
 
+write_release_success_report() {
+  [[ -n "$RELEASE_REPORT_PATH" ]] || return 0
+
+  local dmg_sha256
+  dmg_sha256="$(shasum -a 256 "$DMG")"
+  dmg_sha256="${dmg_sha256%% *}"
+
+  mkdir -p "$(dirname "$RELEASE_REPORT_PATH")"
+  {
+    printf '{\n'
+    printf '  "version": '; json_string "$VERSION"; printf ',\n'
+    printf '  "status": "released",\n'
+    printf '  "releaseCommand": '; json_string "bash scripts/build-release.sh ${VERSION}"; printf ',\n'
+    printf '  "releaseEvidenceCommand": '; json_string "bash scripts/build-release.sh --release-report ${RELEASE_REPORT_PATH} ${VERSION}"; printf ',\n'
+    printf '  "artifact": {\n'
+    printf '    "dmgPath": '; json_string "$DMG"; printf ',\n'
+    printf '    "dmgSha256": '; json_string "$dmg_sha256"; printf '\n'
+    printf '  },\n'
+    printf '  "releaseGates": [\n'
+    local gate_count="${#RELEASE_GATES[@]}"
+    local index
+    for (( index=0; index<gate_count; index++ )); do
+      printf '    { "name": '; json_string "${RELEASE_GATES[$index]}"; printf ', "status": "passed" }'
+      if (( index < gate_count - 1 )); then
+        printf ','
+      fi
+      printf '\n'
+    done
+    printf '  ],\n'
+    printf '  "artifactProduction": {\n'
+    printf '    "releaseArtifactsProduced": true,\n'
+    printf '    "signedOrNotarizedReleaseProduced": true\n'
+    printf '  },\n'
+    printf '  "finalMigrationRequirementSatisfied": true,\n'
+    printf '  "finalMigrationRequirement": '; json_string "Final Electron migration release requirement satisfied by this signed, notarized, stapled, and assessed DMG artifact."; printf '\n'
+    printf '}\n'
+  } > "$RELEASE_REPORT_PATH"
+}
+
 preflight() {
   if [[ "$(uname -s)" == "Darwin" ]]; then
     record_preflight_check "platform:macos" "passed" "running on macOS"
@@ -201,6 +254,9 @@ preflight() {
   check_preflight_command xcrun
   check_preflight_command security
   check_preflight_command spctl
+  if [[ -n "$RELEASE_REPORT_PATH" ]]; then
+    check_preflight_command shasum
+  fi
   check_preflight_file "$ENTITLEMENTS"
   check_signing_identity
   check_notary_profile
@@ -221,6 +277,12 @@ echo "=== Building Electron Wikiwise v${VERSION} ==="
 if [[ -n "$PREFLIGHT_REPORT_PATH" && "$PREFLIGHT_ONLY" != "1" ]]; then
   fail "--preflight-report can only be used with --preflight"
 fi
+if [[ -n "$RELEASE_REPORT_PATH" && "$PREFLIGHT_ONLY" == "1" ]]; then
+  fail "release success evidence requires the full production release command; do not combine --release-report with --preflight"
+fi
+if [[ -n "$RELEASE_REPORT_PATH" && -n "$PREFLIGHT_REPORT_PATH" ]]; then
+  fail "--release-report and --preflight-report cannot be combined"
+fi
 
 preflight
 
@@ -232,14 +294,17 @@ fi
 
 echo "[1/7] Running Electron runtime parity audit..."
 npm run electron:audit:runtime
+record_release_gate "runtime-audit"
 
 echo "[2/7] Packaging Electron app..."
 npm run electron:package:mac -- "$VERSION"
 require_directory "$APP"
+record_release_gate "package"
 
 echo "[3/7] Signing Electron app..."
 codesign --deep --force --options runtime --entitlements "$ENTITLEMENTS" --sign "$SIGNING_IDENTITY" "$APP"
 codesign --verify --deep --strict --verbose=2 "$APP"
+record_release_gate "app-signing"
 
 echo "[4/7] Creating DMG..."
 rm -rf "$DMG_STAGING_DIR"
@@ -249,17 +314,23 @@ ln -s /Applications "$DMG_STAGING_DIR/Applications"
 rm -f "$DMG"
 hdiutil create -volname "$PRODUCT_NAME" -srcfolder "$DMG_STAGING_DIR" -ov -format UDZO "$DMG"
 rm -rf "$DMG_STAGING_DIR"
+record_release_gate "dmg-creation"
 
 echo "[5/7] Signing DMG..."
 codesign --sign "$SIGNING_IDENTITY" "$DMG"
 codesign --verify --verbose=2 "$DMG"
+record_release_gate "dmg-signing"
 
 echo "[6/7] Notarizing DMG..."
 xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait
+record_release_gate "notarization"
 
 echo "[7/7] Stapling and assessing DMG..."
 xcrun stapler staple "$DMG"
+record_release_gate "stapling"
 spctl --assess --type open --context context:primary-signature "$DMG"
+record_release_gate "assessment"
+write_release_success_report
 
 echo ""
 echo "=== Done: $DMG ==="
