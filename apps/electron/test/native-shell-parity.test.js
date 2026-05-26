@@ -182,6 +182,25 @@ test("matches native startup activation behavior", () => {
   );
 });
 
+test("matches native visible titlebar chrome", () => {
+  const welcomeToolbarBlock = cssBlock(".welcome-toolbar");
+  const projectToolbarBlock = cssBlock(".project-toolbar");
+
+  assert.match(nativeAppSource, /\.windowStyle\(\.titleBar\)/);
+  assert.match(nativeContentViewSource, /\.navigationTitle\(""\)/);
+  assert.match(nativeContentViewSource, /window\.titlebarSeparatorStyle\s*=\s*\.none/);
+  assert.match(nativeContentViewSource, /window\.title\s*=\s*""/);
+  assert.match(mainSource, /title:\s*"Wikiwise"/);
+  assert.match(mainSource, /titleBarStyle:\s*"hiddenInset"/);
+  assert.match(mainSource, /trafficLightPosition:\s*\{\s*x:\s*12,\s*y:\s*13\s*\}/);
+  assert.match(styleSource, /--native-titlebar-leading-inset:\s*78px/);
+  assert.match(welcomeToolbarBlock, /padding-inline-start:\s*var\(--native-titlebar-leading-inset\)/);
+  assert.match(welcomeToolbarBlock, /-webkit-app-region:\s*drag/);
+  assert.match(projectToolbarBlock, /padding-inline-start:\s*var\(--native-titlebar-leading-inset\)/);
+  assert.match(projectToolbarBlock, /-webkit-app-region:\s*drag/);
+  assert.match(styleSource, /button,\s*input,\s*\.toolbar-group,\s*\.toolbar-group-end\s*\{[\s\S]*-webkit-app-region:\s*no-drag/);
+});
+
 test("removes shared resource debug UI from renderer shell", () => {
   assert.equal(htmlSource.includes("Shared resources"), false);
   assert.equal(htmlSource.includes("resources-panel"), false);

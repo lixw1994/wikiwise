@@ -1,6 +1,7 @@
 :root {
   --left-sidebar-width: 200px;
   --right-sidebar-width: 360px;
+  --native-titlebar-leading-inset: 78px;
   --color-sidebar-bg: #f3edde;
   --color-sidebar-text: #7a6e54;
   --color-sidebar-text-muted: #a89a7c;
@@ -135,7 +136,9 @@ body {
   align-items: center;
   min-height: 36px;
   border-bottom: 1px solid var(--color-sidebar-rule);
+  padding-inline-start: var(--native-titlebar-leading-inset);
   background: var(--color-sidebar-bg);
+  -webkit-app-region: drag;
 }
 
 .welcome-toolbar-brand {
@@ -303,7 +306,9 @@ button:disabled {
   gap: 12px;
   border-bottom: 1px solid var(--color-sidebar-rule);
   padding: 8px 12px;
+  padding-inline-start: var(--native-titlebar-leading-inset);
   background: var(--color-sidebar-bg);
+  -webkit-app-region: drag;
 }
 
 .toolbar-group {
@@ -316,6 +321,13 @@ button:disabled {
 .toolbar-group-end {
   gap: 10px;
   justify-content: end;
+}
+
+button,
+input,
+.toolbar-group,
+.toolbar-group-end {
+  -webkit-app-region: no-drag;
 }
 
 .toolbar-icon-button {

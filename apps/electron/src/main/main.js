@@ -986,6 +986,8 @@ function createMainWindow() {
     minWidth: nativeWindowMinimumSize.width,
     minHeight: nativeWindowMinimumSize.height,
     title: "Wikiwise",
+    titleBarStyle: "hiddenInset",
+    trafficLightPosition: { x: 12, y: 13 },
     ...(appIcon ? { icon: appIcon } : {}),
     webPreferences: {
       preload: path.join(packageRoot, "src", "preload", "preload.cjs"),
