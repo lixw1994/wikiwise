@@ -217,6 +217,35 @@ test("runtime audit script records generated map toolbar flow evidence", () => {
   ]);
 });
 
+test("runtime audit script records compiled-preview local link navigation evidence", () => {
+  const script = read("scripts/audit-electron-runtime.mjs");
+
+  assertSourceContains(script, [
+    /capturePreviewNavigationRuntimeEvidence/,
+    /window\.__wikiwisePreviewNavigationRuntimeEvidence/,
+    /previewNavigationRuntimeEvidence/,
+    /previewNavigationLinkPresent/,
+    /previewNavigationResolveObserved/,
+    /previewNavigationResolvedKind/,
+    /previewNavigationTargetFileName/,
+    /previewNavigationSelectedFileAfterClick/,
+    /previewNavigationBackRestoredMarkdown/,
+    /previewNavigationBackSelectedFileLabel/,
+    /previewNavigationPreviewVisibleAfterBack/,
+    /previewNavigationResolvePayloads/,
+    /findAuditMarkdownFileForSlug/,
+    /auditMarkdownSlugForPath/,
+    /audit-local-index-link/,
+    /index\.html/,
+    /index\.md/,
+    /Preview navigation runtime evidence is missing/,
+    /Preview local link was not available in the audit preview/,
+    /Preview local link did not resolve through preload/,
+    /Preview local link did not select the linked markdown file/,
+    /Preview navigation back did not restore the original markdown page/
+  ]);
+});
+
 test("runtime audit script records new-wiki creation workflow evidence", () => {
   const script = read("scripts/audit-electron-runtime.mjs");
 

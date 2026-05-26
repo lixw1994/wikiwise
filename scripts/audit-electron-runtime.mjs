@@ -11,6 +11,7 @@ import {
   randomPublishSubdomain,
   readTextFile,
   scanOneLevel,
+  slugForPath,
   summarizeDocumentInfo
 } from "@wikiwise/core";
 
@@ -52,6 +53,7 @@ let terminalStarted = false;
 let terminalStartedProjectRoot = "";
 let newWikiRuntimeCreatedScaffold = null;
 let newWikiRuntimeCreatedProject = null;
+let previewNavigationResolvePayloads = [];
 const auditIpcChannels = Object.freeze([
   "wikiwise:getAppSettings",
   "wikiwise:setAppearanceMode",
@@ -104,7 +106,14 @@ function createAuditProject() {
   compiler.scanPages();
   const compiled = compiler.compileMarkdownFile(selectedPath);
   const backgroundCompilationEvidence = drainBackgroundCompilation(compiler);
-  const auditPreviewPath = createAuditPreviewFile();
+  const indexMarkdownPath = path.join(projectRoot, "wiki", "index.md");
+  const indexOutputPath = path.join(compiler.outputDir, "index.html");
+  if (!fs.existsSync(indexOutputPath)) {
+    compiler.compileMarkdownFile(indexMarkdownPath);
+  }
+  const auditPreviewPath = createAuditPreviewFile({
+    indexFileUrl: pathToFileURL(indexOutputPath).href
+  });
 
   return {
     projectRoot,
@@ -170,7 +179,7 @@ function drainBackgroundCompilation(compiler) {
   };
 }
 
-function createAuditPreviewFile() {
+function createAuditPreviewFile({ indexFileUrl } = {}) {
   const previewPath = path.join(runtimeAuditRoot, "audit-preview.html");
   const scrollSections = Array.from({ length: 28 }, (_value, index) => (
     `    <section class="audit-section">
@@ -203,6 +212,7 @@ function createAuditPreviewFile() {
   <body>
     <h1>Runtime Audit Wiki</h1>
     <p>Static audit preview for Electron shell parity capture.</p>
+    <p><a id="audit-local-index-link" href="${indexFileUrl ?? "#"}">Open runtime audit index</a></p>
 ${scrollSections}
   </body>
 </html>
@@ -237,6 +247,84 @@ function getAuditTerminalResource() {
     fitScriptUrl: pathToFileURL(requireFromAudit.resolve("@xterm/addon-fit")).href,
     xtermCssUrl: pathToFileURL(path.join(xtermRoot, "css", "xterm.css")).href
   };
+}
+
+function resolveAuditPreviewNavigation(payload) {
+  if (!payload?.projectRoot || !payload?.url) {
+    throw new Error("resolvePreviewNavigation requires projectRoot and url");
+  }
+
+  const projectRoot = path.resolve(payload.projectRoot);
+  const targetUrl = new URL(payload.url);
+
+  if (targetUrl.protocol === "http:" || targetUrl.protocol === "https:") {
+    return {
+      kind: "external",
+      url: targetUrl.href
+    };
+  }
+
+  if (targetUrl.protocol !== "file:") {
+    return null;
+  }
+
+  const targetPath = fileURLToPath(targetUrl);
+  const pageSlug = path.basename(targetPath, path.extname(targetPath)).toLowerCase();
+  if (!pageSlug) return null;
+
+  const markdownFile = findAuditMarkdownFileForSlug(projectRoot, pageSlug);
+  if (markdownFile) {
+    return {
+      kind: "file",
+      path: markdownFile,
+      name: path.basename(markdownFile)
+    };
+  }
+
+  const compiler = new WikiCompiler({ projectRoot, repositoryRoot });
+  compiler.compileAll();
+  const generatedPath = path.join(compiler.outputDir, `${pageSlug}.html`);
+  if (!fs.existsSync(generatedPath)) return null;
+
+  return {
+    kind: "generated",
+    name: path.basename(generatedPath),
+    path: generatedPath,
+    fileUrl: pathToFileURL(generatedPath).href
+  };
+}
+
+function findAuditMarkdownFileForSlug(projectRoot, slug) {
+  const normalizedSlug = String(slug).toLowerCase();
+  const searchDirs = [
+    path.join(projectRoot, "wiki"),
+    path.join(projectRoot, "raw"),
+    projectRoot
+  ];
+
+  for (const searchDir of searchDirs) {
+    let entries = [];
+    try {
+      entries = fs.readdirSync(searchDir, { withFileTypes: true });
+    } catch {
+      continue;
+    }
+
+    for (const entry of entries) {
+      if (!entry.isFile() || !/\.md$/i.test(entry.name)) continue;
+
+      const filePath = path.join(searchDir, entry.name);
+      if (auditMarkdownSlugForPath(filePath) === normalizedSlug || slugForPath(filePath) === normalizedSlug) {
+        return filePath;
+      }
+    }
+  }
+
+  return null;
+}
+
+function auditMarkdownSlugForPath(filePath) {
+  return path.basename(filePath, path.extname(filePath)).toLowerCase().replace(/ /g, "-");
 }
 
 function registerAuditIpcHandlers() {
@@ -311,10 +399,11 @@ function registerAuditIpcHandlers() {
     return readTextFile(filePath);
   });
   ipcMain.handle("wikiwise:compilePage", (_event, payload) => {
+    const resolvedFilePath = typeof payload?.filePath === "string" ? path.resolve(payload.filePath) : "";
     if (watcherRuntimeCaptureActive) {
       watcherRuntimeCompilePayloads.push({
         projectRoot: typeof payload?.projectRoot === "string" ? path.resolve(payload.projectRoot) : "",
-        filePath: typeof payload?.filePath === "string" ? path.resolve(payload.filePath) : "",
+        filePath: resolvedFilePath,
         invalidate: Boolean(payload?.invalidate),
         reloadCSS: Boolean(payload?.reloadCSS)
       });
@@ -322,6 +411,17 @@ function registerAuditIpcHandlers() {
     const compiler = new WikiCompiler({ projectRoot: payload.projectRoot, repositoryRoot });
     compiler.scanPages();
     const compiled = compiler.compileMarkdownFile(payload.filePath);
+    const auditSelectedPath = auditProject?.selectedFile?.path
+      ? path.resolve(auditProject.selectedFile.path)
+      : "";
+    if (resolvedFilePath && resolvedFilePath === auditSelectedPath) {
+      return {
+        ...compiled,
+        auditCompiledOutputPath: compiled.outputPath,
+        outputPath: auditProject.selectedFile.compiled.outputPath,
+        fileUrl: auditProject.selectedFile.compiled.fileUrl
+      };
+    }
     return {
       ...compiled,
       fileUrl: pathToFileURL(compiled.outputPath).href
@@ -349,7 +449,17 @@ function registerAuditIpcHandlers() {
       fileUrl: pathToFileURL(pagePath).href
     };
   });
-  ipcMain.handle("wikiwise:resolvePreviewNavigation", () => null);
+  ipcMain.handle("wikiwise:resolvePreviewNavigation", (_event, payload) => {
+    const result = resolveAuditPreviewNavigation(payload);
+    previewNavigationResolvePayloads.push({
+      projectRoot: typeof payload?.projectRoot === "string" ? path.resolve(payload.projectRoot) : "",
+      url: typeof payload?.url === "string" ? payload.url : "",
+      resultKind: result?.kind ?? "",
+      resultName: result?.name ?? "",
+      resultPath: result?.path ? path.resolve(result.path) : ""
+    });
+    return result;
+  });
   ipcMain.handle("wikiwise:openExternalUrl", () => ({ ok: true }));
   ipcMain.handle("wikiwise:openExisting", () => ({ canceled: true }));
   ipcMain.handle("wikiwise:getDefaultWikiLocation", () => sampleProjectParent);
@@ -433,6 +543,7 @@ async function runScenario(window, scenario) {
   terminalStartedProjectRoot = "";
   newWikiRuntimeCreatedScaffold = null;
   newWikiRuntimeCreatedProject = null;
+  previewNavigationResolvePayloads = [];
   nativeTheme.themeSource = scenario.appearanceMode.toLowerCase();
   console.log(`Running runtime audit scenario: ${scenario.name}`);
 
@@ -474,6 +585,7 @@ async function runScenario(window, scenario) {
     );
     await captureDefaultWikiPreviewEvidence(window);
     await capturePreviewScrollPreservationEvidence(window);
+    await capturePreviewNavigationRuntimeEvidence(window);
     await captureGeneratedMapFlowEvidence(window);
     await captureWatcherRuntimeEvidence(window);
     await window.webContents.executeJavaScript(`document.querySelector("#mode-file")?.click()`, true);
@@ -1069,6 +1181,129 @@ async function captureGeneratedMapFlowEvidence(window) {
   }));
 }
 
+async function capturePreviewNavigationRuntimeEvidence(window) {
+  const resolvePayloadStart = previewNavigationResolvePayloads.length;
+  await window.webContents.executeJavaScript(`(async () => {
+    const previewFrame = document.querySelector("#preview-frame");
+    const backButton = document.querySelector("#go-back");
+    const selectedFileLabel = () => document.querySelector("#selected-file")?.textContent?.trim() ?? "";
+    const isVisible = (element) => Boolean(
+      element &&
+      !element.hidden &&
+      element.getBoundingClientRect().width > 0 &&
+      element.getBoundingClientRect().height > 0
+    );
+    const waitFor = async (predicate, timeoutMs = 3500) => {
+      const start = Date.now();
+      while (Date.now() - start < timeoutMs) {
+        if (predicate()) return true;
+        await new Promise((resolve) => setTimeout(resolve, 50));
+      }
+      return false;
+    };
+    const nextFrame = () => new Promise((resolve) => {
+      requestAnimationFrame(() => requestAnimationFrame(resolve));
+    });
+    const evidence = {
+      previewNavigationRuntimeEvidence: true,
+      previewNavigationInitialSelectedFileLabel: selectedFileLabel(),
+      previewNavigationLinkPresent: false,
+      previewNavigationLinkHref: "",
+      previewNavigationBackControlPresent: Boolean(backButton),
+      previewNavigationSelectedFileAfterClick: "",
+      previewNavigationTargetSelected: false,
+      previewNavigationPreviewVisibleAfterClick: false,
+      previewNavigationBackRestoredMarkdown: false,
+      previewNavigationBackSelectedFileLabel: "",
+      previewNavigationPreviewVisibleAfterBack: false
+    };
+
+    await nextFrame();
+    const link = previewFrame?.contentDocument?.querySelector("#audit-local-index-link");
+    evidence.previewNavigationLinkPresent = Boolean(link);
+    evidence.previewNavigationLinkHref = link?.href || link?.getAttribute("href") || "";
+
+    if (!previewFrame || !link || !backButton) {
+      window.__wikiwisePreviewNavigationRuntimeEvidence = evidence;
+      return evidence;
+    }
+
+    link.dispatchEvent(new MouseEvent("click", {
+      bubbles: true,
+      cancelable: true,
+      button: 0,
+      view: previewFrame.contentWindow
+    }));
+
+    await waitFor(() => selectedFileLabel() === "index.md");
+    await nextFrame();
+    evidence.previewNavigationSelectedFileAfterClick = selectedFileLabel();
+    evidence.previewNavigationTargetSelected = evidence.previewNavigationSelectedFileAfterClick === "index.md";
+    evidence.previewNavigationPreviewVisibleAfterClick = isVisible(previewFrame);
+
+    backButton.click();
+    await waitFor(() => selectedFileLabel() === "home.md" && isVisible(previewFrame));
+    await nextFrame();
+    evidence.previewNavigationBackSelectedFileLabel = selectedFileLabel();
+    evidence.previewNavigationPreviewVisibleAfterBack = isVisible(previewFrame);
+    evidence.previewNavigationBackRestoredMarkdown =
+      evidence.previewNavigationBackSelectedFileLabel === "home.md" &&
+      evidence.previewNavigationPreviewVisibleAfterBack;
+
+    window.__wikiwisePreviewNavigationRuntimeEvidence = evidence;
+    return evidence;
+  })()`, true).catch((error) => ({
+    previewNavigationRuntimeEvidence: false,
+    previewNavigationInitialSelectedFileLabel: "",
+    previewNavigationLinkPresent: false,
+    previewNavigationLinkHref: "",
+    previewNavigationBackControlPresent: false,
+    previewNavigationSelectedFileAfterClick: "",
+    previewNavigationTargetSelected: false,
+    previewNavigationPreviewVisibleAfterClick: false,
+    previewNavigationBackRestoredMarkdown: false,
+    previewNavigationBackSelectedFileLabel: "",
+    previewNavigationPreviewVisibleAfterBack: false,
+    error: error instanceof Error ? error.message : String(error)
+  }));
+
+  const currentResolvePayloads = previewNavigationResolvePayloads.slice(resolvePayloadStart);
+  const indexResolvePayload = currentResolvePayloads.find((payload) => (
+    /index\.html(?:$|[?#])/.test(payload.url) ||
+    payload.resultName === "index.md"
+  ));
+  const hostEvidence = {
+    previewNavigationResolvePayloads: currentResolvePayloads,
+    previewNavigationResolveObserved: Boolean(indexResolvePayload),
+    previewNavigationResolvedKind: indexResolvePayload?.resultKind ?? "",
+    previewNavigationTargetFileName: indexResolvePayload?.resultName ?? ""
+  };
+
+  return window.webContents.executeJavaScript(`(() => {
+    const hostEvidence = ${JSON.stringify(hostEvidence)};
+    const evidence = {
+      ...(window.__wikiwisePreviewNavigationRuntimeEvidence ?? {}),
+      ...hostEvidence
+    };
+    window.__wikiwisePreviewNavigationRuntimeEvidence = evidence;
+    return evidence;
+  })()`, true).catch((error) => ({
+    previewNavigationRuntimeEvidence: false,
+    previewNavigationInitialSelectedFileLabel: "",
+    previewNavigationLinkPresent: false,
+    previewNavigationLinkHref: "",
+    previewNavigationBackControlPresent: false,
+    previewNavigationSelectedFileAfterClick: "",
+    previewNavigationTargetSelected: false,
+    previewNavigationPreviewVisibleAfterClick: false,
+    previewNavigationBackRestoredMarkdown: false,
+    previewNavigationBackSelectedFileLabel: "",
+    previewNavigationPreviewVisibleAfterBack: false,
+    ...hostEvidence,
+    error: error instanceof Error ? error.message : String(error)
+  }));
+}
+
 async function captureNewWikiCreationEvidence(window, scenario) {
   const wikiName = `Runtime Created Wiki ${scenario.appearanceMode}`;
 
@@ -1480,6 +1715,7 @@ async function readDomEvidence(window) {
 	    const defaultWikiPreviewEvidence = window.__wikiwiseDefaultWikiPreviewEvidence ?? {};
 	    const previewScrollEvidence = window.__wikiwisePreviewScrollEvidence ?? {};
 	    const generatedMapEvidence = window.__wikiwiseGeneratedMapEvidence ?? {};
+	    const previewNavigationRuntimeEvidence = window.__wikiwisePreviewNavigationRuntimeEvidence ?? {};
 	    const watcherRuntimeEvidence = window.__wikiwiseWatcherRuntimeEvidence ?? {};
 	    const newWikiRuntimeEvidence = window.__wikiwiseNewWikiRuntimeEvidence ?? {};
 	    const treeButtons = [...document.querySelectorAll(".tree-row")];
@@ -1605,6 +1841,30 @@ async function readDomEvidence(window) {
       generatedMapBackSelectedFileLabel: generatedMapEvidence.generatedMapBackSelectedFileLabel ?? "",
       generatedMapBackPreviewVisible: Boolean(generatedMapEvidence.generatedMapBackPreviewVisible),
       generatedMapBackGeneratedFrameHidden: Boolean(generatedMapEvidence.generatedMapBackGeneratedFrameHidden),
+      previewNavigationRuntimeEvidence: Boolean(previewNavigationRuntimeEvidence.previewNavigationRuntimeEvidence),
+      previewNavigationInitialSelectedFileLabel:
+        previewNavigationRuntimeEvidence.previewNavigationInitialSelectedFileLabel ?? "",
+      previewNavigationLinkPresent: Boolean(previewNavigationRuntimeEvidence.previewNavigationLinkPresent),
+      previewNavigationLinkHref: previewNavigationRuntimeEvidence.previewNavigationLinkHref ?? "",
+      previewNavigationBackControlPresent:
+        Boolean(previewNavigationRuntimeEvidence.previewNavigationBackControlPresent),
+      previewNavigationResolveObserved:
+        Boolean(previewNavigationRuntimeEvidence.previewNavigationResolveObserved),
+      previewNavigationResolvedKind: previewNavigationRuntimeEvidence.previewNavigationResolvedKind ?? "",
+      previewNavigationTargetFileName: previewNavigationRuntimeEvidence.previewNavigationTargetFileName ?? "",
+      previewNavigationSelectedFileAfterClick:
+        previewNavigationRuntimeEvidence.previewNavigationSelectedFileAfterClick ?? "",
+      previewNavigationTargetSelected:
+        Boolean(previewNavigationRuntimeEvidence.previewNavigationTargetSelected),
+      previewNavigationPreviewVisibleAfterClick:
+        Boolean(previewNavigationRuntimeEvidence.previewNavigationPreviewVisibleAfterClick),
+      previewNavigationBackRestoredMarkdown:
+        Boolean(previewNavigationRuntimeEvidence.previewNavigationBackRestoredMarkdown),
+      previewNavigationBackSelectedFileLabel:
+        previewNavigationRuntimeEvidence.previewNavigationBackSelectedFileLabel ?? "",
+      previewNavigationPreviewVisibleAfterBack:
+        Boolean(previewNavigationRuntimeEvidence.previewNavigationPreviewVisibleAfterBack),
+      previewNavigationResolvePayloads: previewNavigationRuntimeEvidence.previewNavigationResolvePayloads ?? [],
       newWikiRuntimeEvidence: Boolean(newWikiRuntimeEvidence.newWikiRuntimeEvidence),
       newWikiDialogEvidence: Boolean(newWikiRuntimeEvidence.newWikiDialogEvidence),
       newWikiDialogTitle: newWikiRuntimeEvidence.newWikiDialogTitle ?? "",
@@ -1899,6 +2159,33 @@ function assertScenario(scenario, dom, screenshot) {
     }
     if (!dom.generatedMapBackRestoredMarkdown || dom.generatedMapBackSelectedFileLabel !== "home.md") {
       failures.push("Generated map back navigation did not restore markdown.");
+    }
+    if (!dom.previewNavigationRuntimeEvidence) {
+      failures.push("Preview navigation runtime evidence is missing.");
+    }
+    if (!dom.previewNavigationLinkPresent) {
+      failures.push("Preview local link was not available in the audit preview.");
+    }
+    if (
+      !dom.previewNavigationResolveObserved ||
+      dom.previewNavigationResolvedKind !== "file" ||
+      dom.previewNavigationTargetFileName !== "index.md"
+    ) {
+      failures.push("Preview local link did not resolve through preload.");
+    }
+    if (
+      !dom.previewNavigationTargetSelected ||
+      dom.previewNavigationSelectedFileAfterClick !== "index.md" ||
+      !dom.previewNavigationPreviewVisibleAfterClick
+    ) {
+      failures.push("Preview local link did not select the linked markdown file.");
+    }
+    if (
+      !dom.previewNavigationBackRestoredMarkdown ||
+      dom.previewNavigationBackSelectedFileLabel !== "home.md" ||
+      !dom.previewNavigationPreviewVisibleAfterBack
+    ) {
+      failures.push("Preview navigation back did not restore the original markdown page.");
     }
     if (!dom.watcherRuntimeEvidence) {
       failures.push("Watcher runtime evidence is missing.");
