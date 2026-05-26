@@ -2,6 +2,7 @@ const welcome = document.querySelector("#welcome");
 const project = document.querySelector("#project");
 const fileTree = document.querySelector("#file-tree");
 const selectedFileLabel = document.querySelector("#selected-file");
+const detailEmptyState = document.querySelector("#detail-empty-state");
 const sourceEditorFrame = document.querySelector("#source-editor-frame");
 const previewFrame = document.querySelector("#preview-frame");
 const generatedPreviewFrame = document.querySelector("#generated-preview-frame");
@@ -563,6 +564,7 @@ function renderDetail() {
   const hasGeneratedPage = Boolean(state.generatedPage);
   const wikiAvailable = hasCompiledPreview(file);
   const showGuide = Boolean(state.showPostCreateGuide && state.currentProject);
+  const shouldShowEmptyState = !showGuide && !hasGeneratedPage && !hasFile;
   const shouldShowSourceEditor =
     !showGuide &&
     !hasGeneratedPage &&
@@ -581,6 +583,7 @@ function renderDetail() {
   modeFileButton.classList.toggle("selected", state.detailMode === "file");
   modeWikiButton.classList.toggle("selected", state.detailMode === "wiki");
 
+  detailEmptyState.hidden = !shouldShowEmptyState;
   sourceEditorFrame.hidden = !shouldShowSourceEditor;
   previewFrame.hidden = !shouldShowPreview;
   generatedPreviewFrame.hidden = !hasGeneratedPage;

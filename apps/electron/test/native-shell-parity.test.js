@@ -364,6 +364,34 @@ test("hides non-native detail save chrome while preserving save wiring", () => {
   assert.match(previewFrameBlock, /min-height:\s*0/);
 });
 
+test("matches native empty detail placeholder", () => {
+  const emptyStateBlock = cssBlock(".detail-empty-state");
+  const emptyIconBlock = cssBlock(".detail-empty-state .empty-symbol");
+  const emptyTextBlock = cssBlock(".detail-empty-state p");
+
+  assert.match(
+    nativeContentViewSource,
+    /selectedFileURL == nil && compiledFileURL == nil[\s\S]*VStack\(spacing:\s*8\)[\s\S]*Image\(systemName:\s*"doc\.text"\)[\s\S]*\.font\(\.system\(size:\s*32,\s*weight:\s*\.light\)\)[\s\S]*\.foregroundStyle\(Color\.sidebarTextMuted\)[\s\S]*Text\("Select a file to read"\)[\s\S]*\.font\(\.system\(size:\s*13\)\)[\s\S]*\.foregroundStyle\(Color\.sidebarTextMuted\)[\s\S]*\.frame\(maxWidth:\s*\.infinity,\s*maxHeight:\s*\.infinity\)[\s\S]*\.background\(Color\.contentBg\)/
+  );
+
+  assert.match(htmlSource, /id="detail-empty-state" class="detail-empty-state" hidden/);
+  assert.match(htmlSource, /data-native-symbol="doc\.text"[^>]*>[\s\S]*<\/span>/);
+  assert.match(htmlSource, /<p>Select a file to read<\/p>/);
+  assert.match(rendererSource, /const detailEmptyState = document\.querySelector\("#detail-empty-state"\)/);
+  assert.match(rendererSource, /const shouldShowEmptyState = !showGuide && !hasGeneratedPage && !hasFile/);
+  assert.match(rendererSource, /detailEmptyState\.hidden = !shouldShowEmptyState/);
+  assert.match(emptyStateBlock, /display:\s*flex/);
+  assert.match(emptyStateBlock, /flex-direction:\s*column/);
+  assert.match(emptyStateBlock, /align-items:\s*center/);
+  assert.match(emptyStateBlock, /justify-content:\s*center/);
+  assert.match(emptyStateBlock, /gap:\s*8px/);
+  assert.match(emptyStateBlock, /background:\s*var\(--color-detail-bg\)/);
+  assert.match(emptyStateBlock, /color:\s*var\(--color-sidebar-text-muted\)/);
+  assert.match(emptyTextBlock, /font-size:\s*13px/);
+  assert.match(emptyIconBlock, /font-size:\s*32px/);
+  assert.match(emptyIconBlock, /font-weight:\s*300/);
+});
+
 test("keeps hidden dialogs and inactive panels out of the visual shell", () => {
   assert.match(styleSource, /\[hidden\]\s*\{[^}]*display:\s*none\s*!important/);
 });
