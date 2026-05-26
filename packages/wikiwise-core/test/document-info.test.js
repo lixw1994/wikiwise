@@ -69,6 +69,20 @@ test("summarizeDocumentInfo uses only exact native closing marker before directi
   assert.equal(summarizeDocumentInfo(target).directions, "Still native");
 });
 
+test("summarizeDocumentInfo preserves native raw wikilink targets", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "wikiwise-document-info-links-"));
+  const target = path.join(root, "wiki", "raw-links.md");
+  const content = [
+    "Raw links:",
+    "[[ Alpha ]] and [[Alpha]] and [[Alpha ]] and [[ Alpha ]] and [[   ]]"
+  ].join("\n");
+
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, content, "utf8");
+
+  assert.deepEqual(summarizeDocumentInfo(target).wikilinks, [" Alpha ", "Alpha", "Alpha ", "   "]);
+});
+
 test("summarizeDocumentInfo rejects missing files", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "wikiwise-document-info-missing-"));
   const target = path.join(root, "wiki", "missing.md");

@@ -886,7 +886,7 @@ function extractWikilinks(content) {
   let match;
 
   while ((match = pattern.exec(String(content))) !== null) {
-    const target = match[1].trim();
+    const target = match[1];
     if (!target || seen.has(target)) continue;
     seen.add(target);
     links.push(target);
