@@ -92,15 +92,31 @@ test("manual Refresh Page command stays scoped to selected markdown like native"
   assert.doesNotMatch(rendererRefreshSource, /refreshGeneratedPage\(/);
 });
 
-test("watcher-driven output changes still refresh active generated pages", () => {
+test("watcher-driven output changes leave active generated pages unchanged like native", () => {
+  const nativeContentSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const nativeWebViewSource = readRepository("Sources/Wikiwise/WebView.swift");
   const rendererSource = read("src/renderer/renderer.js");
+  const nativeWatcherSource = sourceBetween(
+    nativeContentSource,
+    "private func startFileWatcher(directory: URL, compiler c: Compiler)",
+    "    /// Rescan the sidebar file tree"
+  );
+  const nativeWebViewUpdateSource = sourceBetween(
+    nativeWebViewSource,
+    "func updateNSView(_ wv: WKWebView, context: Context)",
+    "    final class Coordinator"
+  );
   const projectChangedSource = sourceBetween(
     rendererSource,
     "async function handleProjectChanged(change)",
     "async function refreshSelectedMarkdown"
   );
 
-  assert.match(projectChangedSource, /const generatedPageActive = Boolean\(state\.generatedPage\?\.name\)/);
-  assert.match(projectChangedSource, /const generatedOutputChanged =/);
-  assert.match(projectChangedSource, /if \(generatedOutputChanged\) \{\s*await refreshGeneratedPage\(\);\s*\}/);
+  assert.match(nativeWatcherSource, /if selectedFileURL != nil \{\s*recompileCurrentPage\(c\)\s*\}/);
+  assert.match(nativeWatcherSource, /if let current = selectedFileURL,[\s\S]*changedPaths\.contains\(current\.path\) \{\s*recompileCurrentPage\(c\)\s*\}/);
+  assert.match(nativeWebViewUpdateSource, /if wv\.url != fileURL \|\| context\.coordinator\.lastReloadToken != reloadToken/);
+  assert.doesNotMatch(projectChangedSource, /generatedOutputChanged/);
+  assert.doesNotMatch(projectChangedSource, /await refreshGeneratedPage\(\)/);
+  assert.match(projectChangedSource, /currentMarkdownSelected/);
+  assert.match(projectChangedSource, /refreshSelectedMarkdown\(\{/);
 });

@@ -567,3 +567,11 @@ The migration roadmap SHALL record Electron menu-command broadcast parity as a n
 - **WHEN** the Electron menu-command broadcast parity change is archived
 - **THEN** retained verification records native global `NotificationCenter` command evidence, Electron multi-window broadcast coverage, targeted Open Existing preservation, and package/build evidence
 - **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation
+
+### Requirement: Generated Page Watcher Refresh Parity Phase Completion Tracking
+The migration roadmap SHALL record Electron generated-page watcher refresh parity as a native preview behavior correction phase.
+
+#### Scenario: Generated-page watcher refresh parity phase is archived
+- **WHEN** the Electron generated-page watcher refresh parity change is archived
+- **THEN** retained verification records native selected-file watcher guard evidence, native WebView reload-token evidence, Electron watcher no-refresh coverage, preserved generated-page opening coverage, and package/build evidence
+- **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation

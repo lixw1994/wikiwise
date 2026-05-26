@@ -1903,20 +1903,12 @@ async function handleProjectChanged(change) {
   const changedMarkdownPaths = change.changedMarkdownPaths ?? [];
   const selectedMarkdownChanged =
     currentMarkdownSelected && changedMarkdownPaths.includes(currentPath);
-  const generatedPageActive = Boolean(state.generatedPage?.name);
-  const generatedOutputChanged =
-    generatedPageActive &&
-    (change.kind === "rebuild" || change.cssChanged || changedMarkdownPaths.length > 0);
 
   try {
     if (change.kind === "structure" || change.kind === "rebuild") {
       const previousExpandedPaths = new Set(state.expandedTreePaths);
       state.tree = normalizeTreeNodes(await window.wikiwise.scanProject(state.currentProject.projectRoot));
       await restoreExpandedTree(previousExpandedPaths);
-    }
-
-    if (generatedOutputChanged) {
-      await refreshGeneratedPage();
     }
 
     if (selectedMarkdownChanged && state.selectedFile && !state.selectedFile.isDirty) {
