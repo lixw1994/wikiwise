@@ -138,7 +138,6 @@ The migration roadmap SHALL record Electron file-tree expansion parity as a nati
 - **WHEN** the Electron file-tree expansion parity change is archived
 - **THEN** retained verification records native ordering, default top-level expansion, lazy nested expansion, path-safe expansion IPC, nested file selection, and runtime audit evidence
 - **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation
-
 ### Requirement: Viewport Detail Chrome Parity Phase Completion Tracking
 The migration roadmap SHALL record Electron viewport/detail chrome parity as a visible shell polish phase.
 
@@ -462,4 +461,12 @@ The migration roadmap SHALL record Electron standard macOS menu parity as a nati
 #### Scenario: Standard menu parity phase is archived
 - **WHEN** the Electron standard menu parity change is archived
 - **THEN** retained verification records native SwiftUI default-menu preservation evidence, Electron App/Edit/Window standard role coverage, existing File command preservation, and package/build/runtime evidence
+- **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation
+
+### Requirement: Auto Appearance Parity Phase Completion Tracking
+The migration roadmap SHALL record Electron Auto appearance parity as a native shell gap closure phase.
+
+#### Scenario: Auto appearance parity phase is archived
+- **WHEN** the Electron Auto appearance parity change is archived
+- **THEN** retained verification records native SwiftUI Auto behavior, Electron stored-mode preservation, resolved renderer palette behavior, system-change listener behavior, and runtime audit evidence
 - **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation

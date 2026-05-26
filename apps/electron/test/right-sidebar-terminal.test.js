@@ -21,7 +21,7 @@ function cssBlock(source, selector) {
 }
 
 function rootCssBlock(source, selector) {
-  const pattern = new RegExp(`${selector}\\s*\\{([^}]+)\\}`);
+  const pattern = new RegExp(`${selector}[^\\{]*\\{([^}]+)\\}`);
   return source.match(pattern)?.[1] ?? "";
 }
 

@@ -75,6 +75,7 @@ const LEFT_SIDEBAR_MAX_WIDTH = 360;
 const RIGHT_SIDEBAR_DEFAULT_WIDTH = 360;
 const RIGHT_SIDEBAR_MIN_WIDTH = 200;
 const newWikiLocationDisplayLimit = 48;
+const systemDarkAppearanceQuery = window.matchMedia("(prefers-color-scheme: dark)");
 const toolbarSymbols = Object.freeze({
   Auto: {
     nativeSymbol: "circle.lefthalf.filled",
@@ -1000,8 +1001,7 @@ function observeTerminalResize() {
 }
 
 function terminalTheme() {
-  const isDark = state.appearanceMode === "Dark"
-    || (state.appearanceMode === "Auto" && window.matchMedia("(prefers-color-scheme: dark)").matches);
+  const isDark = resolvedAppearanceMode() === "Dark";
 
   return isDark
     ? {
@@ -1235,7 +1235,30 @@ async function loadAppSettings() {
 
 function applyAppearanceModeToDocument() {
   document.documentElement.dataset.appearance = state.appearanceMode;
+  document.documentElement.dataset.resolvedAppearance = resolvedAppearanceMode();
   applyTerminalTheme();
+}
+
+function resolvedAppearanceMode() {
+  if (state.appearanceMode === "Auto") {
+    return systemDarkAppearanceQuery.matches ? "Dark" : "Light";
+  }
+
+  return state.appearanceMode;
+}
+
+function handleSystemAppearanceChange() {
+  if (state.appearanceMode !== "Auto") return;
+  applyAppearanceModeToDocument();
+  renderProjectToolbar();
+}
+
+function watchSystemAppearanceChanges() {
+  if (systemDarkAppearanceQuery.addEventListener) {
+    systemDarkAppearanceQuery.addEventListener?.("change", handleSystemAppearanceChange);
+  } else {
+    systemDarkAppearanceQuery.addListener?.(handleSystemAppearanceChange);
+  }
 }
 
 async function restoreLastProject() {
@@ -2132,6 +2155,7 @@ async function bootApp() {
   state.appCommandCleanup = window.wikiwise.onAppCommand(handleAppCommand);
 }
 
+watchSystemAppearanceChanges();
 bootApp();
 
 openExistingButton.addEventListener("click", openExisting);

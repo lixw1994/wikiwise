@@ -527,11 +527,11 @@ test("renderer styles wire native adaptive palette tokens into visible shell sur
     assert.match(cssSource, new RegExp(`--color-${token}:`));
   }
 
-  assert.match(cssSource, /:root\[data-appearance="Dark"\]\s*{[\s\S]*--color-sidebar-bg:\s*#0e0c08/i);
-  assert.match(cssSource, /:root\[data-appearance="Dark"\]\s*{[\s\S]*--color-content-bg:\s*#1e1b14/i);
-  assert.match(cssSource, /:root\[data-appearance="Dark"\]\s*{[\s\S]*--color-sidebar-selected-text:\s*#f4eacf/i);
-  assert.match(cssSource, /:root\[data-appearance="Dark"\]\s*{[\s\S]*--color-sidebar-rule:\s*#3a3428/i);
-  assert.match(cssSource, /:root\[data-appearance="Dark"\]\s*{[\s\S]*--color-toolbar-text:\s*#8a7d62/i);
+  assert.match(cssSource, /:root\[data-appearance="Dark"\][^{]*{[\s\S]*--color-sidebar-bg:\s*#0e0c08/i);
+  assert.match(cssSource, /:root\[data-appearance="Dark"\][^{]*{[\s\S]*--color-content-bg:\s*#1e1b14/i);
+  assert.match(cssSource, /:root\[data-appearance="Dark"\][^{]*{[\s\S]*--color-sidebar-selected-text:\s*#f4eacf/i);
+  assert.match(cssSource, /:root\[data-appearance="Dark"\][^{]*{[\s\S]*--color-sidebar-rule:\s*#3a3428/i);
+  assert.match(cssSource, /:root\[data-appearance="Dark"\][^{]*{[\s\S]*--color-toolbar-text:\s*#8a7d62/i);
 
   assert.match(cssSource, /\.welcome-panel\s*{[\s\S]*background:\s*var\(--color-content-bg\)/);
   assert.match(cssSource, /\.project-toolbar\s*{[\s\S]*background:\s*var\(--color-sidebar-bg\)/);
@@ -539,4 +539,44 @@ test("renderer styles wire native adaptive palette tokens into visible shell sur
   assert.match(cssSource, /\.detail\s*{[\s\S]*background:\s*var\(--color-detail-bg\)/);
   assert.match(cssSource, /\.right-sidebar\s*{[\s\S]*background:\s*var\(--color-sidebar-bg\)/);
   assert.match(cssSource, /\.modal-panel\s*{[\s\S]*background:\s*var\(--color-detail-bg\)/);
+});
+
+test("auto appearance preserves stored mode while resolving system palette state", () => {
+  const swiftSource = readRepository("Sources/Wikiwise/WikiwiseApp.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const cssSource = read("src/renderer/styles.css");
+
+  assert.match(swiftSource, /case \.auto:\s+return nil\s+\/\/ follow system/);
+  assert.match(rendererSource, /const systemDarkAppearanceQuery = window\.matchMedia\("\(prefers-color-scheme: dark\)"\)/);
+  assert.match(
+    rendererSource,
+    /function resolvedAppearanceMode\(\)\s*\{[\s\S]*state\.appearanceMode === "Auto"[\s\S]*systemDarkAppearanceQuery\.matches \? "Dark" : "Light"[\s\S]*return state\.appearanceMode/
+  );
+  assert.match(
+    rendererSource,
+    /document\.documentElement\.dataset\.appearance = state\.appearanceMode[\s\S]*document\.documentElement\.dataset\.resolvedAppearance = resolvedAppearanceMode\(\)/
+  );
+  assert.match(cssSource, /:root\[data-resolved-appearance="Light"\]\s*\{[\s\S]*color-scheme:\s*light/);
+  assert.match(cssSource, /:root\[data-resolved-appearance="Dark"\]\s*\{[\s\S]*--color-sidebar-bg:\s*#0e0c08/i);
+  assert.match(cssSource, /:root\[data-resolved-appearance="Dark"\]\s*\{[\s\S]*--color-content-bg:\s*#1e1b14/i);
+  assert.match(cssSource, /:root\[data-resolved-appearance="Dark"\]\s*\{[\s\S]*color-scheme:\s*dark/);
+});
+
+test("auto appearance reacts to system changes without changing explicit modes", () => {
+  const rendererSource = read("src/renderer/renderer.js");
+
+  assert.match(
+    rendererSource,
+    /function handleSystemAppearanceChange\(\)\s*\{[\s\S]*if \(state\.appearanceMode !== "Auto"\) return;[\s\S]*applyAppearanceModeToDocument\(\);[\s\S]*renderProjectToolbar\(\);/
+  );
+  assert.match(rendererSource, /function watchSystemAppearanceChanges\(\)/);
+  assert.match(
+    rendererSource,
+    /systemDarkAppearanceQuery\.addEventListener\?\.\("change",\s*handleSystemAppearanceChange\)/
+  );
+  assert.match(
+    rendererSource,
+    /systemDarkAppearanceQuery\.addListener\?\.\(handleSystemAppearanceChange\)/
+  );
+  assert.match(rendererSource, /watchSystemAppearanceChanges\(\);[\s\S]*bootApp\(\);/);
 });

@@ -48,11 +48,13 @@
   color: var(--color-tab-active);
 }
 
-:root[data-appearance="Light"] {
+:root[data-appearance="Light"],
+:root[data-resolved-appearance="Light"] {
   color-scheme: light;
 }
 
-:root[data-appearance="Dark"] {
+:root[data-appearance="Dark"],
+:root[data-resolved-appearance="Dark"] {
   --color-sidebar-bg: #0e0c08;
   --color-sidebar-text: #a89a7c;
   --color-sidebar-text-muted: #6f6450;
