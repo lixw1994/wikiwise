@@ -294,11 +294,11 @@ button:disabled {
 }
 
 .project-shell.left-sidebar-hidden {
-  grid-template-columns: minmax(0, 1fr) var(--right-sidebar-width);
+  grid-template-columns: 0px minmax(0, 1fr) var(--right-sidebar-width);
 }
 
 .project-shell.left-sidebar-hidden.right-sidebar-hidden {
-  grid-template-columns: minmax(0, 1fr) 0px;
+  grid-template-columns: 0px minmax(0, 1fr) 0px;
 }
 
 .project-toolbar {
@@ -593,7 +593,7 @@ input,
 }
 
 .project-shell.left-sidebar-hidden .detail {
-  grid-column: 1;
+  grid-column: 2;
 }
 
 .detail-header {
@@ -769,7 +769,7 @@ input,
 }
 
 .project-shell.left-sidebar-hidden .right-sidebar {
-  grid-column: 2;
+  grid-column: 3;
 }
 
 .right-sidebar-resize-handle {

@@ -572,6 +572,38 @@ test("sidebar toolbar toggles mirror native plain icon color states", () => {
   assert.match(hiddenRightToggleBlock, /color:\s*var\(--color-toolbar-disabled\)/);
 });
 
+test("left sidebar toolbar visibility toggle mirrors native layout animation", () => {
+  const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const cssSource = read("src/renderer/styles.css");
+  const projectShellBlock = cssBlock(cssSource, ".project-shell");
+  const hiddenLeftSidebarBlock = cssBlock(cssSource, ".project-shell.left-sidebar-hidden");
+  const hiddenBothSidebarsBlock = cssBlock(
+    cssSource,
+    ".project-shell.left-sidebar-hidden.right-sidebar-hidden"
+  );
+  const hiddenLeftDetailBlock = cssBlock(cssSource, ".project-shell.left-sidebar-hidden .detail");
+  const hiddenLeftRightSidebarBlock = cssBlock(
+    cssSource,
+    ".project-shell.left-sidebar-hidden .right-sidebar"
+  );
+
+  assert.match(
+    swiftSource,
+    /withAnimation\(\.easeInOut\(duration:\s*0\.2\)\)\s*\{[\s\S]*sidebarVisibility = \.all/
+  );
+  assert.match(projectShellBlock, /transition:\s*grid-template-columns 200ms ease-in-out/);
+  assert.match(
+    hiddenLeftSidebarBlock,
+    /grid-template-columns:\s*0px\s+minmax\(0,\s*1fr\)\s+var\(--right-sidebar-width\)/
+  );
+  assert.match(
+    hiddenBothSidebarsBlock,
+    /grid-template-columns:\s*0px\s+minmax\(0,\s*1fr\)\s+0px/
+  );
+  assert.match(hiddenLeftDetailBlock, /grid-column:\s*2/);
+  assert.match(hiddenLeftRightSidebarBlock, /grid-column:\s*3/);
+});
+
 test("right sidebar toolbar visibility toggle mirrors native layout animation", () => {
   const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const cssSource = read("src/renderer/styles.css");
@@ -593,7 +625,7 @@ test("right sidebar toolbar visibility toggle mirrors native layout animation", 
   );
   assert.match(
     hiddenBothSidebarsBlock,
-    /grid-template-columns:\s*minmax\(0,\s*1fr\)\s+0px/
+    /grid-template-columns:\s*0px\s+minmax\(0,\s*1fr\)\s+0px/
   );
 });
 
