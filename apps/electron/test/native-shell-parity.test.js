@@ -325,6 +325,28 @@ test("matches native left-sidebar header structure and typography", () => {
   assert.match(sidebarBlock, /padding:\s*0 0 20px/);
 });
 
+test("matches native file tree zero row spacing", () => {
+  const fileTreeBlock = cssBlock(".file-tree");
+  const treeChildrenBlock = cssBlock(".tree-children");
+  const treeRowBlock = cssBlock(".tree-row");
+
+  assert.match(
+    nativeContentViewSource,
+    /private var sidebar:[\s\S]*VStack\(alignment:\s*\.leading,\s*spacing:\s*0\)[\s\S]*Text\("FILES"\)/
+  );
+  assert.match(
+    nativeContentViewSource,
+    /return AnyView\(VStack\(alignment:\s*\.leading,\s*spacing:\s*0\)[\s\S]*ForEach\(children\)/
+  );
+  assert.match(nativeContentViewSource, /\.padding\(\.vertical,\s*5\)/);
+
+  assert.match(fileTreeBlock, /gap:\s*0/);
+  assert.match(treeChildrenBlock, /gap:\s*0/);
+  assert.match(treeRowBlock, /padding:\s*5px 8px 5px calc\(18px \+ \(var\(--tree-depth,\s*0\) \* 16px\)\)/);
+  assert.doesNotMatch(fileTreeBlock, /gap:\s*1px/);
+  assert.doesNotMatch(treeChildrenBlock, /gap:\s*1px/);
+});
+
 test("hides non-native detail save chrome while preserving save wiring", () => {
   const detailBlock = cssBlock(".detail");
   const sourceFrameBlock = cssBlock(".source-editor-frame");

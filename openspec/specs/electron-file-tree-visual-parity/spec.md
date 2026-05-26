@@ -59,3 +59,12 @@ The Electron file tree SHALL expose native folder help text for directory row to
 - **THEN** their row tooltips match the native SwiftUI `folderTooltip(_:)` strings
 - **AND** `wiki`, `sources`, and `raw` tooltip copy uses the native em dash punctuation
 - **AND** the `site` tooltip remains `Build tooling and compiled HTML output`
+
+### Requirement: File Tree Row Spacing Parity
+The Electron file tree SHALL match the native SwiftUI zero-spacing layout between both root rows and expanded child rows.
+
+#### Scenario: File tree row spacing is inspected
+- **WHEN** the Electron project browser renders root file-tree rows
+- **THEN** the root file-tree container has no inter-row grid gap beyond each row's native padding
+- **AND** expanded child-row containers also have no inter-row grid gap
+- **AND** row padding, indentation, disclosure icons, folder icons, selected-file accent, expansion behavior, and file navigation are unchanged
