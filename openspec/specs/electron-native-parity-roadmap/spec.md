@@ -744,3 +744,11 @@ The migration roadmap SHALL record Electron publish-config refresh fallback pari
 - **WHEN** the Electron publish-config refresh fallback parity change is archived
 - **THEN** retained verification records native Swift `ContentView.loadPublishConfig()` `try?` evidence, Electron publishing source coverage, preserved corrupt-config publish error coverage, package/build/runtime evidence, and release-readiness gate evidence
 - **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation
+
+### Requirement: Info Serif Font Specificity Parity Phase Completion Tracking
+The migration roadmap SHALL record Electron INFO serif font specificity parity as a right-sidebar visual polish phase.
+
+#### Scenario: INFO serif font specificity parity phase is archived
+- **WHEN** the Electron INFO serif font specificity parity change is archived
+- **THEN** retained verification records native Swift `RightSidebar` serif font evidence, Electron CSS specificity coverage, targeted right-sidebar test evidence, package/build/runtime evidence, and release-readiness gate evidence
+- **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation

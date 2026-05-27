@@ -919,7 +919,7 @@ body.resizing-left-sidebar * {
   margin: 0;
   min-width: 0;
   color: var(--color-info-value);
-  font-family: Georgia, serif;
+  font-family: "Fraunces", Georgia, serif;
   font-size: 12px;
   overflow-wrap: anywhere;
   text-align: right;
@@ -942,20 +942,20 @@ body.resizing-left-sidebar * {
   padding-top: 18px;
 }
 
-.info-directions-callout {
+.info-section .info-directions-callout {
   position: relative;
   margin: 0;
   padding: 10px 12px;
   background: color-mix(in srgb, var(--color-accent-gold) 12%, transparent);
   color: var(--color-info-value);
-  font-family: Georgia, serif;
+  font-family: "Fraunces", Georgia, serif;
   font-size: 12px;
   font-style: italic;
   line-height: calc(1.2em + 3px);
   overflow-wrap: anywhere;
 }
 
-.info-directions-callout::before {
+.info-section .info-directions-callout::before {
   position: absolute;
   top: 0;
   bottom: 0;
@@ -971,7 +971,7 @@ body.resizing-left-sidebar * {
   margin: 0;
   padding: 0;
   color: var(--color-linked-text);
-  font-family: Georgia, serif;
+  font-family: "Fraunces", Georgia, serif;
   font-size: 13px;
   list-style: none;
   overflow-wrap: anywhere;

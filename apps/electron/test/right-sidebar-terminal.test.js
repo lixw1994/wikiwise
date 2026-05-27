@@ -20,6 +20,8 @@ function cssBlock(source, selector) {
   return source.match(pattern)?.[1] ?? "";
 }
 
+const nativeSerifStackPattern = /font-family:\s*"Fraunces",\s*Georgia,\s*serif/;
+
 function rootCssBlock(source, selector) {
   const pattern = new RegExp(`${selector}[^\\{]*\\{([^}]+)\\}`);
   return source.match(pattern)?.[1] ?? "";
@@ -220,7 +222,7 @@ test("renderer linked info rows mirror native typography and spacing", () => {
   assert.match(infoLinksBlock, /margin:\s*0/);
   assert.match(infoLinksBlock, /padding:\s*0/);
   assert.match(infoLinksBlock, /color:\s*var\(--color-linked-text\)/);
-  assert.match(infoLinksBlock, /font-family:\s*Georgia,\s*serif/);
+  assert.match(infoLinksBlock, nativeSerifStackPattern);
   assert.match(infoLinksBlock, /font-size:\s*13px/);
   assert.match(infoLinksBlock, /list-style:\s*none/);
   assert.match(infoLinksBlock, /overflow-wrap:\s*anywhere/);
@@ -360,7 +362,7 @@ test("renderer directions info uses native gold callout styling", () => {
   assert.match(directionsBlock, /padding:\s*10px 12px/);
   assert.match(directionsBlock, /background:\s*color-mix\(in srgb,\s*var\(--color-accent-gold\) 12%,\s*transparent\)/);
   assert.match(directionsBlock, /color:\s*var\(--color-info-value\)/);
-  assert.match(directionsBlock, /font-family:\s*Georgia,\s*serif/);
+  assert.match(directionsBlock, nativeSerifStackPattern);
   assert.match(directionsBlock, /font-size:\s*12px/);
   assert.match(directionsBlock, /font-style:\s*italic/);
   assert.match(directionsBlock, /line-height:\s*calc\(1\.2em \+ 3px\)/);
@@ -430,11 +432,27 @@ test("renderer info metadata mirrors native about document section", () => {
   assert.match(infoRowLabelBlock, /font-size:\s*10px/);
   assert.match(infoRowLabelBlock, /font-weight:\s*400/);
   assert.match(infoRowLabelBlock, /color:\s*var\(--color-sidebar-header\)/);
-  assert.match(infoValueBlock, /font-family:\s*Georgia,\s*serif/);
+  assert.match(infoValueBlock, nativeSerifStackPattern);
   assert.match(infoValueBlock, /font-size:\s*12px/);
   assert.match(infoValueBlock, /color:\s*var\(--color-info-value\)/);
   assert.match(infoSectionHeadingBlock, /font-size:\s*9px/);
   assert.match(infoSectionHeadingBlock, /letter-spacing:\s*1\.6px/);
+});
+
+test("renderer directions callout serif font beats generic info paragraph style", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
+  const cssSource = read("src/renderer/styles.css");
+  const genericInfoParagraphBlock = cssBlock(cssSource, ".info-section p");
+  const specificDirectionsBlock = cssBlock(cssSource, ".info-section .info-directions-callout");
+  const genericRuleIndex = cssSource.indexOf(".info-section p");
+  const specificRuleIndex = cssSource.indexOf(".info-section .info-directions-callout");
+
+  assert.match(nativeSource, /Text\(directions\)[\s\S]*\.font\(\.custom\("Fraunces",\s*size:\s*12\)\)/);
+  assert.match(genericInfoParagraphBlock, /font-family:\s*ui-monospace/);
+  assert.notEqual(specificDirectionsBlock, "");
+  assert.match(specificDirectionsBlock, nativeSerifStackPattern);
+  assert.ok(genericRuleIndex >= 0);
+  assert.ok(specificRuleIndex > genericRuleIndex);
 });
 
 test("renderer mirrors native decimal word-count formatting", () => {
