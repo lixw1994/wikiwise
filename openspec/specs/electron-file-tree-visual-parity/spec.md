@@ -68,3 +68,13 @@ The Electron file tree SHALL match the native SwiftUI zero-spacing layout betwee
 - **THEN** the root file-tree container has no inter-row grid gap beyond each row's native padding
 - **AND** expanded child-row containers also have no inter-row grid gap
 - **AND** row padding, indentation, disclosure icons, folder icons, selected-file accent, expansion behavior, and file navigation are unchanged
+
+### Requirement: Special File Row Weight Parity
+
+Electron file-tree rows for native special files SHALL render with the same medium typography weight as native SwiftUI.
+
+#### Scenario: Special file rows are rendered
+- **WHEN** Electron renders file-tree rows for `home.md`, `index.md`, or `log.md`
+- **THEN** those rows use a medium font weight matching native SwiftUI `.medium`
+- **AND** regular file rows remain regular weight
+- **AND** file-tree indentation, selected accent, serif typography, and special filename membership remain unchanged

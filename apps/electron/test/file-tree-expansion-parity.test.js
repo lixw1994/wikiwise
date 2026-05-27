@@ -92,10 +92,20 @@ test("renderer mirrors native folder expansion without loading row chrome", () =
 });
 
 test("renderer includes native file tree visual affordances", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
   const styleSource = read("src/renderer/styles.css");
+  const nativeFileTreeRowSource = nativeSource.slice(
+    nativeSource.indexOf("private func fileTreeRow"),
+    nativeSource.indexOf("// MARK: - Detail")
+  );
+  const specialFileRule = cssBlock(styleSource, ".tree-file-button.special-file");
 
   assert.match(rendererSource, /special-folder/);
+  assert.match(nativeFileTreeRowSource, /let specialFiles:\s*Set<String> = \["home\.md", "index\.md", "log\.md"\]/);
+  assert.match(nativeFileTreeRowSource, /weight:\s*isSpecialFile \? \.medium : \.regular/);
+  assert.match(rendererSource, /\["home\.md", "index\.md", "log\.md"\]\.includes\(node\.name\)/);
+  assert.match(rendererSource, /button\.classList\.add\("special-file"\)/);
   assert.match(rendererSource, /tree-folder-icon/);
   assert.match(rendererSource, /tree-selected-accent/);
   assert.match(rendererSource, /data-selected/);
@@ -104,6 +114,8 @@ test("renderer includes native file tree visual affordances", () => {
   assert.match(styleSource, /\.tree-folder\.special-folder\s+\.tree-folder-icon::after/);
   assert.match(styleSource, /\.tree-selected-accent/);
   assert.match(styleSource, /width:\s*2px/);
+  assert.match(specialFileRule, /font-weight:\s*500/);
+  assert.doesNotMatch(specialFileRule, /font-weight:\s*600/);
 });
 
 test("renderer mirrors native file tree folder tooltip copy", () => {
