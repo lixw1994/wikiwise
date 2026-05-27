@@ -116,15 +116,16 @@ The Electron app SHALL support unpublishing an already published wiki with nativ
 - **THEN** the renderer shows an app-owned confirmation titled `Unpublish wiki?`
 - **AND** the confirmation explains that the wiki will be taken offline and local files are not affected
 - **AND** the confirmation offers `Cancel` and destructive `Unpublish` actions
-- **AND** the destructive confirmation action remains labeled `Unpublish` while unpublishing is in progress
+- **AND** the destructive confirmation action remains labeled `Unpublish` while visible
 - **AND** the confirmation closes through the native cancel keyboard behavior
 - **AND** the renderer does not use the browser `window.confirm` dialog
 
 #### Scenario: Published wiki is unpublished
 - **WHEN** the user confirms unpublish
-- **THEN** the renderer asks preload to unpublish
+- **THEN** the renderer closes the confirmation before asking preload to unpublish
+- **AND** the renderer asks preload to unpublish
+- **AND** the publish toolbar shows the native busy state while unpublish is running
 - **AND** the local publish config state is cleared after success
-- **AND** the confirmation closes after success
 
 ### Requirement: Publish Alert Visual Parity
 The Electron publishing modal feedback SHALL reuse the app dialog surface instead of floating inline page messages.

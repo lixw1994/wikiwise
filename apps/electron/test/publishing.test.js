@@ -355,6 +355,40 @@ test("renderer mirrors native unpublish confirmation action label", () => {
   );
 });
 
+test("renderer mirrors native unpublish confirmation dismissal before request", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const nativeAlertSource =
+    nativeSource.match(/\.alert\("Unpublish wiki\?",[\s\S]*?\} message: \{[\s\S]*?\n\s*\}/)?.[0] ?? "";
+  const confirmUnpublishBody =
+    rendererSource.match(/async function confirmUnpublish\(\) \{([\s\S]*?)\n\}/)?.[1] ?? "";
+
+  assert.notEqual(nativeAlertSource, "");
+  assert.match(
+    nativeAlertSource,
+    /Button\("Unpublish", role: \.destructive\) \{ performUnpublish\(\) \}/
+  );
+  assert.doesNotMatch(nativeAlertSource, /showUnpublishConfirm = false/);
+
+  assert.notEqual(confirmUnpublishBody, "");
+  const closeIndex = confirmUnpublishBody.indexOf("state.isUnpublishConfirmOpen = false;");
+  const renderIndex = confirmUnpublishBody.indexOf("renderPublishFeedback();", closeIndex);
+  const requestIndex = confirmUnpublishBody.indexOf("await window.wikiwise.unpublishSite");
+  const successIndex = confirmUnpublishBody.indexOf("state.publishConfig = await refreshPublishConfig();");
+
+  assert.notEqual(closeIndex, -1);
+  assert.notEqual(renderIndex, -1);
+  assert.notEqual(requestIndex, -1);
+  assert.notEqual(successIndex, -1);
+  assert.ok(closeIndex < requestIndex, "unpublish confirmation should close before preload request starts");
+  assert.ok(renderIndex < requestIndex, "unpublish confirmation close should render before preload request starts");
+  assert.equal(
+    confirmUnpublishBody.indexOf("state.isUnpublishConfirmOpen = false;", requestIndex),
+    -1,
+    "confirmation dismissal should not be delayed until after successful unpublish"
+  );
+});
+
 test("renderer mirrors native publish dialog copy", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const htmlSource = read("src/renderer/index.html");

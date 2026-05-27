@@ -1757,6 +1757,7 @@ async function confirmUnpublish() {
 
   state.isUnpublishing = true;
   state.publishError = null;
+  state.isUnpublishConfirmOpen = false;
   renderPublishStatus();
   renderPublishFeedback();
 
@@ -1767,7 +1768,6 @@ async function confirmUnpublish() {
     state.publishConfig = await refreshPublishConfig();
     state.publishAvailability = "unknown";
     state.isPublishDialogOpen = false;
-    state.isUnpublishConfirmOpen = false;
   } catch (error) {
     state.publishError = error instanceof Error ? error.message : String(error);
   } finally {
