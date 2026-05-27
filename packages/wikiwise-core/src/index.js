@@ -177,7 +177,7 @@ export async function publishSite(options = {}) {
   const siteFolder = path.resolve(options.siteFolder);
   const requestFetch = resolveFetch(options.fetch);
   const now = options.now ?? (() => new Date());
-  const randomSubdomain = options.randomSubdomain ?? (() => randomPublishSubdomain(path.basename(projectRoot)));
+  const randomSubdomain = options.randomSubdomain ?? ((wikiName) => randomPublishSubdomain(wikiName));
   const tokenGenerator = options.tokenGenerator ?? (() => `ww_${randomHex(32)}`);
 
   const existingConfig = loadPublishConfig(projectRoot);
@@ -191,7 +191,7 @@ export async function publishSite(options = {}) {
       config.url = `https://${options.subdomain}.wiki-wise.com`;
     }
   } else {
-    const subdomain = options.subdomain ?? randomSubdomain();
+    const subdomain = options.subdomain ?? randomSubdomain(path.basename(projectRoot));
     config = {
       subdomain,
       token: tokenGenerator(),

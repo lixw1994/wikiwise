@@ -776,6 +776,43 @@ test("renderer inherits native random publish subdomain Unicode prefix behavior 
   );
 });
 
+test("renderer inherits native first-publish conflict retry subdomain behavior from core", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/Publisher.swift");
+  const coreSource = readRepository("packages/wikiwise-core/src/index.js");
+  const nativePublishStart = nativeSource.indexOf(
+    "static func publish(siteFolder: URL, projectRoot: URL, subdomain: String? = nil)"
+  );
+  const nativePublishEnd = nativeSource.indexOf("    // MARK: - Private", nativePublishStart);
+  const nativePublishSource = nativeSource.slice(nativePublishStart, nativePublishEnd);
+  const nativeUploadStart = nativeSource.indexOf("private static func upload", nativePublishEnd);
+  const nativeRandomStart = nativeSource.indexOf("static func randomSubdomain", nativeUploadStart);
+  const nativeUploadSource = nativeSource.slice(nativeUploadStart, nativeRandomStart);
+  const corePublishStart = coreSource.indexOf("export async function publishSite");
+  const corePublishEnd = coreSource.indexOf("export async function unpublishSite", corePublishStart);
+  const corePublishSource = coreSource.slice(corePublishStart, corePublishEnd);
+  const uploadStart = coreSource.indexOf("async function uploadPublishFiles");
+  const headersStart = coreSource.indexOf("function publishHeaders", uploadStart);
+  const uploadSource = coreSource.slice(uploadStart, headersStart);
+
+  assert.notEqual(nativePublishStart, -1);
+  assert.notEqual(nativePublishEnd, -1);
+  assert.notEqual(nativeUploadStart, -1);
+  assert.notEqual(nativeRandomStart, -1);
+  assert.notEqual(corePublishStart, -1);
+  assert.notEqual(corePublishEnd, -1);
+  assert.notEqual(uploadStart, -1);
+  assert.notEqual(headersStart, -1);
+  assert.match(nativePublishSource, /randomSubdomain\(wikiName:\s*projectRoot\.lastPathComponent\)/);
+  assert.match(nativeUploadSource, /case 409:[\s\S]*config\.subdomain = randomSubdomain\(\)/);
+  assert.match(
+    corePublishSource,
+    /const randomSubdomain = options\.randomSubdomain \?\? \(\(wikiName\) => randomPublishSubdomain\(wikiName\)\)/
+  );
+  assert.match(corePublishSource, /const subdomain = options\.subdomain \?\? randomSubdomain\(path\.basename\(projectRoot\)\)/);
+  assert.match(uploadSource, /case 409:[\s\S]*config\.subdomain = randomSubdomain\(\)/);
+  assert.doesNotMatch(corePublishSource, /randomPublishSubdomain\(path\.basename\(projectRoot\)\)/);
+});
+
 test("renderer mirrors native publish availability inline indicator", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const htmlSource = read("src/renderer/index.html");

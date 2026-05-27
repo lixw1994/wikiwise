@@ -215,6 +215,36 @@ test("publishSite uploads native payload, rewrites root home, and saves publish 
   });
 });
 
+test("publishSite retries first-publish subdomain conflicts with native suffix-only candidate", async () => {
+  const parent = tempRoot("wikiwise-publish-conflict-parent-");
+  const projectRoot = path.join(parent, "Collision Wiki");
+  const siteFolder = path.join(projectRoot, "site", "out");
+  const requests = [];
+
+  writeFile(path.join(siteFolder, "home.html"), "<h1>Home</h1>");
+
+  const result = await publishSite({
+    projectRoot,
+    siteFolder,
+    fetch: async (_url, init) => {
+      requests.push(init.headers["X-Subdomain"]);
+      return response(requests.length === 1 ? 409 : 200, {});
+    },
+    now: () => new Date("2026-05-24T10:30:00.000Z"),
+    tokenGenerator: () => "ww_testtoken"
+  });
+
+  assert.equal(requests.length, 2);
+  assert.match(requests[0], /^collision-wiki-[a-z0-9]{6}$/);
+  assert.match(requests[1], /^[a-z0-9]{6}$/);
+  assert.doesNotMatch(requests[1], /collision-wiki/);
+  assert.equal(result.url, `https://${requests[1]}.wiki-wise.com`);
+
+  const savedConfig = JSON.parse(fs.readFileSync(path.join(projectRoot, "publish.json"), "utf8"));
+  assert.equal(savedConfig.subdomain, requests[1]);
+  assert.equal(savedConfig.url, `https://${requests[1]}.wiki-wise.com`);
+});
+
 test("publishSite maps native publish error status codes", async () => {
   const projectRoot = tempRoot("wikiwise-publish-errors-");
   const siteFolder = path.join(projectRoot, "site", "out");
