@@ -5,9 +5,14 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const repositoryRoot = path.resolve(packageRoot, "..", "..");
 
 function read(relativePath) {
   return fs.readFileSync(path.join(packageRoot, relativePath), "utf8");
+}
+
+function readRepository(relativePath) {
+  return fs.readFileSync(path.join(repositoryRoot, relativePath), "utf8");
 }
 
 test("main process exposes path-safe save IPC with markdown recompilation", () => {
@@ -19,6 +24,30 @@ test("main process exposes path-safe save IPC with markdown recompilation", () =
   assert.match(mainSource, /writeActiveFile/);
   assert.match(mainSource, /compileMarkdownFile/);
   assert.match(mainSource, /invalidatePage/);
+});
+
+test("save active-file tracking preserves native no-directory side effect", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const coreSource = readRepository("packages/wikiwise-core/src/index.js");
+  const mainSource = read("src/main/main.js");
+  const nativeWriteActiveSource =
+    nativeSource.match(/private func writeActiveFile\(_ url: URL\) \{[\s\S]*?\n    \}/)?.[0] ?? "";
+  const saveFileSource = mainSource.match(/function saveFile\(payload\) \{[\s\S]*?\n\}/)?.[0] ?? "";
+  const writeActiveFileSource =
+    coreSource.match(/export function writeActiveFile\(projectRoot, filePath\) \{[\s\S]*?\n\}/)?.[0] ?? "";
+
+  assert.notEqual(nativeWriteActiveSource, "");
+  assert.match(nativeWriteActiveSource, /try\? relativePath\.write\(to:\s*activeFile/);
+  assert.doesNotMatch(nativeWriteActiveSource, /createDirectory/);
+
+  assert.notEqual(saveFileSource, "");
+  assert.match(saveFileSource, /const activeFile = writeActiveFile\(projectRoot,\s*filePath\)/);
+  assert.match(saveFileSource, /activeFile,/);
+
+  assert.notEqual(writeActiveFileSource, "");
+  assert.match(writeActiveFileSource, /if \(!fs\.existsSync\(activeFileDirectory\)\) \{/);
+  assert.match(writeActiveFileSource, /written:\s*false/);
+  assert.match(writeActiveFileSource, /writeTextFile\(activeFilePath,\s*relativePath\)/);
 });
 
 test("preload exposes the save API without renderer filesystem access", () => {

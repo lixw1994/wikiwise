@@ -59,14 +59,24 @@ export function writeTextFile(filePath, content) {
 }
 
 export function writeActiveFile(projectRoot, filePath) {
-  const activeFilePath = path.join(projectRoot, ".claude", "active-file");
+  const activeFileDirectory = path.join(projectRoot, ".claude");
+  const activeFilePath = path.join(activeFileDirectory, "active-file");
   const relativePath = path.relative(projectRoot, filePath).split(path.sep).join("/");
+
+  if (!fs.existsSync(activeFileDirectory)) {
+    return {
+      path: activeFilePath,
+      relativePath,
+      written: false
+    };
+  }
 
   writeTextFile(activeFilePath, relativePath);
 
   return {
     path: activeFilePath,
-    relativePath
+    relativePath,
+    written: true
   };
 }
 

@@ -165,3 +165,33 @@ test("renderer treats standalone file opens as non-project service state", () =>
   assert.match(rendererSource, /if \(!isProjectFolder\(\) \|\| !state\.generatedPage\?\.name\) return null;/);
   assert.match(rendererSource, /if \(!isProjectFolder\(\)\) return;/);
 });
+
+test("standalone active-file tracking preserves native no-directory side effect", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const coreSource = readRepository("packages/wikiwise-core/src/index.js");
+  const mainSource = read("src/main/main.js");
+  const rendererSource = read("src/renderer/renderer.js");
+  const nativeWriteActiveSource =
+    nativeSource.match(/private func writeActiveFile\(_ url: URL\) \{[\s\S]*?\n    \}/)?.[0] ?? "";
+  const writeActiveFileSource =
+    coreSource.match(/export function writeActiveFile\(projectRoot, filePath\) \{[\s\S]*?\n\}/)?.[0] ?? "";
+
+  assert.notEqual(nativeWriteActiveSource, "");
+  assert.match(nativeWriteActiveSource, /root\.appendingPathComponent\("\.claude\/active-file"\)/);
+  assert.match(nativeWriteActiveSource, /try\? relativePath\.write\(to:\s*activeFile/);
+  assert.doesNotMatch(nativeWriteActiveSource, /createDirectory/);
+
+  assert.notEqual(writeActiveFileSource, "");
+  assert.match(writeActiveFileSource, /const activeFileDirectory = path\.join\(projectRoot,\s*"\.claude"\)/);
+  assert.match(writeActiveFileSource, /if \(!fs\.existsSync\(activeFileDirectory\)\) \{/);
+  assert.match(writeActiveFileSource, /written:\s*false/);
+
+  assert.match(
+    nativeSource,
+    /else\s*\{\s*rootURL = url\.deletingLastPathComponent\(\)\s*tree = \[\]\s*selectedFileURL = url\s*loadFile\(url\)/
+  );
+  assert.match(mainSource, /const projectKind = isDirectory \? "folder" : "file";/);
+  assert.match(mainSource, /setWebContentsProjectRoot\(webContents,\s*isDirectory \? projectRoot : null\)/);
+  assert.match(rendererSource, /await setActiveSelectedFile\(\)/);
+  assert.match(mainSource, /function setActiveFile\(payload\)[\s\S]*return writeActiveFile\(projectRoot,\s*filePath\)/);
+});
