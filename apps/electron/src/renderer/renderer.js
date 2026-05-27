@@ -454,7 +454,6 @@ async function openExisting() {
 
 async function selectFile(node, options = {}) {
   setError(null);
-  state.showPostCreateGuide = false;
   const isActiveFileReselect = state.selectedFile?.path === node.path;
   if (options.pushHistory !== false && !isActiveFileReselect) {
     pushHistoryEntry(currentHistoryEntry());
@@ -1332,7 +1331,6 @@ function showGeneratedPage(generatedPage, options = {}) {
     state.forwardHistory = [];
   }
 
-  state.showPostCreateGuide = false;
   state.selectedFile = null;
   state.documentInfo = null;
   state.generatedPage = generatedPage;

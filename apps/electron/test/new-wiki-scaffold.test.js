@@ -24,6 +24,16 @@ function cssBlock(source, selector) {
   return source.match(pattern)?.[1] ?? "";
 }
 
+function sourceBetween(source, startSignature, endSignature) {
+  const start = source.indexOf(startSignature);
+  const end = source.indexOf(endSignature, start + startSignature.length);
+
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+
+  return source.slice(start, end);
+}
+
 function rendererFunction(name, nextName) {
   const source = read("src/renderer/renderer.js");
   const start = source.indexOf(`function ${name}`);
@@ -909,4 +919,48 @@ test("renderer mirrors native post-create guide dismiss home selection", () => {
   assert.match(dismissFunctionSource, /if \(homeNode\) \{[\s\S]*?await selectFile\(homeNode,\s*\{\s*pushHistory:\s*false\s*\}\)[\s\S]*?return/);
   assert.match(dismissFunctionSource, /renderDetail\(\)/);
   assert.match(rendererSource, /dismissPostCreateGuideButton\.addEventListener\("click",\s*\(\) => \{[\s\S]*?dismissPostCreateGuide\(\)\.catch\(setError\)/);
+});
+
+test("renderer keeps post-create guide visible across incidental navigation like native", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const nativeNavigateSource = sourceBetween(
+    nativeSource,
+    "private func navigateTo(_ url: URL)",
+    "private func goBack()"
+  );
+  const nativeMapToolbarSource = sourceBetween(
+    nativeSource,
+    "// Navigate to 3D map",
+    ".help(\"Open 3D Map\")"
+  );
+  const postCreateGuideSource = sourceBetween(
+    nativeSource,
+    "private func postCreateGuide(wikiURL: URL) -> some View",
+    "    @ViewBuilder\n    private func agentCommand"
+  );
+  const selectFileSource = sourceBetween(
+    rendererSource,
+    "async function selectFile(node, options = {})",
+    "function setSelectedFile"
+  );
+  const showGeneratedPageSource = sourceBetween(
+    rendererSource,
+    "function showGeneratedPage(generatedPage, options = {})",
+    "async function navigateBack"
+  );
+  const dismissFunctionSource = sourceBetween(
+    rendererSource,
+    "async function dismissPostCreateGuide()",
+    "async function loadAppSettings"
+  );
+
+  assert.equal((nativeSource.match(/^\s*showPostCreateGuide = false/gm) ?? []).length, 1);
+  assert.match(postCreateGuideSource, /Button\("Got it — start reading"\)[\s\S]*showPostCreateGuide = false/);
+  assert.doesNotMatch(nativeNavigateSource, /showPostCreateGuide/);
+  assert.doesNotMatch(nativeMapToolbarSource, /showPostCreateGuide/);
+
+  assert.doesNotMatch(selectFileSource, /state\.showPostCreateGuide = false/);
+  assert.doesNotMatch(showGeneratedPageSource, /state\.showPostCreateGuide = false/);
+  assert.match(dismissFunctionSource, /state\.showPostCreateGuide = false/);
 });
