@@ -280,7 +280,6 @@ function renderNode(node, depth) {
 
   if (node.isDirectory) {
     const isExpanded = state.expandedTreePaths.has(node.path);
-    const isLoading = state.treeLoadingPaths.has(node.path);
     const disclosure = document.createElement("span");
     const folderIcon = document.createElement("span");
     const label = document.createElement("span");
@@ -288,9 +287,8 @@ function renderNode(node, depth) {
     button.className = "tree-row tree-folder-button";
     button.title = folderTooltip(node.name);
     button.setAttribute("aria-expanded", String(isExpanded));
-    button.disabled = isLoading;
     disclosure.className = "tree-disclosure";
-    disclosure.textContent = isLoading ? "..." : (isExpanded ? "▾" : "▸");
+    disclosure.textContent = isExpanded ? "▾" : "▸";
     folderIcon.className = "tree-folder-icon";
     folderIcon.setAttribute("aria-hidden", "true");
     label.className = "tree-label";
@@ -371,6 +369,7 @@ function folderTooltip(name) {
 
 async function toggleTreeFolder(node) {
   if (!node?.isDirectory) return;
+  if (state.treeLoadingPaths.has(node.path)) return;
 
   if (state.expandedTreePaths.has(node.path)) {
     state.expandedTreePaths.delete(node.path);
@@ -392,7 +391,6 @@ async function expandProjectTreeFolder(node, options = {}) {
   }
 
   state.treeLoadingPaths.add(node.path);
-  if (options.render !== false) renderTree(state.tree);
 
   try {
     const children = await window.wikiwise.expandTreeDirectory({

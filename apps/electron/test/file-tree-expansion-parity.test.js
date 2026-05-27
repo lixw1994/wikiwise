@@ -68,6 +68,29 @@ test("renderer renders expandable nested file tree rows", () => {
   assert.match(styleSource, /padding-left:\s*calc\(/);
 });
 
+test("renderer mirrors native folder expansion without loading row chrome", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const nativeFileTreeRowSource = nativeSource.slice(
+    nativeSource.indexOf("private func fileTreeRow"),
+    nativeSource.indexOf("// MARK: - Detail")
+  );
+  const renderNodeSource =
+    rendererSource.match(/function renderNode\(node, depth\) \{[\s\S]*?\n\}\n\nfunction normalizeTreeNodes/)?.[0] ?? "";
+
+  assert.notEqual(nativeFileTreeRowSource, "");
+  assert.match(nativeFileTreeRowSource, /Text\(isExpanded \? "▾" : "▸"\)/);
+  assert.match(nativeFileTreeRowSource, /expandNode\(node\)/);
+  assert.doesNotMatch(nativeFileTreeRowSource, /\.\.\./);
+  assert.doesNotMatch(nativeFileTreeRowSource, /\.disabled/);
+
+  assert.notEqual(renderNodeSource, "");
+  assert.match(renderNodeSource, /disclosure\.textContent = isExpanded \? "▾" : "▸";/);
+  assert.doesNotMatch(renderNodeSource, /state\.treeLoadingPaths\.has\(node\.path\)/);
+  assert.doesNotMatch(renderNodeSource, /button\.disabled = isLoading/);
+  assert.doesNotMatch(renderNodeSource, /isLoading \? "\.\.\."/);
+});
+
 test("renderer includes native file tree visual affordances", () => {
   const rendererSource = read("src/renderer/renderer.js");
   const styleSource = read("src/renderer/styles.css");
