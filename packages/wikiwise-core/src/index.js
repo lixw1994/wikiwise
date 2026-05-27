@@ -370,9 +370,9 @@ export function summarizeWatchEvents({ projectRoot, outputDir, events }) {
 
     if (relativePath === ".rebuild" && !event.removed) {
       rebuildTriggered = true;
-    } else if (/\.css$/i.test(eventPath)) {
+    } else if (eventPath.endsWith(".css")) {
       cssChanged = true;
-    } else if (/\.md$/i.test(eventPath)) {
+    } else if (eventPath.endsWith(".md")) {
       if (event.eventType === "rename" || event.created || event.removed || event.renamed) {
         structureChanged = true;
       } else {

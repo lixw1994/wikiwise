@@ -5,9 +5,14 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const repositoryRoot = path.resolve(packageRoot, "..", "..");
 
 function read(relativePath) {
   return fs.readFileSync(path.join(packageRoot, relativePath), "utf8");
+}
+
+function readRepository(relativePath) {
+  return fs.readFileSync(path.join(repositoryRoot, relativePath), "utf8");
 }
 
 test("main process owns debounced project watchers and sends change summaries", () => {
@@ -23,6 +28,23 @@ test("main process owns debounced project watchers and sends change summaries", 
   assert.match(mainSource, /wikiwise:projectChanged/);
   assert.match(mainSource, /\.rebuild/);
   assert.match(mainSource, /fs\.(rmSync|unlinkSync)/);
+});
+
+test("shared watch summaries mirror native case-sensitive markdown and CSS suffixes", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/FileWatcher.swift");
+  const coreSource = readRepository("packages/wikiwise-core/src/index.js");
+  const mainSource = read("src/main/main.js");
+  const summarizeWatchEventsSource =
+    coreSource.match(/export function summarizeWatchEvents\(\{[\s\S]*?\n\}/)?.[0] ?? "";
+
+  assert.match(nativeSource, /path\.hasSuffix\("\.css"\)/);
+  assert.match(nativeSource, /path\.hasSuffix\("\.md"\)/);
+  assert.notEqual(summarizeWatchEventsSource, "");
+  assert.match(summarizeWatchEventsSource, /eventPath\.endsWith\("\.css"\)/);
+  assert.match(summarizeWatchEventsSource, /eventPath\.endsWith\("\.md"\)/);
+  assert.doesNotMatch(summarizeWatchEventsSource, /\/\\\.css\$\/i/);
+  assert.doesNotMatch(summarizeWatchEventsSource, /\/\\\.md\$\/i/);
+  assert.match(mainSource, /summarizeWatchEvents\(\{[\s\S]*projectRoot:\s*resolvedRoot[\s\S]*outputDir:\s*compiler\.outputDir/);
 });
 
 test("main process compile IPC accepts invalidation and CSS reload refresh flags", () => {
