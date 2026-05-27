@@ -1758,6 +1758,7 @@ async function confirmUnpublish() {
       projectRoot: state.currentProject.projectRoot
     });
     state.publishConfig = await refreshPublishConfig();
+    state.publishSubdomain = "";
     state.publishAvailability = "unknown";
     state.isPublishDialogOpen = false;
   } catch (error) {

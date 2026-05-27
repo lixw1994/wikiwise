@@ -117,7 +117,7 @@ The Electron app SHALL surface publish success and failure to the user using nat
 - **AND** publishing controls are re-enabled
 
 ### Requirement: Unpublish Flow
-The Electron app SHALL support unpublishing an already published wiki with native-like destructive confirmation.
+The Electron app SHALL support unpublishing an already published wiki with native-like destructive confirmation and native success-state reset behavior.
 
 #### Scenario: Published wiki asks for unpublish confirmation
 - **WHEN** a project has publish config and the user selects `Unpublish…`
@@ -134,6 +134,8 @@ The Electron app SHALL support unpublishing an already published wiki with nativ
 - **AND** the renderer asks preload to unpublish
 - **AND** the publish toolbar shows the native busy state while unpublish is running
 - **AND** the local publish config state is cleared after success
+- **AND** the publish subdomain draft is cleared after success
+- **AND** the publish availability state is reset after success
 
 ### Requirement: Publish Alert Visual Parity
 The Electron publishing modal feedback SHALL reuse the app dialog surface instead of floating inline page messages.
@@ -399,3 +401,4 @@ Electron publishing state refresh SHALL mirror native `ContentView.loadPublishCo
 - **WHEN** Electron publishes or unpublishes a project whose `publish.json` is malformed
 - **THEN** the existing native corrupt-config publish error is still surfaced
 - **AND** the refresh fallback does not hide user-action failures
+

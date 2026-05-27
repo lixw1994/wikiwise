@@ -389,6 +389,32 @@ test("renderer mirrors native unpublish confirmation dismissal before request", 
   );
 });
 
+test("renderer mirrors native unpublish success draft reset", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const nativeUnpublishSource =
+    nativeSource.match(/private func performUnpublish\(\) \{[\s\S]*?\n    \}/)?.[0] ?? "";
+  const confirmUnpublishBody =
+    rendererSource.match(/async function confirmUnpublish\(\) \{([\s\S]*?)\n\}/)?.[1] ?? "";
+
+  assert.notEqual(nativeUnpublishSource, "");
+  assert.match(nativeUnpublishSource, /try await Publisher\.unpublish\(projectRoot:\s*root\)/);
+  assert.match(nativeUnpublishSource, /publishConfig = nil/);
+  assert.match(nativeUnpublishSource, /pendingSubdomain = ""/);
+  assert.match(nativeUnpublishSource, /subdomainAvailability = \.unknown/);
+
+  assert.notEqual(confirmUnpublishBody, "");
+  assert.match(confirmUnpublishBody, /await window\.wikiwise\.unpublishSite/);
+  assert.match(confirmUnpublishBody, /state\.publishConfig = await refreshPublishConfig\(\)/);
+  assert.match(confirmUnpublishBody, /state\.publishSubdomain = "";/);
+  assert.match(confirmUnpublishBody, /state\.publishAvailability = "unknown";/);
+  assert.ok(
+    confirmUnpublishBody.indexOf("state.publishSubdomain = \"\";") >
+      confirmUnpublishBody.indexOf("await window.wikiwise.unpublishSite"),
+    "publish draft reset should only happen after the unpublish request succeeds"
+  );
+});
+
 test("renderer mirrors native publish dialog copy", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const htmlSource = read("src/renderer/index.html");
