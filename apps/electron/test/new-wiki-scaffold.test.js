@@ -258,7 +258,7 @@ test("renderer mirrors native new-wiki location middle truncation", () => {
 });
 
 test("renderer middle-truncates Unicode new-wiki locations without splitting characters", () => {
-  const middleTruncatePath = rendererFunction("middleTruncatePath", "clearAutosave");
+  const middleTruncatePath = rendererFunction("middleTruncatePath", "loadScriptOnce");
   const longPath = "\u{10400}".repeat(8);
   const shortPath = "\u{10400}".repeat(3);
   const truncated = middleTruncatePath(longPath, 7);

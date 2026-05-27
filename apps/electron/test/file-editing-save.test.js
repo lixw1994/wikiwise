@@ -96,23 +96,35 @@ test("renderer uses shared CodeMirror iframe for source editing, save, and scrol
   assert.match(rendererSource, /isDirty/);
   assert.match(rendererSource, /lastSavedContent/);
   assert.match(rendererSource, /saveSelectedFile/);
-  assert.match(rendererSource, /scheduleAutosave/);
   assert.match(rendererSource, /keydown/);
   assert.match(rendererSource, /metaKey/);
   assert.match(rendererSource, /wikiwise\.saveFile/);
 });
 
-test("renderer ignores empty editor content changes like native EditorWebView", () => {
+test("renderer mirrors native editor save timing after shared bridge debounce", () => {
   const nativeSource = readRepository("Sources/Wikiwise/EditorWebView.swift");
+  const editorBundleSource = readRepository("Sources/Wikiwise/Resources/codemirror-bundle.js");
   const rendererSource = read("src/renderer/renderer.js");
   const handleEditorContentChangedSource =
     rendererSource.match(/function handleEditorContentChanged\(content\) \{[\s\S]*?\n\}/)?.[0] ?? "";
+  const saveSelectedFileSource =
+    rendererSource.match(/async function saveSelectedFile\(\) \{[\s\S]*?\n\}\n\nfunction hasCompiledPreview/)?.[0] ?? "";
+  const nativeContentChangedSource =
+    nativeSource.match(/case "contentChanged":[\s\S]*?default:/)?.[0] ?? "";
 
   assert.match(
     nativeSource,
     /guard let content = message\.body as\? String,\s*!content\.isEmpty,\s*let fileURL = currentFileURL else \{ return \}/
   );
   assert.match(nativeSource, /never save empty content/);
+  assert.notEqual(nativeContentChangedSource, "");
+  assert.match(nativeContentChangedSource, /try\? content\.write\(to:\s*fileURL/);
+  assert.ok(
+    nativeContentChangedSource.indexOf("try? content.write") <
+      nativeContentChangedSource.indexOf("DispatchQueue.main.async"),
+    "native writes the editor payload before dispatching UI state updates"
+  );
+  assert.match(editorBundleSource, /setTimeout\(function\(\)\{window\.webkit[\s\S]*contentChanged[\s\S]*\},500\)/);
 
   assert.notEqual(handleEditorContentChangedSource, "");
   assert.match(handleEditorContentChangedSource, /const nextContent = String\(content \?\? ""\)/);
@@ -120,7 +132,11 @@ test("renderer ignores empty editor content changes like native EditorWebView", 
   assert.match(handleEditorContentChangedSource, /file\.draftContent = nextContent/);
   assert.match(handleEditorContentChangedSource, /state\.editorLoadedContent = file\.draftContent/);
   assert.match(handleEditorContentChangedSource, /file\.isDirty = file\.draftContent !== file\.lastSavedContent/);
-  assert.match(handleEditorContentChangedSource, /scheduleAutosave\(\)/);
+  assert.match(handleEditorContentChangedSource, /saveSelectedFile\(\{ reason: "editorContentChanged" \}\)/);
+  assert.doesNotMatch(handleEditorContentChangedSource, /scheduleAutosave\(\)/);
+  assert.notEqual(saveSelectedFileSource, "");
+  assert.match(saveSelectedFileSource, /if \(state\.selectedFile\.isDirty\) \{\s*saveSelectedFile\(\{ reason: "followUp" \}\);/);
+  assert.doesNotMatch(rendererSource, /setTimeout\(\(\) => \{[\s\S]*saveSelectedFile\(\{ reason: "debounce" \}\)/);
   assert.doesNotMatch(handleEditorContentChangedSource, /file\.draftContent = String\(content \?\? ""\)/);
 });
 

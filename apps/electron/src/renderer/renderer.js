@@ -131,7 +131,6 @@ const state = {
   backHistory: [],
   forwardHistory: [],
   appCommandCleanup: null,
-  autosaveTimer: null,
   editorResourceUrl: "",
   sourceEditorFrameReady: false,
   editorLoadedFilePath: "",
@@ -189,13 +188,6 @@ function middleTruncatePath(pathValue, maxLength = newWikiLocationDisplayLimit) 
   const headLength = Math.ceil(availableLength / 2);
   const tailLength = Math.floor(availableLength / 2);
   return `${pathCharacters.slice(0, headLength).join("")}…${pathCharacters.slice(-tailLength).join("")}`;
-}
-
-function clearAutosave() {
-  if (state.autosaveTimer) {
-    clearTimeout(state.autosaveTimer);
-    state.autosaveTimer = null;
-  }
 }
 
 async function loadEditorResource() {
@@ -500,7 +492,6 @@ async function selectFile(node, options = {}) {
 
 function setSelectedFile(file, options = {}) {
   captureEditorScrollFraction();
-  clearAutosave();
   state.documentInfo = null;
   state.generatedPage = null;
   state.selectedFile = file
@@ -1324,7 +1315,6 @@ function showGeneratedPage(generatedPage, options = {}) {
     state.forwardHistory = [];
   }
 
-  clearAutosave();
   state.showPostCreateGuide = false;
   state.selectedFile = null;
   state.documentInfo = null;
@@ -2061,7 +2051,7 @@ function handleEditorContentChanged(content) {
   state.editorLoadedContent = file.draftContent;
   file.isDirty = file.draftContent !== file.lastSavedContent;
   renderSaveState();
-  scheduleAutosave();
+  saveSelectedFile({ reason: "editorContentChanged" });
 }
 
 function handleEditorMessage(event) {
@@ -2076,21 +2066,10 @@ function handleEditorMessage(event) {
   }
 }
 
-function scheduleAutosave() {
-  clearAutosave();
-  if (!state.selectedFile?.isDirty) return;
-
-  state.autosaveTimer = setTimeout(() => {
-    state.autosaveTimer = null;
-    saveSelectedFile({ reason: "debounce" });
-  }, 500);
-}
-
 async function saveSelectedFile() {
   const file = state.selectedFile;
   if (!file || !file.isDirty || file.isSaving) return;
 
-  clearAutosave();
   syncEditorContentToSelectedFile();
   const savedPath = file.path;
   const savedContent = file.draftContent;
@@ -2116,7 +2095,7 @@ async function saveSelectedFile() {
 
     renderDetail();
     if (state.selectedFile.isDirty) {
-      scheduleAutosave();
+      saveSelectedFile({ reason: "followUp" });
     }
     if (isMarkdownFile(savedPath) && result.compiled && state.detailMode === "wiki") {
       renderPreview();
