@@ -51,6 +51,54 @@ test("main process owns terminal lifecycle and sends output events", () => {
   assert.doesNotMatch(mainSource, /from "node:child_process"/);
 });
 
+test("main process starts right sidebar terminal as native login shell without changing lifecycle", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/TerminalEmbed.swift");
+  const mainSource = read("src/main/main.js");
+  const startTerminalStart = mainSource.indexOf("function startTerminal");
+  const normalizeStart = mainSource.indexOf("function normalizeTerminalSize", startTerminalStart);
+  const resizeStart = mainSource.indexOf("function resizeTerminal", normalizeStart);
+  const closeStart = mainSource.indexOf("function closeTerminal", resizeStart);
+  const startTerminalSource = mainSource.slice(startTerminalStart, normalizeStart);
+  const resizeSource = mainSource.slice(resizeStart, closeStart);
+
+  assert.notEqual(startTerminalStart, -1);
+  assert.notEqual(normalizeStart, -1);
+  assert.notEqual(resizeStart, -1);
+  assert.notEqual(closeStart, -1);
+  assert.match(nativeSource, /let shell = ProcessInfo\.processInfo\.environment\["SHELL"\] \?\? "\/bin\/zsh"/);
+  assert.match(nativeSource, /executable:\s*shell/);
+  assert.match(nativeSource, /args:\s*\[\]/);
+  assert.ok(
+    nativeSource.includes('execName: "-\\((shell as NSString).lastPathComponent)"'),
+    "Native SwiftTerm should request login-shell semantics with a leading-dash execName"
+  );
+  assert.match(nativeSource, /currentDirectory:\s*cwd/);
+
+  assert.match(
+    mainSource,
+    /function loginShellArgs\(\)\s*\{[\s\S]*process\.platform === "win32"[\s\S]*return \[\][\s\S]*return \["-l"\]/
+  );
+  assert.match(
+    startTerminalSource,
+    /const shellPath = process\.env\.SHELL \|\| process\.env\.ComSpec \|\| \(process\.platform === "win32" \? "cmd\.exe" : "\/bin\/zsh"\)/
+  );
+  assert.match(startTerminalSource, /const shellArgs = loginShellArgs\(\)/);
+  assert.match(startTerminalSource, /pty\.spawn\(shellPath,\s*shellArgs,\s*\{/);
+  assert.doesNotMatch(startTerminalSource, /pty\.spawn\(shellPath,\s*\[\]/);
+  assert.match(startTerminalSource, /const \{ cols, rows \} = normalizeTerminalSize\(payload\)/);
+  assert.match(startTerminalSource, /name:\s*"xterm-256color"/);
+  assert.match(startTerminalSource, /cwd:\s*resolvedRoot/);
+  assert.match(startTerminalSource, /TERM:\s*"xterm-256color"/);
+  assert.match(startTerminalSource, /COLORTERM:\s*"truecolor"/);
+  assert.match(startTerminalSource, /terminalSessionsByWebContents\.set\(webContentsId, session\)/);
+  assert.match(startTerminalSource, /ptyProcess\.onData\(\(data\) => sendOutput\("pty", data\)\)/);
+  assert.match(startTerminalSource, /ptyProcess\.onExit\(\(\{ exitCode, signal \}\) =>/);
+  assert.match(startTerminalSource, /webContents\.once\("destroyed", \(\) => closeTerminal\(webContentsId\)\)/);
+  assert.match(resizeSource, /session\.process\.resize\(cols, rows\)/);
+  assert.match(resizeSource, /session\.cols = cols/);
+  assert.match(resizeSource, /session\.rows = rows/);
+});
+
 test("preload exposes document info and terminal APIs with output listener cleanup", () => {
   const preloadSource = read("src/preload/preload.cjs");
 

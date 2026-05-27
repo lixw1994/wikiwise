@@ -878,7 +878,8 @@ function startTerminal(webContents, payload) {
 
   const { cols, rows } = normalizeTerminalSize(payload);
   const shellPath = process.env.SHELL || process.env.ComSpec || (process.platform === "win32" ? "cmd.exe" : "/bin/zsh");
-  const ptyProcess = pty.spawn(shellPath, [], {
+  const shellArgs = loginShellArgs();
+  const ptyProcess = pty.spawn(shellPath, shellArgs, {
     name: "xterm-256color",
     cols,
     rows,
@@ -925,6 +926,14 @@ function startTerminal(webContents, payload) {
     cols,
     rows
   };
+}
+
+function loginShellArgs() {
+  if (process.platform === "win32") {
+    return [];
+  }
+
+  return ["-l"];
 }
 
 function normalizeTerminalSize(payload) {

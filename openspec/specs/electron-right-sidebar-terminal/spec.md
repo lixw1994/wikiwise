@@ -30,13 +30,14 @@ The Electron right sidebar SHALL show selected-document metadata matching native
 
 ### Requirement: Terminal Tab
 
-The Electron right sidebar SHALL provide a PTY-backed interactive shell surface rooted at the opened project.
+The Electron right sidebar SHALL provide a PTY-backed interactive login-shell surface rooted at the opened project.
 
 #### Scenario: Project terminal starts
 
 - **WHEN** a project is opened or created
 - **THEN** the renderer asks preload to start a terminal for the project root
 - **AND** the main process starts a PTY session in that project root
+- **AND** the PTY starts the user's resolved shell with native login-shell semantics matching SwiftTerm's leading-dash `execName`
 - **AND** the terminal tab renders shell output through a terminal emulator surface
 - **AND** keyboard input entered in the terminal emulator is sent to the PTY session
 
@@ -272,3 +273,12 @@ The Electron right sidebar SHALL animate project layout changes when the toolbar
 - **THEN** Electron transitions the project layout over 200ms ease-in-out while the detail area expands or contracts
 - **AND** the hidden right-sidebar layout uses a zero-width right-sidebar track so the layout can interpolate from the visible sidebar width
 - **AND** toolbar button labels, selected state, right-sidebar tab state, terminal behavior, Info tab behavior, saved width, and resizing behavior are unchanged
+
+### Requirement: Terminal Login Shell Parity
+The Electron project terminal SHALL mirror the native SwiftTerm login-shell startup contract.
+
+#### Scenario: Project terminal shell is spawned
+- **WHEN** Electron starts the project terminal on macOS/non-Windows platforms
+- **THEN** it launches the resolved user shell as a login shell
+- **AND** it keeps the opened project root as the PTY working directory
+- **AND** terminal dimensions, environment, output routing, cleanup, and resize behavior remain unchanged
