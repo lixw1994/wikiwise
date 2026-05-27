@@ -1399,6 +1399,7 @@ async function reloadSelectedFileFromDisk(filePath) {
     state.selectedFile.lastSavedContent = content;
     state.selectedFile.isDirty = false;
     renderDetail();
+    await setActiveSelectedFile(filePath);
     await refreshDocumentInfo();
     return true;
   }
@@ -1421,6 +1422,7 @@ async function refreshCurrentView() {
     state.selectedFile.lastSavedContent = content;
     state.selectedFile.isDirty = false;
     renderDetail();
+    await setActiveSelectedFile(selectedPath);
     await refreshDocumentInfo();
   }
 }
@@ -1995,6 +1997,7 @@ async function refreshSelectedMarkdown(options = {}) {
   if (state.selectedFile?.path === refreshedPath) {
     state.selectedFile.compiled = compiled;
     renderDetail();
+    await setActiveSelectedFile(refreshedPath);
   }
   return compiled;
 }

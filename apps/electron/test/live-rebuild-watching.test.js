@@ -175,3 +175,35 @@ test("renderer starts watching projects and refreshes tree, source, and preview 
   assert.match(rendererSource, /invalidate/);
   assert.match(rendererSource, /!state\.selectedFile\.isDirty/);
 });
+
+test("watcher selected-source refreshes rewrite active-file marker like native loadFile", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const recompileCurrentPageSource =
+    nativeSource.match(/private func recompileCurrentPage\(_ c: Compiler\) \{[\s\S]*?\n    \}/)?.[0] ?? "";
+  const handleProjectChangedSource =
+    rendererSource.match(/async function handleProjectChanged\(change\) \{[\s\S]*?\n\}\n\nasync function refreshSelectedMarkdown/)?.[0] ?? "";
+  const refreshSelectedMarkdownSource =
+    rendererSource.match(/async function refreshSelectedMarkdown\(options = \{\}\) \{[\s\S]*?\n\}/)?.[0] ?? "";
+  const reloadSelectedFileSource =
+    rendererSource.match(/async function reloadSelectedFileFromDisk\(filePath\) \{[\s\S]*?\n\}/)?.[0] ?? "";
+
+  assert.match(nativeSource, /private func loadFile\(_ url: URL\) \{[\s\S]*writeActiveFile\(url\)/);
+  assert.notEqual(recompileCurrentPageSource, "");
+  assert.match(recompileCurrentPageSource, /loadFile\(url\)/);
+  assert.match(nativeSource, /case \.css:[\s\S]*if selectedFileURL != nil \{\s*recompileCurrentPage\(c\)\s*\}/);
+  assert.match(nativeSource, /case \.markdown\(let changedPaths\):[\s\S]*changedPaths\.contains\(current\.path\) \{\s*recompileCurrentPage\(c\)\s*\}/);
+  assert.match(nativeSource, /case \.rebuild:[\s\S]*if selectedFileURL != nil \{\s*recompileCurrentPage\(c\)\s*\}/);
+
+  assert.notEqual(handleProjectChangedSource, "");
+  assert.match(handleProjectChangedSource, /selectedMarkdownChanged && state\.selectedFile && !state\.selectedFile\.isDirty/);
+  assert.match(handleProjectChangedSource, /selectedNonMarkdownSourceChanged && state\.selectedFile && !state\.selectedFile\.isDirty/);
+  assert.match(handleProjectChangedSource, /refreshSelectedMarkdown\(\{[\s\S]*invalidate:\s*true[\s\S]*reloadCSS:\s*Boolean\(change\.cssChanged\)/);
+
+  assert.notEqual(refreshSelectedMarkdownSource, "");
+  assert.match(refreshSelectedMarkdownSource, /await setActiveSelectedFile\(refreshedPath\)/);
+  assert.notEqual(reloadSelectedFileSource, "");
+  assert.match(reloadSelectedFileSource, /await setActiveSelectedFile\(filePath\)/);
+  assert.match(reloadSelectedFileSource, /await refreshDocumentInfo\(\)/);
+  assert.doesNotMatch(handleProjectChangedSource, /refreshGeneratedPage\(/);
+});

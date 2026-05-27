@@ -212,6 +212,41 @@ test("manual Refresh Page command reloads selected source files like native", ()
   assert.doesNotMatch(rendererRefreshSource, /refreshGeneratedPage\(/);
 });
 
+test("manual Refresh Page rewrites active-file marker like native loadFile", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const nativeLoadFileSource = sourceBetween(
+    nativeSource,
+    "private func loadFile(_ url: URL)",
+    "    /// Write the currently open file path"
+  );
+  const nativeRefreshSource = sourceBetween(
+    nativeSource,
+    "private func recompileCurrentPage(_ c: Compiler)",
+    "    // MARK: - Publish"
+  );
+  const rendererRefreshSource = sourceBetween(
+    rendererSource,
+    "async function refreshCurrentView()",
+    "function attachPreviewNavigation"
+  );
+  const rendererMarkdownRefreshSource = sourceBetween(
+    rendererSource,
+    "async function refreshSelectedMarkdown(options = {})",
+    "function compileMarkdownPreview"
+  );
+
+  assert.match(nativeLoadFileSource, /writeActiveFile\(url\)/);
+  assert.match(nativeRefreshSource, /guard let url = selectedFileURL else \{ return \}/);
+  assert.match(nativeRefreshSource, /loadFile\(url\)/);
+  assert.match(rendererRefreshSource, /refreshSelectedMarkdown\(\{ invalidate:\s*true \}\)/);
+  assert.match(rendererMarkdownRefreshSource, /await setActiveSelectedFile\(refreshedPath\)/);
+  assert.match(rendererRefreshSource, /const selectedPath = state\.selectedFile\.path/);
+  assert.match(rendererRefreshSource, /window\.wikiwise\.readFile\(selectedPath\)/);
+  assert.match(rendererRefreshSource, /await setActiveSelectedFile\(selectedPath\)/);
+  assert.doesNotMatch(rendererRefreshSource, /refreshGeneratedPage\(/);
+});
+
 test("watcher-driven output changes leave active generated pages unchanged like native", () => {
   const nativeContentSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const nativeWebViewSource = readRepository("Sources/Wikiwise/WebView.swift");
