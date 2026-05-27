@@ -177,6 +177,38 @@ test("renderer mirrors native selected file accent height", () => {
   assert.doesNotMatch(selectedAccentRule, /bottom:\s*5px/);
 });
 
+test("renderer mirrors native folder icon scaled geometry", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const styleSource = read("src/renderer/styles.css");
+  const nativeFolderIconSource =
+    nativeSource.match(/struct FolderIcon:[\s\S]*?\/\/ Paper design palette/)?.[0] ?? "";
+  const nativeFileTreeRowSource = nativeSource.slice(
+    nativeSource.indexOf("private func fileTreeRow"),
+    nativeSource.indexOf("// MARK: - Detail")
+  );
+  const folderIconRule = cssBlock(styleSource, ".tree-folder-icon");
+  const specialFolderDotRule = cssBlock(styleSource, ".tree-folder.special-folder .tree-folder-icon::after");
+
+  assert.match(
+    nativeFileTreeRowSource,
+    /FolderIcon\(size:\s*13,\s*isSpecial:\s*node\.name == "raw" \|\| node\.name == "site"\)/
+  );
+  assert.match(nativeFolderIconSource, /\.frame\(width:\s*size,\s*height:\s*size \* \(12\.0 \/ 14\.0\)\)/);
+  assert.match(nativeFolderIconSource, /x:\s*\(7\.0 - 1\.5\) \* s,\s*y:\s*\(7\.0 - 1\.5\) \* s/);
+  assert.match(nativeFolderIconSource, /width:\s*3\.0 \* s,\s*height:\s*3\.0 \* s/);
+
+  assert.match(folderIconRule, /width:\s*13px/);
+  assert.match(folderIconRule, /height:\s*11\.14px/);
+  assert.match(folderIconRule, /flex:\s*0 0 13px/);
+  assert.match(specialFolderDotRule, /width:\s*2\.79px/);
+  assert.match(specialFolderDotRule, /height:\s*2\.79px/);
+  assert.match(specialFolderDotRule, /left:\s*6\.5px/);
+  assert.match(specialFolderDotRule, /top:\s*6\.5px/);
+  assert.match(specialFolderDotRule, /transform:\s*translate\(-50%,\s*-50%\)/);
+  assert.doesNotMatch(folderIconRule, /height:\s*11px/);
+  assert.doesNotMatch(specialFolderDotRule, /transform:\s*translate\(-50%,\s*-35%\)/);
+});
+
 test("renderer mirrors native file tree folder tooltip copy", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
