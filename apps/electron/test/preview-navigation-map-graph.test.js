@@ -104,6 +104,54 @@ test("generated preview links only push source-file history like native", () => 
   assert.match(rendererToolbarMapSource, /showGeneratedPage\(generatedPage\);/);
 });
 
+test("generated page navigation uses existing output without compiling like native", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const mainSource = read("src/main/main.js");
+  const nativeFolderOpenSource = sourceBetween(
+    nativeSource,
+    "let c = Compiler(sourceDir: url)",
+    "            // Background drip: compile remaining pages"
+  );
+  const nativeToolbarMapSource = sourceBetween(
+    nativeSource,
+    "// Navigate to 3D map",
+    ".help(\"Open 3D Map\")"
+  );
+  const nativeGeneratedLinkSource = sourceBetween(
+    nativeSource,
+    "else if let c = compiler {",
+    "    /// Find a .md file"
+  );
+  const electronProjectOpenSource = sourceBetween(
+    mainSource,
+    "function createProjectResult(targetPath, webContents = null)",
+    "function openExistingProject(browserWindow)"
+  );
+  const electronGeneratedPageSource = sourceBetween(
+    mainSource,
+    "function openGeneratedPage(payload)",
+    "function resolveNodePackageRoot(packageName)"
+  );
+  const electronPreviewNavigationSource = sourceBetween(
+    mainSource,
+    "function resolvePreviewNavigation(payload)",
+    "function findMarkdownFileForSlug(projectRoot, slug)"
+  );
+
+  assert.match(nativeFolderOpenSource, /c\.scanPages\(\)/);
+  assert.doesNotMatch(nativeFolderOpenSource, /c\.compileAll\(\)/);
+  assert.match(nativeToolbarMapSource, /FileManager\.default\.fileExists\(atPath: mapFile\.path\)/);
+  assert.doesNotMatch(nativeToolbarMapSource, /compileAll\(\)/);
+  assert.match(nativeGeneratedLinkSource, /FileManager\.default\.fileExists\(atPath: htmlFile\.path\)/);
+  assert.doesNotMatch(nativeGeneratedLinkSource, /compileAll\(\)/);
+
+  assert.match(electronProjectOpenSource, /getCompiler\(projectRoot\)\.scanPages\(\)/);
+  assert.doesNotMatch(electronGeneratedPageSource, /compileAll\(\)/);
+  assert.match(electronGeneratedPageSource, /if \(!fs\.existsSync\(pagePath\)\) return null/);
+  assert.doesNotMatch(electronPreviewNavigationSource, /compileAll\(\)/);
+  assert.match(electronPreviewNavigationSource, /if \(!fs\.existsSync\(generatedPath\)\) return null/);
+});
+
 test("raw generated preview links fall through to generated HTML like native", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const mainSource = read("src/main/main.js");

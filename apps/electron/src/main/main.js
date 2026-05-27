@@ -329,7 +329,6 @@ function openGeneratedPage(payload) {
 
   const projectRoot = assertProjectRoot(payload.projectRoot);
   const compiler = getCompiler(projectRoot);
-  compiler.compileAll();
 
   const pagePath = path.join(compiler.outputDir, payload.pageName);
   if (!fs.existsSync(pagePath)) return null;
@@ -431,7 +430,6 @@ function resolvePreviewNavigation(payload) {
   }
 
   const compiler = getCompiler(projectRoot);
-  compiler.compileAll();
   const pageName = `${pageSlug}.html`;
   const generatedPath = path.join(compiler.outputDir, pageName);
   if (!fs.existsSync(generatedPath)) return null;
