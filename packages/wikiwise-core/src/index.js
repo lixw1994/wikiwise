@@ -363,7 +363,7 @@ export function summarizeWatchEvents({ projectRoot, outputDir, events }) {
 
   for (const event of events ?? []) {
     const eventPath = path.resolve(event.path);
-    if (isPathInside(eventPath, outputDir)) continue;
+    if (isNativeOutputPath(eventPath, outputDir)) continue;
 
     const fileName = path.basename(eventPath);
     const relativePath = path.relative(projectRoot, eventPath).split(path.sep).join("/");
@@ -404,6 +404,10 @@ export function summarizeWatchEvents({ projectRoot, outputDir, events }) {
 
 function isNativeWikiAssetsPath(relativePath) {
   return relativePath.startsWith("wiki/assets/") || relativePath.includes("/wiki/assets/");
+}
+
+function isNativeOutputPath(eventPath, outputDir) {
+  return eventPath.startsWith(path.resolve(outputDir));
 }
 
 export function slugForPath(filePath) {

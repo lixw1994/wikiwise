@@ -30,6 +30,35 @@ test("summarizeWatchEvents ignores compiler output paths", () => {
   assert.equal(summary, null);
 });
 
+test("summarizeWatchEvents mirrors native output directory prefix filtering", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/FileWatcher.swift");
+  const outputDescendantSummary = summarizeWatchEvents({
+    projectRoot,
+    outputDir,
+    events: [event("site/out/home.html")]
+  });
+  const outputSiblingPrefixSummary = summarizeWatchEvents({
+    projectRoot,
+    outputDir,
+    events: [event("site/output-note.md")]
+  });
+  const nonOutputSummary = summarizeWatchEvents({
+    projectRoot,
+    outputDir,
+    events: [event("site/other-note.md")]
+  });
+
+  assert.match(nativeSource, /path\.hasPrefix\(watcher\.outputDir\)/);
+  assert.equal(outputDescendantSummary, null);
+  assert.equal(outputSiblingPrefixSummary, null);
+  assert.deepEqual(nonOutputSummary, {
+    kind: "content",
+    cssChanged: false,
+    changedMarkdownPaths: [path.join(projectRoot, "site", "other-note.md")],
+    structureChanged: false
+  });
+});
+
 test("summarizeWatchEvents gives root rebuild trigger highest priority", () => {
   const summary = summarizeWatchEvents({
     projectRoot,

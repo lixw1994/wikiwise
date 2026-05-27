@@ -47,6 +47,21 @@ test("shared watch summaries mirror native case-sensitive markdown and CSS suffi
   assert.match(mainSource, /summarizeWatchEvents\(\{[\s\S]*projectRoot:\s*resolvedRoot[\s\S]*outputDir:\s*compiler\.outputDir/);
 });
 
+test("shared watch summaries mirror native output directory prefix filtering", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/FileWatcher.swift");
+  const coreSource = readRepository("packages/wikiwise-core/src/index.js");
+  const mainSource = read("src/main/main.js");
+  const summarizeWatchEventsSource =
+    coreSource.match(/export function summarizeWatchEvents\(\{[\s\S]*?\n\}/)?.[0] ?? "";
+
+  assert.match(nativeSource, /path\.hasPrefix\(watcher\.outputDir\)/);
+  assert.notEqual(summarizeWatchEventsSource, "");
+  assert.match(coreSource, /function isNativeOutputPath\(eventPath, outputDir\) \{[\s\S]*eventPath\.startsWith\(path\.resolve\(outputDir\)\)/);
+  assert.match(summarizeWatchEventsSource, /isNativeOutputPath\(eventPath, outputDir\)/);
+  assert.doesNotMatch(summarizeWatchEventsSource, /isPathInside\(eventPath,\s*outputDir\)/);
+  assert.match(mainSource, /summarizeWatchEvents\(\{[\s\S]*projectRoot:\s*resolvedRoot[\s\S]*outputDir:\s*compiler\.outputDir/);
+});
+
 test("shared watch summaries mirror native wiki assets path containment", () => {
   const nativeSource = readRepository("Sources/Wikiwise/FileWatcher.swift");
   const coreSource = readRepository("packages/wikiwise-core/src/index.js");
