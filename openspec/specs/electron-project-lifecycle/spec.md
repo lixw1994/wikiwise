@@ -113,7 +113,7 @@ The Electron Open Existing picker SHALL preserve native message-only dialog chro
 
 ### Requirement: Active File Side-Effect Parity
 
-Electron project lifecycle operations SHALL preserve the native best-effort `.claude/active-file` side-effect boundary.
+Electron project lifecycle operations SHALL preserve the native best-effort `.claude/active-file` side-effect boundary, including silent user-facing behavior when the side-effect write fails.
 
 #### Scenario: Standalone file selection is recorded without creating agent metadata
 - **WHEN** a user opens a standalone markdown or plain-text file whose parent directory does not contain `.claude`
@@ -124,6 +124,11 @@ Electron project lifecycle operations SHALL preserve the native best-effort `.cl
 - **WHEN** a user opens or creates a scaffolded wiki project that contains `.claude`
 - **THEN** Electron continues to record the selected file at `.claude/active-file`
 - **AND** the recorded path remains relative to the project root
+
+#### Scenario: Active-file selection write fails
+- **WHEN** the Electron renderer asks the main process to record the selected active file and that side-effect write rejects
+- **THEN** the selected-file flow continues without surfacing a global renderer error
+- **AND** main-process project-root and file-path validation remain unchanged
 
 ### Requirement: Selected File Read Fallback Parity
 Electron project lifecycle content reads SHALL mirror native `ContentView.loadFile(_:)` by preserving selected file state and displaying the native fallback text when user-visible file content cannot be read.
@@ -137,3 +142,4 @@ Electron project lifecycle content reads SHALL mirror native `ContentView.loadFi
 - **WHEN** Electron prepares the initial selected file for an opened standalone file or `wiki/home.md`
 - **THEN** the selected file content uses the same native fallback text
 - **AND** compiler setup, tree scanning, project kind, and active-file side effects remain unchanged
+

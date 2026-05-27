@@ -520,10 +520,7 @@ async function setActiveSelectedFile(filePath = state.selectedFile?.path) {
   return window.wikiwise.setActiveFile({
     projectRoot: state.currentProject.projectRoot,
     filePath
-  }).catch((error) => {
-    setError(error);
-    return null;
-  });
+  }).catch(() => null);
 }
 
 function setDetailMode(mode) {

@@ -219,3 +219,30 @@ test("standalone active-file tracking preserves native no-directory side effect"
   assert.match(rendererSource, /await setActiveSelectedFile\(\)/);
   assert.match(mainSource, /function setActiveFile\(payload\)[\s\S]*return writeActiveFile\(projectRoot,\s*filePath\)/);
 });
+
+test("renderer active-file selection failures stay silent like native try-optional writes", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const mainSource = read("src/main/main.js");
+  const rendererSource = read("src/renderer/renderer.js");
+  const nativeWriteActiveSource =
+    nativeSource.match(/private func writeActiveFile\(_ url: URL\) \{[\s\S]*?\n    \}/)?.[0] ?? "";
+  const rendererStart = rendererSource.indexOf("async function setActiveSelectedFile");
+  const rendererEnd = rendererSource.indexOf("function setDetailMode", rendererStart);
+  const setActiveSelectedFileSource = rendererSource.slice(rendererStart, rendererEnd);
+  const setActiveFileSource =
+    mainSource.match(/function setActiveFile\(payload\) \{[\s\S]*?\n\}/)?.[0] ?? "";
+
+  assert.notEqual(nativeWriteActiveSource, "");
+  assert.match(nativeWriteActiveSource, /try\? relativePath\.write\(to:\s*activeFile/);
+  assert.notEqual(rendererStart, -1);
+  assert.notEqual(rendererEnd, -1);
+  assert.match(setActiveSelectedFileSource, /window\.wikiwise\.setActiveFile/);
+  assert.match(setActiveSelectedFileSource, /\.catch\(/);
+  assert.doesNotMatch(setActiveSelectedFileSource, /setError\(/);
+  assert.doesNotMatch(setActiveSelectedFileSource, /throw\s+error/);
+
+  assert.notEqual(setActiveFileSource, "");
+  assert.match(setActiveFileSource, /const projectRoot = assertProjectRoot\(payload\.projectRoot\)/);
+  assert.match(setActiveFileSource, /const filePath = assertProjectPath\(projectRoot,\s*payload\.filePath\)/);
+  assert.match(setActiveFileSource, /return writeActiveFile\(projectRoot,\s*filePath\)/);
+});
