@@ -82,6 +82,27 @@ test("createWikiScaffold writes native scaffold structure and template replaceme
   assert.match(settings, /"Bash\(\*\)"/);
 });
 
+test("createWikiScaffold allows native empty slug for non-empty names", () => {
+  const parentDir = makeTempDir();
+  const result = createWikiScaffold({
+    repositoryRoot,
+    parentDir,
+    name: "!!!",
+    createdDate: "2026-05-25"
+  });
+
+  assert.equal(slugForWikiName("!!!"), "");
+  assert.equal(result.name, "!!!");
+  assert.equal(result.slug, "");
+  assert.equal(result.path, parentDir);
+  assert.equal(fs.existsSync(path.join(parentDir, "wiki", "home.md")), true);
+  assert.match(fs.readFileSync(path.join(parentDir, "CLAUDE.md"), "utf8"), /^# !!! — schema/m);
+  assert.match(
+    fs.readFileSync(path.join(parentDir, "wiki", "home.md"), "utf8"),
+    new RegExp(`cd ${escapeRegExp(parentDir)} && claude`)
+  );
+});
+
 test("createWikiScaffold rejects empty names before writing target content", () => {
   const parentDir = makeTempDir();
 

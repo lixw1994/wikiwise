@@ -155,6 +155,33 @@ test("renderer mirrors native scaffold failure dismissal behavior", () => {
   assert.doesNotMatch(createNewWikiSource, /catch \(error\) \{[\s\S]*applyProjectResult/);
 });
 
+test("shared scaffold helper mirrors native empty slug behavior", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const coreSource = readRepository("packages/wikiwise-core/src/index.js");
+  const nativeStart = nativeSource.indexOf("private func createNewWiki()");
+  const nativeEnd = nativeSource.indexOf("/// Tracks how many ContentViews", nativeStart);
+  const nativeCreateSource = nativeSource.slice(nativeStart, nativeEnd);
+  const nativeSlugStart = nativeCreateSource.indexOf("let slug = name.lowercased()");
+  const nativeWikiURLStart = nativeCreateSource.indexOf("let wikiURL = location.appendingPathComponent(slug)");
+  const nativeBetweenSlugAndURL = nativeCreateSource.slice(nativeSlugStart, nativeWikiURLStart);
+  const coreScaffoldSource =
+    coreSource.match(/export function createWikiScaffold\(options = \{\}\) \{[\s\S]*?\n\}/)?.[0] ?? "";
+
+  assert.notEqual(nativeStart, -1);
+  assert.notEqual(nativeEnd, -1);
+  assert.notEqual(nativeSlugStart, -1);
+  assert.notEqual(nativeWikiURLStart, -1);
+  assert.match(nativeCreateSource, /guard !name\.isEmpty else \{ return \}/);
+  assert.match(nativeBetweenSlugAndURL, /\.filter \{ \$0\.isLetter \|\| \$0\.isNumber \|\| \$0 == "-" \}/);
+  assert.doesNotMatch(nativeBetweenSlugAndURL, /slug\.isEmpty|guard !slug\.isEmpty/);
+  assert.match(nativeCreateSource, /location\.appendingPathComponent\(slug\)/);
+  assert.notEqual(coreScaffoldSource, "");
+  assert.match(coreScaffoldSource, /const slug = slugForWikiName\(name\)/);
+  assert.match(coreScaffoldSource, /const wikiPath = path\.join\(parentDir,\s*slug\)/);
+  assert.doesNotMatch(coreScaffoldSource, /if \(!slug\) \{/);
+  assert.doesNotMatch(coreScaffoldSource, /requires a sluggable wiki name/);
+});
+
 test("renderer mirrors native new-wiki sheet layout and typography", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const htmlSource = read("src/renderer/index.html");

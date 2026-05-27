@@ -273,9 +273,6 @@ export function createWikiScaffold(options = {}) {
   const repositoryRoot = path.resolve(options.repositoryRoot ?? defaultRepositoryRoot());
   const parentDir = path.resolve(options.parentDir);
   const slug = slugForWikiName(name);
-  if (!slug) {
-    throw new Error("createWikiScaffold requires a sluggable wiki name");
-  }
 
   const wikiPath = path.join(parentDir, slug);
   const scaffoldDir = path.join(repositoryRoot, "Sources", "Wikiwise", "Resources", "scaffold");
