@@ -1375,6 +1375,7 @@ async function refreshCurrentView() {
   if (!state.selectedFile?.path) return;
   if (isMarkdownFile(state.selectedFile.path)) {
     await refreshSelectedMarkdown({ invalidate: true });
+    await refreshDocumentInfo();
     return;
   }
 
@@ -1386,6 +1387,7 @@ async function refreshCurrentView() {
     state.selectedFile.lastSavedContent = content;
     state.selectedFile.isDirty = false;
     renderDetail();
+    await refreshDocumentInfo();
   }
 }
 
@@ -1862,7 +1864,7 @@ async function sendTerminalInput() {
 
 async function refreshDocumentInfo() {
   const file = state.selectedFile;
-  if (!state.currentProject || !file?.path || !isMarkdownFile(file.path)) {
+  if (!state.currentProject || !file?.path) {
     state.documentInfo = null;
     renderInfoTab();
     return null;
@@ -2117,9 +2119,7 @@ async function saveSelectedFile() {
     if (isMarkdownFile(savedPath) && result.compiled && state.detailMode === "wiki") {
       renderPreview();
     }
-    if (isMarkdownFile(savedPath)) {
-      await refreshDocumentInfo();
-    }
+    await refreshDocumentInfo();
   } catch (error) {
     if (state.selectedFile?.path === savedPath) {
       state.selectedFile.isSaving = false;

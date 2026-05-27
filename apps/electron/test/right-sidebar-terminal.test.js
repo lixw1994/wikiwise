@@ -492,6 +492,43 @@ test("renderer handles document info refresh failures like native metadata fallb
   assert.doesNotMatch(refreshSource, /setError\(error\)/);
 });
 
+test("renderer requests info metadata for non-markdown selected files like native", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const mainSource = read("src/main/main.js");
+  const coreSource = readRepository("packages/wikiwise-core/src/index.js");
+  const nativeInfoStart = nativeSource.indexOf("private var infoTab:");
+  const nativeInfoEnd = nativeSource.indexOf("    // MARK: - Section helpers", nativeInfoStart);
+  const nativeInfoSource = nativeSource.slice(nativeInfoStart, nativeInfoEnd);
+  const refreshStart = rendererSource.indexOf("async function refreshDocumentInfo()");
+  const refreshEnd = rendererSource.indexOf("async function handleProjectChanged");
+  const refreshSource = rendererSource.slice(refreshStart, refreshEnd);
+  const saveStart = rendererSource.indexOf("async function saveSelectedFile()");
+  const saveEnd = rendererSource.indexOf("function hasCompiledPreview", saveStart);
+  const saveSource = rendererSource.slice(saveStart, saveEnd);
+  const manualRefreshStart = rendererSource.indexOf("async function refreshCurrentView()");
+  const manualRefreshEnd = rendererSource.indexOf("function attachPreviewNavigation", manualRefreshStart);
+  const manualRefreshSource = rendererSource.slice(manualRefreshStart, manualRefreshEnd);
+
+  assert.notEqual(nativeInfoSource, "");
+  assert.notEqual(refreshSource, "");
+  assert.notEqual(saveSource, "");
+  assert.notEqual(manualRefreshSource, "");
+  assert.match(nativeInfoSource, /if let file = selectedFileURL \{[\s\S]*formattedModDate\(file\)[\s\S]*formattedWordCount\(file\)/);
+  assert.match(nativeInfoSource, /if let file = selectedFileURL,\s*let directions = parseDirections\(from: file\)/);
+  assert.match(nativeInfoSource, /if let file = selectedFileURL,\s*!wikilinkTargets\(in: file\)\.isEmpty/);
+  assert.doesNotMatch(nativeInfoSource, /pathExtension/);
+  assert.match(mainSource, /function getDocumentInfo\(payload\)[\s\S]*assertProjectPath\(projectRoot,\s*payload\.filePath\)[\s\S]*summarizeDocumentInfo\(filePath\)/);
+  assert.match(coreSource, /export function summarizeDocumentInfo\(filePath\)[\s\S]*const content = readTextFile\(resolvedPath\)[\s\S]*wordCount: countWords\(content\)/);
+  assert.match(refreshSource, /if \(!state\.currentProject \|\| !file\?\.path\) \{/);
+  assert.doesNotMatch(refreshSource, /isMarkdownFile\(file\.path\)/);
+  assert.match(refreshSource, /wikiwise\.getDocumentInfo/);
+  assert.match(saveSource, /await refreshDocumentInfo\(\)/);
+  assert.doesNotMatch(saveSource, /if \(isMarkdownFile\(savedPath\)\) \{\s*await refreshDocumentInfo\(\);\s*\}/);
+  assert.match(manualRefreshSource, /window\.wikiwise\.readFile\(selectedPath\)/);
+  assert.match(manualRefreshSource, /await refreshDocumentInfo\(\)/);
+});
+
 test("shared document info mirrors native CRLF directions parsing", () => {
   const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
   const coreSource = readRepository("packages/wikiwise-core/src/index.js");
