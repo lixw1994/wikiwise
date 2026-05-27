@@ -474,6 +474,22 @@ test("renderer handles document info refresh failures like native metadata fallb
   assert.doesNotMatch(refreshSource, /setError\(error\)/);
 });
 
+test("shared document info mirrors native CRLF directions parsing", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
+  const coreSource = readRepository("packages/wikiwise-core/src/index.js");
+  const nativeDirectionsSource =
+    nativeSource.match(/private func parseDirections\(from url: URL\) -> String\? \{[\s\S]*?\n    \}/)?.[0] ?? "";
+  const coreDirectionsSource =
+    coreSource.match(/function extractDirections\(content\) \{[\s\S]*?\n\}/)?.[0] ?? "";
+
+  assert.notEqual(nativeDirectionsSource, "");
+  assert.notEqual(coreDirectionsSource, "");
+  assert.match(nativeDirectionsSource, /text\.split\(separator:\s*"\\n",\s*omittingEmptySubsequences:\s*false\)/);
+  assert.match(nativeDirectionsSource, /if line == "---"/);
+  assert.match(coreDirectionsSource, /text\.split\("\\n"\)/);
+  assert.doesNotMatch(coreDirectionsSource, /split\(\/\\r\?\\n\/\)/);
+});
+
 test("renderer mirrors native numeric relative edited-time formatting", () => {
   const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
   const rendererSource = read("src/renderer/renderer.js");

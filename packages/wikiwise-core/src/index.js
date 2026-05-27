@@ -888,7 +888,7 @@ function extractDirections(content) {
   const text = String(content);
   if (!text.startsWith("---")) return null;
 
-  const lines = text.split(/\r?\n/);
+  const lines = text.split("\n");
   if (lines.length <= 1) return null;
 
   let inFrontmatter = false;

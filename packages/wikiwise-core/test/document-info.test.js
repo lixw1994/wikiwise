@@ -58,6 +58,20 @@ test("summarizeDocumentInfo ignores directions syntax native RightSidebar ignore
   }
 });
 
+test("summarizeDocumentInfo ignores CRLF frontmatter directions like native RightSidebar", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "wikiwise-document-info-crlf-directions-"));
+  const target = path.join(root, "wiki", "crlf-directions.md");
+  const content = "---\r\ndirections: Native ignores CRLF markers\r\n---\r\n# Body";
+
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, content, "utf8");
+
+  const info = summarizeDocumentInfo(target);
+
+  assert.equal(info.directions, null);
+  assert.equal(info.wordCount, 9);
+});
+
 test("summarizeDocumentInfo uses only exact native closing marker before directions", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "wikiwise-document-info-closing-"));
   const target = path.join(root, "wiki", "loose-closing.md");
