@@ -132,6 +132,8 @@ test("runtime audit script covers native shell scenarios and assertions", () => 
     /expandedTreeEvidence/,
     /nestedSelectionEvidence/,
     /fileTreeFolderIconPresent/,
+    /\.tree-folder\.special-folder \.tree-folder-dot/,
+    /window\.getComputedStyle\(specialFolderDot\)\.display/,
     /fileTreeSpecialFolderMarkerPresent/,
     /fileTreeSelectedAccentPresent/,
     /leftSidebarTogglePresent/,

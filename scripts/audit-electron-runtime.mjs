@@ -2487,11 +2487,12 @@ async function readDomEvidence(window) {
 	    );
 	    const folderIcon = document.querySelector(".tree-folder-button .tree-folder-icon");
 	    const specialFolderIcon = document.querySelector(".tree-folder.special-folder .tree-folder-icon");
+	    const specialFolderDot = document.querySelector(".tree-folder.special-folder .tree-folder-dot");
 	    const selectedAccent = document.querySelector(".tree-file-button.selected .tree-selected-accent");
 	    const selectedAccentRect = selectedAccent?.getBoundingClientRect();
 	    const selectedAccentWidth = Math.round(selectedAccentRect?.width ?? 0);
-	    const specialFolderDotContent = specialFolderIcon
-	      ? window.getComputedStyle(specialFolderIcon, "::after").content
+	    const specialFolderDotDisplay = specialFolderDot
+	      ? window.getComputedStyle(specialFolderDot).display
 	      : "none";
 	    const welcomeToolbar = document.querySelector("#welcome-toolbar");
 	    const welcomeToolbarRect = rectFor("#welcome-toolbar");
@@ -2762,7 +2763,7 @@ async function readDomEvidence(window) {
       expandedTreeEvidence,
       nestedSelectionEvidence,
 	      fileTreeFolderIconPresent: Boolean(folderIcon),
-	      fileTreeSpecialFolderMarkerPresent: Boolean(specialFolderIcon && specialFolderDotContent !== "none"),
+	      fileTreeSpecialFolderMarkerPresent: Boolean(specialFolderIcon && specialFolderDot && specialFolderDotDisplay !== "none"),
 	      fileTreeSelectedAccentPresent: Boolean(selectedAccent && selectedAccentWidth === 2),
       leftSidebarTogglePresent: Boolean(document.querySelector("#toggle-left-sidebar")),
 	      leftSidebarResizeHandlePresent: Boolean(leftSidebarResizeEvidence.leftSidebarResizeHandlePresent),

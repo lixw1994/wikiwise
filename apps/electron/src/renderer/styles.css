@@ -502,49 +502,39 @@ input,
 }
 
 .tree-folder-icon {
-  position: relative;
-  display: inline-block;
+  display: inline-flex;
   width: 13px;
   height: 11.14px;
   flex: 0 0 13px;
-  border: 0.74px solid var(--color-folder-stroke);
-  border-radius: 2px;
-  background: var(--color-folder-fill);
+  align-items: center;
+  justify-content: center;
 }
 
-.tree-folder-icon::before {
-  position: absolute;
-  top: -4px;
-  left: 1px;
-  width: 5px;
-  height: 4px;
-  border: 0.74px solid var(--color-folder-stroke);
-  border-bottom: 0;
-  border-radius: 2px 2px 0 0;
-  background: var(--color-folder-fill);
-  content: "";
+.tree-folder-svg {
+  display: block;
+  width: 13px;
+  height: 11.14px;
+  overflow: visible;
 }
 
-.tree-folder.special-folder .tree-folder-icon {
-  border-color: var(--color-folder-raw-stroke);
-  background: var(--color-folder-raw-fill);
+.tree-folder-shape {
+  fill: var(--color-folder-fill);
+  stroke: var(--color-folder-stroke);
+  stroke-width: 0.8;
 }
 
-.tree-folder.special-folder .tree-folder-icon::before {
-  border-color: var(--color-folder-raw-stroke);
-  background: var(--color-folder-raw-fill);
+.tree-folder-dot {
+  display: none;
+  fill: var(--color-folder-raw-dot);
 }
 
-.tree-folder.special-folder .tree-folder-icon::after {
-  position: absolute;
-  top: 6.5px;
-  left: 6.5px;
-  width: 2.79px;
-  height: 2.79px;
-  border-radius: 50%;
-  background: var(--color-folder-raw-dot);
-  content: "";
-  transform: translate(-50%, -50%);
+.tree-folder.special-folder .tree-folder-shape {
+  fill: var(--color-folder-raw-fill);
+  stroke: var(--color-folder-raw-stroke);
+}
+
+.tree-folder.special-folder .tree-folder-dot {
+  display: block;
 }
 
 .tree-disclosure {

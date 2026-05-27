@@ -110,8 +110,10 @@ test("renderer includes native file tree visual affordances", () => {
   assert.match(rendererSource, /tree-selected-accent/);
   assert.match(rendererSource, /data-selected/);
   assert.match(styleSource, /\.tree-folder-icon/);
-  assert.match(styleSource, /\.tree-folder\.special-folder\s+\.tree-folder-icon/);
-  assert.match(styleSource, /\.tree-folder\.special-folder\s+\.tree-folder-icon::after/);
+  assert.match(styleSource, /\.tree-folder-shape/);
+  assert.match(styleSource, /\.tree-folder-dot/);
+  assert.match(styleSource, /\.tree-folder\.special-folder\s+\.tree-folder-shape/);
+  assert.match(styleSource, /\.tree-folder\.special-folder\s+\.tree-folder-dot/);
   assert.match(styleSource, /\.tree-selected-accent/);
   assert.match(styleSource, /width:\s*2px/);
   assert.match(specialFileRule, /font-weight:\s*500/);
@@ -210,6 +212,7 @@ test("renderer mirrors native selected file accent height", () => {
 
 test("renderer mirrors native folder icon scaled geometry", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
   const styleSource = read("src/renderer/styles.css");
   const nativeFolderIconSource =
     nativeSource.match(/struct FolderIcon:[\s\S]*?\/\/ Paper design palette/)?.[0] ?? "";
@@ -218,7 +221,7 @@ test("renderer mirrors native folder icon scaled geometry", () => {
     nativeSource.indexOf("// MARK: - Detail")
   );
   const folderIconRule = cssBlock(styleSource, ".tree-folder-icon");
-  const specialFolderDotRule = cssBlock(styleSource, ".tree-folder.special-folder .tree-folder-icon::after");
+  const folderSvgRule = cssBlock(styleSource, ".tree-folder-svg");
 
   assert.match(
     nativeFileTreeRowSource,
@@ -231,13 +234,14 @@ test("renderer mirrors native folder icon scaled geometry", () => {
   assert.match(folderIconRule, /width:\s*13px/);
   assert.match(folderIconRule, /height:\s*11\.14px/);
   assert.match(folderIconRule, /flex:\s*0 0 13px/);
-  assert.match(specialFolderDotRule, /width:\s*2\.79px/);
-  assert.match(specialFolderDotRule, /height:\s*2\.79px/);
-  assert.match(specialFolderDotRule, /left:\s*6\.5px/);
-  assert.match(specialFolderDotRule, /top:\s*6\.5px/);
-  assert.match(specialFolderDotRule, /transform:\s*translate\(-50%,\s*-50%\)/);
+  assert.match(folderSvgRule, /width:\s*13px/);
+  assert.match(folderSvgRule, /height:\s*11\.14px/);
+  assert.match(rendererSource, /folderSvg\.setAttribute\("viewBox",\s*"0 0 14 12"\)/);
+  assert.match(rendererSource, /folderDot\.setAttribute\("cx",\s*"7"\)/);
+  assert.match(rendererSource, /folderDot\.setAttribute\("cy",\s*"7"\)/);
+  assert.match(rendererSource, /folderDot\.setAttribute\("r",\s*"1\.5"\)/);
   assert.doesNotMatch(folderIconRule, /height:\s*11px/);
-  assert.doesNotMatch(specialFolderDotRule, /transform:\s*translate\(-50%,\s*-35%\)/);
+  assert.doesNotMatch(styleSource, /transform:\s*translate\(-50%,\s*-35%\)/);
 });
 
 test("renderer mirrors native folder icon scaled stroke weight", () => {
@@ -250,7 +254,7 @@ test("renderer mirrors native folder icon scaled stroke weight", () => {
     nativeSource.indexOf("// MARK: - Detail")
   );
   const folderIconRule = cssBlock(styleSource, ".tree-folder-icon");
-  const folderIconTabRule = cssBlock(styleSource, ".tree-folder-icon::before");
+  const folderShapeRule = cssBlock(styleSource, ".tree-folder-shape");
 
   assert.match(
     nativeFileTreeRowSource,
@@ -259,11 +263,53 @@ test("renderer mirrors native folder icon scaled stroke weight", () => {
   assert.match(nativeFolderIconSource, /let s = canvasSize\.width \/ 14\.0/);
   assert.match(nativeFolderIconSource, /context\.stroke\(path,\s*with:\s*\.color\(strokeColor\),\s*lineWidth:\s*0\.8 \* s\)/);
 
-  assert.match(folderIconRule, /border:\s*0\.74px solid var\(--color-folder-stroke\)/);
-  assert.match(folderIconTabRule, /border:\s*0\.74px solid var\(--color-folder-stroke\)/);
-  assert.match(folderIconTabRule, /border-bottom:\s*0/);
+  assert.match(folderShapeRule, /stroke:\s*var\(--color-folder-stroke\)/);
+  assert.match(folderShapeRule, /stroke-width:\s*0\.8/);
   assert.doesNotMatch(folderIconRule, /border:\s*1px solid var\(--color-folder-stroke\)/);
-  assert.doesNotMatch(folderIconTabRule, /border:\s*1px solid var\(--color-folder-stroke\)/);
+  assert.doesNotMatch(styleSource, /\.tree-folder-icon::before/);
+});
+
+test("renderer mirrors native folder icon path drawing", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const styleSource = read("src/renderer/styles.css");
+  const nativeFolderIconSource =
+    nativeSource.match(/struct FolderIcon:[\s\S]*?\/\/ Paper design palette/)?.[0] ?? "";
+  const renderNodeSource =
+    rendererSource.match(/function renderNode\(node, depth\) \{[\s\S]*?\n\}\n\nfunction normalizeTreeNodes/)?.[0] ?? "";
+  const folderIconRule = cssBlock(styleSource, ".tree-folder-icon");
+  const folderShapeRule = cssBlock(styleSource, ".tree-folder-shape");
+  const folderDotRule = cssBlock(styleSource, ".tree-folder-dot");
+  const specialFolderShapeRule = cssBlock(styleSource, ".tree-folder.special-folder .tree-folder-shape");
+  const specialFolderDotRule = cssBlock(styleSource, ".tree-folder.special-folder .tree-folder-dot");
+  const nativePathData =
+    "M0.5 2.5 C0.5 1.4 1.4 0.5 2.5 0.5 L5 0.5 L6.5 2.5 L11.5 2.5 C12.6 2.5 13.5 3.4 13.5 4.5 L13.5 9.5 C13.5 10.6 12.6 11.5 11.5 11.5 L2.5 11.5 C1.4 11.5 0.5 10.6 0.5 9.5 Z";
+
+  assert.match(nativeFolderIconSource, /path\.move\(to:\s*CGPoint\(x:\s*0\.5 \* s,\s*y:\s*2\.5 \* s\)\)/);
+  assert.match(nativeFolderIconSource, /path\.addCurve\([\s\S]*to:\s*CGPoint\(x:\s*2\.5 \* s,\s*y:\s*0\.5 \* s\)/);
+  assert.match(nativeFolderIconSource, /path\.addLine\(to:\s*CGPoint\(x:\s*6\.5 \* s,\s*y:\s*2\.5 \* s\)\)/);
+  assert.match(nativeFolderIconSource, /path\.addCurve\([\s\S]*to:\s*CGPoint\(x:\s*13\.5 \* s,\s*y:\s*4\.5 \* s\)/);
+  assert.match(nativeFolderIconSource, /path\.closeSubpath\(\)/);
+
+  assert.notEqual(renderNodeSource, "");
+  assert.match(renderNodeSource, /document\.createElementNS\("http:\/\/www\.w3\.org\/2000\/svg",\s*"svg"\)/);
+  assert.match(renderNodeSource, /folderSvg\.setAttribute\("viewBox",\s*"0 0 14 12"\)/);
+  assert.match(renderNodeSource, /folderShape\.setAttribute\("d",\s*FOLDER_ICON_PATH\)/);
+  assert.match(rendererSource, new RegExp(`const FOLDER_ICON_PATH = "${nativePathData.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}";`));
+  assert.match(renderNodeSource, /folderDot\.setAttribute\("cx",\s*"7"\)/);
+  assert.match(renderNodeSource, /folderDot\.setAttribute\("cy",\s*"7"\)/);
+  assert.match(renderNodeSource, /folderDot\.setAttribute\("r",\s*"1\.5"\)/);
+
+  assert.match(folderIconRule, /display:\s*inline-flex/);
+  assert.doesNotMatch(folderIconRule, /border:\s*0\.74px solid var\(--color-folder-stroke\)/);
+  assert.match(folderShapeRule, /fill:\s*var\(--color-folder-fill\)/);
+  assert.match(folderShapeRule, /stroke:\s*var\(--color-folder-stroke\)/);
+  assert.match(folderShapeRule, /stroke-width:\s*0\.8/);
+  assert.match(folderDotRule, /display:\s*none/);
+  assert.match(specialFolderShapeRule, /fill:\s*var\(--color-folder-raw-fill\)/);
+  assert.match(specialFolderShapeRule, /stroke:\s*var\(--color-folder-raw-stroke\)/);
+  assert.match(specialFolderDotRule, /display:\s*block/);
+  assert.doesNotMatch(styleSource, /\.tree-folder-icon::before/);
 });
 
 test("renderer mirrors native file tree folder tooltip copy", () => {

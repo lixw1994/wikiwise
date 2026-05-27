@@ -75,6 +75,7 @@ const LEFT_SIDEBAR_MIN_WIDTH = 110;
 const LEFT_SIDEBAR_MAX_WIDTH = 360;
 const RIGHT_SIDEBAR_DEFAULT_WIDTH = 360;
 const RIGHT_SIDEBAR_MIN_WIDTH = 200;
+const FOLDER_ICON_PATH = "M0.5 2.5 C0.5 1.4 1.4 0.5 2.5 0.5 L5 0.5 L6.5 2.5 L11.5 2.5 C12.6 2.5 13.5 3.4 13.5 4.5 L13.5 9.5 C13.5 10.6 12.6 11.5 11.5 11.5 L2.5 11.5 C1.4 11.5 0.5 10.6 0.5 9.5 Z";
 const newWikiLocationDisplayLimit = 48;
 const missingInfoValue = "—";
 const systemDarkAppearanceQuery = window.matchMedia("(prefers-color-scheme: dark)");
@@ -284,6 +285,20 @@ function renderNode(node, depth) {
     disclosure.textContent = isExpanded ? "▾" : "▸";
     folderIcon.className = "tree-folder-icon";
     folderIcon.setAttribute("aria-hidden", "true");
+    const folderSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    const folderShape = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    const folderDot = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+    folderSvg.classList.add("tree-folder-svg");
+    folderSvg.setAttribute("viewBox", "0 0 14 12");
+    folderSvg.setAttribute("focusable", "false");
+    folderShape.classList.add("tree-folder-shape");
+    folderShape.setAttribute("d", FOLDER_ICON_PATH);
+    folderDot.classList.add("tree-folder-dot");
+    folderDot.setAttribute("cx", "7");
+    folderDot.setAttribute("cy", "7");
+    folderDot.setAttribute("r", "1.5");
+    folderSvg.append(folderShape, folderDot);
+    folderIcon.append(folderSvg);
     label.className = "tree-label";
     label.textContent = node.name;
 
