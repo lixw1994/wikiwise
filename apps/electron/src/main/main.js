@@ -173,7 +173,6 @@ function compileMarkdownFile(projectRoot, filePath, options = {}) {
   if (options.reloadCSS) {
     compiler.reloadCSS();
   }
-  compiler.scanPages();
   if (options.invalidate) {
     compiler.invalidatePage(slugForPath(filePath));
   }

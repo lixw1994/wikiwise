@@ -15,6 +15,16 @@ function readRepository(relativePath) {
   return fs.readFileSync(path.join(repositoryRoot, relativePath), "utf8");
 }
 
+function sourceBetween(source, startSignature, endSignature) {
+  const start = source.indexOf(startSignature);
+  const end = source.indexOf(endSignature, start + startSignature.length);
+
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+
+  return source.slice(start, end);
+}
+
 test("main process wires compiler preview through IPC and main-created file URLs", () => {
   const mainSource = read("src/main/main.js");
 
@@ -31,6 +41,56 @@ test("main process compiles wiki home when opening scaffolded folders", () => {
   assert.match(mainSource, /wiki\/home\.md/);
   assert.match(mainSource, /scanPages/);
   assert.match(mainSource, /selectedFile/);
+});
+
+test("selected markdown preview compilation uses existing scan lifecycle like native", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const mainSource = read("src/main/main.js");
+  const nativeFolderOpenSource = sourceBetween(
+    nativeSource,
+    "let c = Compiler(sourceDir: url)",
+    "            // Background drip: compile remaining pages"
+  );
+  const nativeLoadFileSource = sourceBetween(
+    nativeSource,
+    "private func loadFile(_ url: URL)",
+    "    /// Write the currently open file path"
+  );
+  const nativeWatcherSource = sourceBetween(
+    nativeSource,
+    "private func startFileWatcher(directory: URL, compiler c: Compiler)",
+    "    /// Rescan the sidebar file tree"
+  );
+  const electronCompileSource = sourceBetween(
+    mainSource,
+    "function compileMarkdownFile(projectRoot, filePath, options = {})",
+    "function settingsPath()"
+  );
+  const electronProjectOpenSource = sourceBetween(
+    mainSource,
+    "function createProjectResult(targetPath, webContents = null)",
+    "function openExistingProject(browserWindow)"
+  );
+  const electronWatcherSource = sourceBetween(
+    mainSource,
+    "function applyWatchSummary(projectRoot, summary)",
+    "function closeProjectWatcher(webContentsId)"
+  );
+
+  assert.match(nativeFolderOpenSource, /c\.scanPages\(\)/);
+  assert.match(nativeLoadFileSource, /compileSingle\(slug:\s*pageSlug\)/);
+  assert.match(nativeLoadFileSource, /compileAdhoc\(filePath:\s*url\.path,\s*outputPath:\s*htmlFile\.path\)/);
+  assert.doesNotMatch(nativeLoadFileSource, /scanPages\(\)|rescan\(\)/);
+  assert.match(nativeWatcherSource, /case \.markdown\(let changedPaths\):[\s\S]*c\.rescan\(\)/);
+  assert.match(nativeWatcherSource, /case \.rebuild:[\s\S]*c\.rescan\(\)/);
+  assert.match(nativeWatcherSource, /case \.structure:[\s\S]*c\.rescan\(\)/);
+
+  assert.match(electronProjectOpenSource, /getCompiler\(projectRoot\)\.scanPages\(\)/);
+  assert.match(electronCompileSource, /compiler\.compileMarkdownFile\(filePath\)/);
+  assert.doesNotMatch(electronCompileSource, /compiler\.scanPages\(\)/);
+  assert.match(electronWatcherSource, /summary\.kind === "rebuild"[\s\S]*compiler\.rescan\(\)/);
+  assert.match(electronWatcherSource, /summary\.kind === "structure"[\s\S]*compiler\.rescan\(\)/);
+  assert.match(electronWatcherSource, /summary\.changedMarkdownPaths\.length > 0[\s\S]*compiler\.rescan\(\)/);
 });
 
 test("main process schedules native-style background compilation batches", () => {
