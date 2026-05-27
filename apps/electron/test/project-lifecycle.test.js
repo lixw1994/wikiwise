@@ -39,6 +39,10 @@ test("open existing picker mirrors native folder and plain text contract", () =>
   assert.match(nativeSource, /panel\.canChooseFiles = true/);
   assert.match(nativeSource, /panel\.allowedContentTypes = \[\.folder, \.plainText\]/);
   assert.match(nativeSource, /panel\.allowsMultipleSelection = false/);
+  assert.match(nativeSource, /panel\.message = "Choose a markdown file or a folder"/);
+  assert.doesNotMatch(nativeSource, /panel\.title/);
+  assert.match(openExistingSource, /message:\s*"Choose a markdown file or a folder"/);
+  assert.doesNotMatch(openExistingSource, /\btitle:\s*"Choose a markdown file or a folder"/);
   assert.match(openExistingSource, /properties:\s*\["openFile", "openDirectory"\]/);
   assert.match(
     openExistingSource,

@@ -37,6 +37,29 @@ test("main process exposes new-wiki scaffold IPC through main-owned filesystem w
   assert.match(mainSource, /createProjectResult/);
 });
 
+test("main process mirrors native new-wiki location picker message-only chrome", () => {
+  const mainSource = read("src/main/main.js");
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const chooseLocationStart = mainSource.indexOf("async function chooseNewWikiLocation");
+  const chooseLocationEnd = mainSource.indexOf("function createProjectResult", chooseLocationStart);
+  const chooseLocationSource = mainSource.slice(chooseLocationStart, chooseLocationEnd);
+  const nativeChooseLocationSource =
+    nativeSource.match(/Button\("Choose…"\) \{[\s\S]*?if panel\.runModal\(\) == \.OK,[\s\S]*?\n\s*\}/)?.[0] ?? "";
+
+  assert.notEqual(chooseLocationStart, -1);
+  assert.notEqual(chooseLocationEnd, -1);
+  assert.notEqual(nativeChooseLocationSource, "");
+  assert.match(nativeChooseLocationSource, /panel\.canChooseDirectories = true/);
+  assert.match(nativeChooseLocationSource, /panel\.canChooseFiles = false/);
+  assert.match(nativeChooseLocationSource, /panel\.canCreateDirectories = true/);
+  assert.match(nativeChooseLocationSource, /panel\.message = "Choose where to create your wiki"/);
+  assert.doesNotMatch(nativeChooseLocationSource, /panel\.title/);
+  assert.match(chooseLocationSource, /message:\s*"Choose where to create your wiki"/);
+  assert.doesNotMatch(chooseLocationSource, /\btitle:\s*"Choose where to create your wiki"/);
+  assert.match(chooseLocationSource, /defaultPath:\s*getDefaultWikiLocation\(\)/);
+  assert.match(chooseLocationSource, /properties:\s*\["openDirectory", "createDirectory"\]/);
+});
+
 test("preload exposes new-wiki APIs without renderer filesystem access", () => {
   const preloadSource = read("src/preload/preload.cjs");
 

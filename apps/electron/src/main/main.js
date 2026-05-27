@@ -983,7 +983,6 @@ function getDefaultWikiLocation() {
 
 async function chooseNewWikiLocation(browserWindow) {
   const result = await dialog.showOpenDialog(browserWindow, {
-    title: "Choose where to create your wiki",
     message: "Choose where to create your wiki",
     defaultPath: getDefaultWikiLocation(),
     properties: ["openDirectory", "createDirectory"]
@@ -1064,7 +1063,6 @@ function createProjectResult(targetPath, webContents = null) {
 
 async function openExistingProject(browserWindow) {
   const result = await dialog.showOpenDialog(browserWindow, {
-    title: "Choose a markdown file or a folder",
     message: "Choose a markdown file or a folder",
     properties: ["openFile", "openDirectory"],
     filters: [

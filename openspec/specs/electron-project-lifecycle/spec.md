@@ -16,12 +16,14 @@ The Electron app SHALL show a welcome state with entry points for creating a new
 
 ### Requirement: Open Existing Folder or File
 
-The Electron app SHALL let the user choose an existing directory or markdown/plain-text file through the operating system picker, SHALL match the native SwiftUI open panel's folder/plain-text and single-selection contract, SHALL initialize compiler state for wiki folders when compiler resources are available, and SHALL open newly created scaffolded wikis through the same project state path.
+The Electron app SHALL let the user choose an existing directory or markdown/plain-text file through the operating system picker, SHALL match the native SwiftUI open panel's message-only dialog chrome, folder/plain-text and single-selection contract, SHALL initialize compiler state for wiki folders when compiler resources are available, and SHALL open newly created scaffolded wikis through the same project state path.
 
 #### Scenario: Open picker matches native allowed content
 
 - **WHEN** the user opens the Electron "Open Existing" picker
-- **THEN** the picker allows directory selection
+- **THEN** the picker uses the native message copy `Choose a markdown file or a folder`
+- **AND** the picker does not set an explicit dialog title because the current SwiftUI `NSOpenPanel` does not set `panel.title`
+- **AND** the picker allows directory selection
 - **AND** the picker allows file selection
 - **AND** the picker is constrained to markdown/plain-text file extensions
 - **AND** the picker does not advertise code, web asset, JSON, or all-file filters
@@ -99,3 +101,12 @@ Standalone files opened through Electron SHALL preserve the native SwiftUI initi
 - **THEN** Electron marks the project result as a standalone file
 - **AND** the renderer preserves the current WIKI detail mode that matches the native initial `.compiled` state
 - **AND** the renderer displays the file editor because non-Markdown files always render in the editor
+
+### Requirement: Open Existing Picker Title Parity
+The Electron Open Existing picker SHALL preserve native message-only dialog chrome.
+
+#### Scenario: Open existing picker is configured
+- **WHEN** the Electron main process opens the Open Existing picker
+- **THEN** the dialog message matches the native SwiftUI `NSOpenPanel` message
+- **AND** the dialog does not set an explicit title override
+- **AND** folder/file constraints, allowed extensions, and single-selection behavior remain unchanged
