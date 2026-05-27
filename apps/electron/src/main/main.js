@@ -1075,8 +1075,8 @@ function createProjectResult(targetPath, webContents = null) {
   const isDirectory = stat.isDirectory();
   const projectKind = isDirectory ? "folder" : "file";
   const projectRoot = isDirectory ? targetPath : path.dirname(targetPath);
-  setWebContentsProjectRoot(webContents, isDirectory ? projectRoot : null);
   if (isDirectory) {
+    setWebContentsProjectRoot(webContents, projectRoot);
     getCompiler(projectRoot).scanPages();
   }
   const tree = isDirectory ? scanOneLevel(projectRoot) : [];

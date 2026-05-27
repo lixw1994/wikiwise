@@ -149,9 +149,31 @@ test("renderer mirrors native standalone file initial WIKI mode with editor fall
 
 test("main process updates window project root ownership at project result boundaries", () => {
   const mainSource = read("src/main/main.js");
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const nativeOpenURLSource =
+    nativeSource.match(/private func openURL\(_ url: URL\) \{[\s\S]*?\n    \}/)?.[0] ?? "";
+  const nativeFolderBranch =
+    nativeOpenURLSource.match(/if isDir\.boolValue \{[\s\S]*?\} else \{/)?.[0] ?? "";
+  const nativeStandaloneBranch =
+    nativeOpenURLSource.match(/\} else \{[\s\S]*?loadFile\(url\)\n        \}/)?.[0] ?? "";
+  const createProjectResultSource =
+    mainSource.match(/function createProjectResult\(targetPath,\s*webContents = null\) \{[\s\S]*?\n\}/)?.[0] ?? "";
 
   assert.match(mainSource, /function createProjectResult\(targetPath,\s*webContents = null\)/);
-  assert.match(mainSource, /setWebContentsProjectRoot\(webContents,\s*isDirectory \? projectRoot : null\)/);
+  assert.match(nativeFolderBranch, /backgroundTimer\?\.invalidate\(\)/);
+  assert.match(nativeFolderBranch, /fileWatcher\?\.stop\(\)/);
+  assert.match(nativeFolderBranch, /compiler = c/);
+  assert.match(nativeFolderBranch, /startBackgroundCompilation\(c\)/);
+  assert.match(nativeFolderBranch, /startFileWatcher\(directory:\s*url,\s*compiler:\s*c\)/);
+  assert.notEqual(nativeStandaloneBranch, "");
+  assert.doesNotMatch(nativeStandaloneBranch, /backgroundTimer/);
+  assert.doesNotMatch(nativeStandaloneBranch, /fileWatcher/);
+  assert.doesNotMatch(nativeStandaloneBranch, /compiler/);
+  assert.doesNotMatch(createProjectResultSource, /setWebContentsProjectRoot\(webContents,\s*isDirectory \? projectRoot : null\)/);
+  assert.match(
+    createProjectResultSource,
+    /if \(isDirectory\) \{[\s\S]*setWebContentsProjectRoot\(webContents,\s*projectRoot\)[\s\S]*getCompiler\(projectRoot\)\.scanPages\(\)/
+  );
   assert.match(
     mainSource,
     /function restoreLastProject\(webContents = null\)[\s\S]*createProjectResult\(settings\.lastFolderPath,\s*webContents\)/
@@ -192,6 +214,13 @@ test("renderer treats standalone file opens as non-project services without stop
   const listenerCleanupIndex = rendererStartTerminalSource.indexOf("if (state.terminalOutputCleanup)");
   const rendererStandaloneBranch =
     rendererStartTerminalSource.match(/if \(!state\.currentProject \|\| !isProjectFolder\(\)\) \{[\s\S]*?return;\n  \}/)?.[0] ?? "";
+  const rendererStartWatcherStart = rendererSource.indexOf("async function startProjectWatcher()");
+  const rendererStartTerminalStartForWatcher = rendererSource.indexOf("async function startTerminal()", rendererStartWatcherStart);
+  const rendererStartWatcherSource = rendererSource.slice(rendererStartWatcherStart, rendererStartTerminalStartForWatcher);
+  const rendererWatcherStandaloneBranch =
+    rendererStartWatcherSource.match(/if \(!state\.currentProject \|\| !isProjectFolder\(\)\) \{[\s\S]*?return;\n  \}/)?.[0] ?? "";
+  const watcherCleanupIndex = rendererStartWatcherSource.indexOf("if (state.projectWatcherCleanup)");
+  const watcherBoundaryIndex = rendererStartWatcherSource.indexOf("if (!state.currentProject || !isProjectFolder())");
 
   assert.match(rendererSource, /function isProjectFolder\(\)/);
   assert.match(rendererSource, /projectKind:\s*projectResult\.projectKind \?\? "folder"/);
@@ -201,8 +230,19 @@ test("renderer treats standalone file opens as non-project services without stop
   assert.match(nativeStandaloneBranch, /tree = \[\]/);
   assert.match(nativeStandaloneBranch, /selectedFileURL = url/);
   assert.match(nativeStandaloneBranch, /loadFile\(url\)/);
+  assert.doesNotMatch(nativeStandaloneBranch, /fileWatcher/);
+  assert.doesNotMatch(nativeStandaloneBranch, /backgroundTimer/);
   assert.doesNotMatch(nativeStandaloneBranch, /terminalSession/);
-  assert.match(rendererSource, /if \(!state\.currentProject \|\| !isProjectFolder\(\)\)\s*\{[\s\S]*wikiwise\.stopProjectWatcher/);
+  assert.notEqual(rendererStartWatcherStart, -1);
+  assert.notEqual(rendererStartTerminalStartForWatcher, -1);
+  assert.ok(watcherBoundaryIndex >= 0, "renderer startProjectWatcher should branch for standalone files");
+  assert.ok(
+    watcherCleanupIndex > watcherBoundaryIndex,
+    "renderer should preserve an existing project watcher listener for standalone files"
+  );
+  assert.notEqual(rendererWatcherStandaloneBranch, "");
+  assert.doesNotMatch(rendererWatcherStandaloneBranch, /wikiwise\.stopProjectWatcher/);
+  assert.doesNotMatch(rendererWatcherStandaloneBranch, /projectWatcherCleanup/);
   assert.notEqual(rendererStartTerminalStart, -1);
   assert.notEqual(disposeTerminalStart, -1);
   assert.ok(standaloneBoundaryIndex >= 0, "renderer startTerminal should branch for standalone files");
@@ -245,7 +285,8 @@ test("standalone active-file tracking preserves native no-directory side effect"
     /else\s*\{\s*rootURL = url\.deletingLastPathComponent\(\)\s*tree = \[\]\s*selectedFileURL = url\s*loadFile\(url\)/
   );
   assert.match(mainSource, /const projectKind = isDirectory \? "folder" : "file";/);
-  assert.match(mainSource, /setWebContentsProjectRoot\(webContents,\s*isDirectory \? projectRoot : null\)/);
+  assert.match(mainSource, /const projectRoot = isDirectory \? targetPath : path\.dirname\(targetPath\);/);
+  assert.match(mainSource, /projectRoot,\s*projectKind,\s*projectName:\s*path\.basename\(projectRoot\)/);
   assert.match(rendererSource, /await setActiveSelectedFile\(\)/);
   assert.match(mainSource, /function setActiveFile\(payload\)[\s\S]*return writeActiveFile\(projectRoot,\s*filePath\)/);
 });

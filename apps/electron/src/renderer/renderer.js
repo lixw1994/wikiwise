@@ -1821,13 +1821,13 @@ async function confirmUnpublish() {
 }
 
 async function startProjectWatcher() {
+  if (!state.currentProject || !isProjectFolder()) {
+    return;
+  }
+
   if (state.projectWatcherCleanup) {
     state.projectWatcherCleanup();
     state.projectWatcherCleanup = null;
-  }
-  if (!state.currentProject || !isProjectFolder()) {
-    await window.wikiwise.stopProjectWatcher();
-    return;
   }
 
   const cleanup = window.wikiwise.onProjectChanged(handleProjectChanged);
