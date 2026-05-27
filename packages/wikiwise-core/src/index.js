@@ -392,7 +392,7 @@ export function summarizeWatchEvents({ projectRoot, outputDir, events }) {
   }
 
   if (structureChanged) {
-    return createWatchSummary("structure", false, sortedMarkdownPaths, true);
+    return createWatchSummary("structure", false, [], true);
   }
 
   if (cssChanged || sortedMarkdownPaths.length > 0) {

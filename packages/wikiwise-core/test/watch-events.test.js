@@ -85,15 +85,19 @@ test("summarizeWatchEvents ignores removed rebuild triggers", () => {
 });
 
 test("summarizeWatchEvents gives structure changes priority over content changes", () => {
+  const nativeWatcherSource = readRepository("Sources/Wikiwise/FileWatcher.swift");
+  const nativeContentSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const summary = summarizeWatchEvents({
     projectRoot,
     outputDir,
     events: [event("wiki/home.md"), event("wiki/New Page.md", "rename")]
   });
 
+  assert.match(nativeWatcherSource, /else if hasStructure \{\s*\/\/ Structure changes are the next most disruptive\s*watcher\.callback\(\.structure\)/);
+  assert.match(nativeContentSource, /case \.structure:[\s\S]*Don't recompile current page on structure changes/);
   assert.equal(summary.kind, "structure");
   assert.equal(summary.structureChanged, true);
-  assert.deepEqual(summary.changedMarkdownPaths, [path.join(projectRoot, "wiki", "home.md")]);
+  assert.deepEqual(summary.changedMarkdownPaths, []);
 });
 
 test("summarizeWatchEvents reports CSS and markdown content changes together", () => {

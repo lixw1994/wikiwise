@@ -2,7 +2,6 @@
 
 ## Purpose
 Define the shared JavaScript core package that mirrors native wiki compilation, file-tree, scaffold, watcher, publishing, and resource-path behavior for Electron reuse.
-
 ## Requirements
 ### Requirement: Workspace Core Package
 
@@ -299,3 +298,16 @@ The core package SHALL filter watched output paths using the same output-directo
 #### Scenario: Non-output paths change
 - **WHEN** JavaScript summarizes a watched path that does not start with the compiler output directory path
 - **THEN** existing watcher classification remains available for markdown, CSS, structure, rebuild, support-file, and assets events
+
+### Requirement: Watch Structure Priority Payload Parity
+
+The core package SHALL omit markdown path payloads from structure-priority watch summaries, matching native `FileWatcher` structure callbacks.
+
+#### Scenario: Markdown and structure events coalesce
+- **WHEN** JavaScript summarizes a debounce batch containing both markdown content paths and structure-triggering paths
+- **THEN** the result is a structure summary
+- **AND** the structure summary contains no changed markdown paths
+
+#### Scenario: Markdown content events without structure
+- **WHEN** JavaScript summarizes markdown content paths without rebuild or structure events
+- **THEN** the result retains changed markdown paths for content refresh behavior

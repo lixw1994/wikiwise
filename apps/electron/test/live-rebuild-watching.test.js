@@ -96,6 +96,23 @@ test("main process restarts background compilation after watcher compiler change
   assert.match(mainSource, /summary\.changedMarkdownPaths\.length > 0[\s\S]*startBackgroundCompilation\(projectRoot\)/);
 });
 
+test("shared watch summaries mirror native structure priority payloads", () => {
+  const nativeWatcherSource = readRepository("Sources/Wikiwise/FileWatcher.swift");
+  const nativeContentSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const coreSource = readRepository("packages/wikiwise-core/src/index.js");
+  const rendererSource = read("src/renderer/renderer.js");
+  const summarizeWatchEventsSource =
+    coreSource.match(/export function summarizeWatchEvents\(\{[\s\S]*?\n\}/)?.[0] ?? "";
+
+  assert.match(nativeWatcherSource, /else if hasStructure \{[\s\S]*watcher\.callback\(\.structure\)/);
+  assert.match(nativeContentSource, /case \.structure:[\s\S]*Don't recompile current page on structure changes/);
+  assert.notEqual(summarizeWatchEventsSource, "");
+  assert.match(summarizeWatchEventsSource, /if \(structureChanged\) \{\s*return createWatchSummary\("structure", false, \[\], true\);/);
+  assert.doesNotMatch(summarizeWatchEventsSource, /return createWatchSummary\("structure", false, sortedMarkdownPaths, true\);/);
+  assert.match(rendererSource, /const changedMarkdownPaths = change\.changedMarkdownPaths \?\? \[\];/);
+  assert.match(rendererSource, /selectedMarkdownChanged[\s\S]*changedMarkdownPaths\.includes\(currentPath\)/);
+});
+
 test("preload exposes watcher APIs and cleans up project-change listeners", () => {
   const preloadSource = read("src/preload/preload.cjs");
 
