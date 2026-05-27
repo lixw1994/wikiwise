@@ -42,6 +42,17 @@ test("runtime audit success path uses graceful Electron shutdown", () => {
   );
 });
 
+test("runtime audit closes its BrowserWindow before app shutdown", () => {
+  const auditSource = read("scripts/audit-electron-runtime.mjs");
+
+  assert.match(auditSource, /await closeAuditWindow\(window\);/);
+  assert.match(
+    auditSource,
+    /function closeAuditWindow\(window\) \{[\s\S]*window\.once\("closed"[\s\S]*window\.close\(\)/
+  );
+  assert.doesNotMatch(auditSource, /window\.destroy\(\);/);
+});
+
 test("runtime audit script loads real renderer through Electron BrowserWindow", () => {
   const scriptPath = path.join(repositoryRoot, "scripts/audit-electron-runtime.mjs");
 

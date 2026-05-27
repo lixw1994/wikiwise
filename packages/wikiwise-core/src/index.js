@@ -380,7 +380,7 @@ export function summarizeWatchEvents({ projectRoot, outputDir, events }) {
       }
     } else if (["build.js", "app.js", "graph.js", "map.html"].includes(fileName)) {
       structureChanged = true;
-    } else if (relativePath.startsWith("wiki/assets/")) {
+    } else if (isNativeWikiAssetsPath(relativePath)) {
       structureChanged = true;
     }
   }
@@ -400,6 +400,10 @@ export function summarizeWatchEvents({ projectRoot, outputDir, events }) {
   }
 
   return null;
+}
+
+function isNativeWikiAssetsPath(relativePath) {
+  return relativePath.startsWith("wiki/assets/") || relativePath.includes("/wiki/assets/");
 }
 
 export function slugForPath(filePath) {

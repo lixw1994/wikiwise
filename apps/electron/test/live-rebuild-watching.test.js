@@ -47,6 +47,21 @@ test("shared watch summaries mirror native case-sensitive markdown and CSS suffi
   assert.match(mainSource, /summarizeWatchEvents\(\{[\s\S]*projectRoot:\s*resolvedRoot[\s\S]*outputDir:\s*compiler\.outputDir/);
 });
 
+test("shared watch summaries mirror native wiki assets path containment", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/FileWatcher.swift");
+  const coreSource = readRepository("packages/wikiwise-core/src/index.js");
+  const mainSource = read("src/main/main.js");
+  const summarizeWatchEventsSource =
+    coreSource.match(/export function summarizeWatchEvents\(\{[\s\S]*?\n\}/)?.[0] ?? "";
+
+  assert.match(nativeSource, /path\.contains\("\/wiki\/assets\/"\)/);
+  assert.notEqual(summarizeWatchEventsSource, "");
+  assert.match(coreSource, /function isNativeWikiAssetsPath\(relativePath\) \{[\s\S]*relativePath\.startsWith\("wiki\/assets\/"\)[\s\S]*relativePath\.includes\("\/wiki\/assets\/"\)/);
+  assert.match(summarizeWatchEventsSource, /isNativeWikiAssetsPath\(relativePath\)/);
+  assert.doesNotMatch(summarizeWatchEventsSource, /else if \(relativePath\.startsWith\("wiki\/assets\/"\)\)/);
+  assert.match(mainSource, /summarizeWatchEvents\(\{[\s\S]*projectRoot:\s*resolvedRoot[\s\S]*outputDir:\s*compiler\.outputDir/);
+});
+
 test("main process compile IPC accepts invalidation and CSS reload refresh flags", () => {
   const mainSource = read("src/main/main.js");
 

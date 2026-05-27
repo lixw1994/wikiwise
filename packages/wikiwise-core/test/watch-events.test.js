@@ -106,3 +106,37 @@ test("summarizeWatchEvents mirrors native case-sensitive markdown and CSS suffix
     structureChanged: false
   });
 });
+
+test("summarizeWatchEvents mirrors native wiki assets path containment", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/FileWatcher.swift");
+  const rootAssetsSummary = summarizeWatchEvents({
+    projectRoot,
+    outputDir,
+    events: [event("wiki/assets/diagram.png")]
+  });
+  const nestedAssetsSummary = summarizeWatchEvents({
+    projectRoot,
+    outputDir,
+    events: [event("notes/wiki/assets/diagram.png")]
+  });
+  const lookalikeSummary = summarizeWatchEvents({
+    projectRoot,
+    outputDir,
+    events: [event("notwiki/assets/diagram.png")]
+  });
+
+  assert.match(nativeSource, /path\.contains\("\/wiki\/assets\/"\)/);
+  assert.deepEqual(rootAssetsSummary, {
+    kind: "structure",
+    cssChanged: false,
+    changedMarkdownPaths: [],
+    structureChanged: true
+  });
+  assert.deepEqual(nestedAssetsSummary, {
+    kind: "structure",
+    cssChanged: false,
+    changedMarkdownPaths: [],
+    structureChanged: true
+  });
+  assert.equal(lookalikeSummary, null);
+});

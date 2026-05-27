@@ -3415,6 +3415,15 @@ function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+function closeAuditWindow(window) {
+  if (window.isDestroyed()) return Promise.resolve();
+
+  return new Promise((resolve) => {
+    window.once("closed", resolve);
+    window.close();
+  });
+}
+
 export async function runElectronRuntimeAudit() {
   resetOutput();
   auditProject = createAuditProject();
@@ -3428,7 +3437,7 @@ export async function runElectronRuntimeAudit() {
       results.push(await runScenario(window, scenario));
     }
   } finally {
-    window.destroy();
+    await closeAuditWindow(window);
   }
 
   const report = {
