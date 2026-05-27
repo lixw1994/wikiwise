@@ -1843,17 +1843,14 @@ async function startProjectWatcher() {
 }
 
 async function startTerminal() {
+  if (!state.currentProject || !isProjectFolder()) {
+    renderTerminalTab();
+    return;
+  }
+
   if (state.terminalOutputCleanup) {
     state.terminalOutputCleanup();
     state.terminalOutputCleanup = null;
-  }
-  if (!state.currentProject || !isProjectFolder()) {
-    await window.wikiwise.stopTerminal();
-    state.terminalSessionProjectRoot = null;
-    state.terminalInstance?.clear?.();
-    window.__wikiwiseTerminalText = "";
-    renderTerminalTab();
-    return;
   }
 
   const terminalInstance = await ensureTerminalInstance();

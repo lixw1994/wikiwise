@@ -178,13 +178,43 @@ test("main process updates window project root ownership at project result bound
   );
 });
 
-test("renderer treats standalone file opens as non-project service state", () => {
+test("renderer treats standalone file opens as non-project services without stopping native terminal state", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
+  const nativeOpenURLSource =
+    nativeSource.match(/private func openURL\(_ url: URL\) \{[\s\S]*?\n    \}/)?.[0] ?? "";
+  const nativeStandaloneBranch =
+    nativeOpenURLSource.match(/\} else \{[\s\S]*?loadFile\(url\)\n        \}/)?.[0] ?? "";
+  const rendererStartTerminalStart = rendererSource.indexOf("async function startTerminal()");
+  const disposeTerminalStart = rendererSource.indexOf("function disposeTerminalView", rendererStartTerminalStart);
+  const rendererStartTerminalSource = rendererSource.slice(rendererStartTerminalStart, disposeTerminalStart);
+  const standaloneBoundaryIndex = rendererStartTerminalSource.indexOf("if (!state.currentProject || !isProjectFolder())");
+  const listenerCleanupIndex = rendererStartTerminalSource.indexOf("if (state.terminalOutputCleanup)");
+  const rendererStandaloneBranch =
+    rendererStartTerminalSource.match(/if \(!state\.currentProject \|\| !isProjectFolder\(\)\) \{[\s\S]*?return;\n  \}/)?.[0] ?? "";
 
   assert.match(rendererSource, /function isProjectFolder\(\)/);
   assert.match(rendererSource, /projectKind:\s*projectResult\.projectKind \?\? "folder"/);
+  assert.match(nativeOpenURLSource, /terminalSession\.startIfNeeded\(workingDirectory:\s*url\)/);
+  assert.notEqual(nativeStandaloneBranch, "");
+  assert.match(nativeStandaloneBranch, /rootURL = url\.deletingLastPathComponent\(\)/);
+  assert.match(nativeStandaloneBranch, /tree = \[\]/);
+  assert.match(nativeStandaloneBranch, /selectedFileURL = url/);
+  assert.match(nativeStandaloneBranch, /loadFile\(url\)/);
+  assert.doesNotMatch(nativeStandaloneBranch, /terminalSession/);
   assert.match(rendererSource, /if \(!state\.currentProject \|\| !isProjectFolder\(\)\)\s*\{[\s\S]*wikiwise\.stopProjectWatcher/);
-  assert.match(rendererSource, /if \(!state\.currentProject \|\| !isProjectFolder\(\)\)\s*\{[\s\S]*wikiwise\.stopTerminal/);
+  assert.notEqual(rendererStartTerminalStart, -1);
+  assert.notEqual(disposeTerminalStart, -1);
+  assert.ok(standaloneBoundaryIndex >= 0, "renderer startTerminal should branch for standalone files");
+  assert.ok(
+    listenerCleanupIndex > standaloneBoundaryIndex,
+    "renderer should preserve an existing terminal output listener for standalone files"
+  );
+  assert.notEqual(rendererStandaloneBranch, "");
+  assert.match(rendererStandaloneBranch, /renderTerminalTab\(\)/);
+  assert.doesNotMatch(rendererStandaloneBranch, /wikiwise\.stopTerminal/);
+  assert.doesNotMatch(rendererStandaloneBranch, /terminalSessionProjectRoot = null/);
+  assert.doesNotMatch(rendererStandaloneBranch, /terminalInstance\?\.clear/);
   assert.match(rendererSource, /publishButton\.disabled = !isProjectFolder\(\) \|\| publishBusy/);
   assert.match(rendererSource, /if \(!isProjectFolder\(\) \|\| !state\.generatedPage\?\.name\) return null;/);
   assert.match(rendererSource, /if \(!isProjectFolder\(\)\) return;/);
