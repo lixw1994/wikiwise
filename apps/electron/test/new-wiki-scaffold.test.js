@@ -391,6 +391,32 @@ test("renderer mirrors native new-wiki action button chrome", () => {
   assert.match(htmlSource, /id="confirm-publish" class="primary-action"/);
 });
 
+test("renderer mirrors native new-wiki disabled state and fallback location", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const newWikiSheetSource =
+    nativeSource.match(/private var newWikiSheet: some View[\s\S]*?\.frame\(width:\s*400\)/)?.[0] ?? "";
+  const renderDialogSource =
+    rendererSource.match(/function renderNewWikiDialog\(\) \{[\s\S]*?\n\}/)?.[0] ?? "";
+
+  assert.notEqual(newWikiSheetSource, "");
+  assert.match(newWikiSheetSource, /Text\(newWikiLocation\?\.path \?\? "~\/wikis"\)/);
+  assert.match(
+    newWikiSheetSource,
+    /Button\("Create"\)[\s\S]*\.disabled\(newWikiName\.trimmingCharacters\(in:\s*\.whitespaces\)\.isEmpty\)/
+  );
+  assert.doesNotMatch(newWikiSheetSource, /isCreatingWiki/);
+
+  assert.notEqual(renderDialogSource, "");
+  assert.match(renderDialogSource, /const fullLocationPath = state\.newWikiLocation \|\| "~\/wikis";/);
+  assert.match(renderDialogSource, /confirmCreateNewButton\.disabled = state\.newWikiName\.trim\(\)\.length === 0;/);
+  assert.doesNotMatch(renderDialogSource, /newWikiNameInput\.disabled = state\.isCreatingWiki/);
+  assert.doesNotMatch(renderDialogSource, /chooseNewWikiLocationButton\.disabled = state\.isCreatingWiki/);
+  assert.doesNotMatch(renderDialogSource, /cancelCreateNewButton\.disabled = state\.isCreatingWiki/);
+  assert.doesNotMatch(renderDialogSource, /state\.isCreatingWiki \|\| state\.newWikiName\.trim\(\)\.length === 0/);
+  assert.doesNotMatch(renderDialogSource, /\|\| !state\.newWikiLocation/);
+});
+
 test("renderer mirrors native new-wiki location chooser button chrome", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");

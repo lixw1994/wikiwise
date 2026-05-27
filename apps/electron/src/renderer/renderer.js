@@ -1156,15 +1156,14 @@ function renderNewWikiDialog() {
   if (document.activeElement !== newWikiNameInput) {
     newWikiNameInput.value = state.newWikiName;
   }
-  const fullLocationPath = state.newWikiLocation || "";
+  const fullLocationPath = state.newWikiLocation || "~/wikis";
   newWikiLocationLabel.textContent = middleTruncatePath(fullLocationPath);
   newWikiLocationLabel.title = fullLocationPath;
   newWikiLocationLabel.setAttribute("aria-label", fullLocationPath);
-  newWikiNameInput.disabled = state.isCreatingWiki;
-  chooseNewWikiLocationButton.disabled = state.isCreatingWiki;
-  cancelCreateNewButton.disabled = state.isCreatingWiki;
-  confirmCreateNewButton.disabled =
-    state.isCreatingWiki || state.newWikiName.trim().length === 0 || !state.newWikiLocation;
+  newWikiNameInput.disabled = false;
+  chooseNewWikiLocationButton.disabled = false;
+  cancelCreateNewButton.disabled = false;
+  confirmCreateNewButton.disabled = state.newWikiName.trim().length === 0;
   confirmCreateNewButton.textContent = "Create";
 }
 
