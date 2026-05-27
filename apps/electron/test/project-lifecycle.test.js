@@ -15,6 +15,16 @@ function readRepository(relativePath) {
   return fs.readFileSync(path.join(repositoryRoot, relativePath), "utf8");
 }
 
+function sourceBetween(source, startSignature, endSignature) {
+  const start = source.indexOf(startSignature);
+  const end = source.indexOf(endSignature, start + startSignature.length);
+
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+
+  return source.slice(start, end);
+}
+
 test("main process exposes project lifecycle IPC channels", () => {
   const mainSource = read("src/main/main.js");
 
@@ -197,6 +207,42 @@ test("main process updates window project root ownership at project result bound
   assert.match(
     mainSource,
     /function startProjectWatcher\(webContents,\s*payload\)[\s\S]*setWebContentsProjectRoot\(webContents,\s*resolvedRoot\)/
+  );
+});
+
+test("renderer preserves native standalone file history while folder opens reset it", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const nativeOpenURLSource = sourceBetween(
+    nativeSource,
+    "private func openURL(_ url: URL)",
+    "private func createNewWiki()"
+  );
+  const nativeFolderBranch =
+    nativeOpenURLSource.match(/if isDir\.boolValue \{[\s\S]*?\n        \} else \{/)?.[0] ?? "";
+  const nativeStandaloneBranch =
+    nativeOpenURLSource.match(/\} else \{[\s\S]*?loadFile\(url\)\n        \}/)?.[0] ?? "";
+  const applyProjectResultSource = sourceBetween(
+    rendererSource,
+    "async function applyProjectResult(projectResult, options = {})",
+    "async function openNewWikiDialog()"
+  );
+
+  assert.notEqual(nativeFolderBranch, "");
+  assert.match(nativeFolderBranch, /backHistory = \[\]/);
+  assert.match(nativeFolderBranch, /forwardHistory = \[\]/);
+  assert.notEqual(nativeStandaloneBranch, "");
+  assert.doesNotMatch(nativeStandaloneBranch, /backHistory/);
+  assert.doesNotMatch(nativeStandaloneBranch, /forwardHistory/);
+
+  assert.notEqual(applyProjectResultSource, "");
+  assert.doesNotMatch(
+    applyProjectResultSource,
+    /state\.generatedPage = null;\s*state\.backHistory = \[\];\s*state\.forwardHistory = \[\];/
+  );
+  assert.match(
+    applyProjectResultSource,
+    /if \(isProjectFolder\(\)\) \{\s*state\.backHistory = \[\];\s*state\.forwardHistory = \[\];\s*\}/
   );
 });
 

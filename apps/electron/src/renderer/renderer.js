@@ -1103,8 +1103,10 @@ async function applyProjectResult(projectResult, options = {}) {
     state.showPostCreateGuide = true;
   }
   state.generatedPage = null;
-  state.backHistory = [];
-  state.forwardHistory = [];
+  if (isProjectFolder()) {
+    state.backHistory = [];
+    state.forwardHistory = [];
+  }
   setSelectedFile(projectResult.selectedFile);
 
   renderApp();
