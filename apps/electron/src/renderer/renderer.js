@@ -180,13 +180,15 @@ function isProjectFolder() {
 }
 
 function middleTruncatePath(pathValue, maxLength = newWikiLocationDisplayLimit) {
-  if (!pathValue || pathValue.length <= maxLength) return pathValue || "";
+  if (!pathValue) return "";
+  const pathCharacters = Array.from(pathValue);
+  if (pathCharacters.length <= maxLength) return pathValue;
   if (maxLength <= 1) return "…";
 
   const availableLength = maxLength - 1;
   const headLength = Math.ceil(availableLength / 2);
   const tailLength = Math.floor(availableLength / 2);
-  return `${pathValue.slice(0, headLength)}…${pathValue.slice(-tailLength)}`;
+  return `${pathCharacters.slice(0, headLength).join("")}…${pathCharacters.slice(-tailLength).join("")}`;
 }
 
 function clearAutosave() {

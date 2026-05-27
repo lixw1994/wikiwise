@@ -24,6 +24,30 @@ function cssBlock(source, selector) {
   return source.match(pattern)?.[1] ?? "";
 }
 
+function rendererFunction(name, nextName) {
+  const source = read("src/renderer/renderer.js");
+  const start = source.indexOf(`function ${name}`);
+  const end = source.indexOf(`\n}\n\nfunction ${nextName}`, start);
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+  return new Function(`${source.slice(start, end)}\n}\nreturn ${name};`)();
+}
+
+function containsUnpairedSurrogate(value) {
+  for (let index = 0; index < value.length; index += 1) {
+    const code = value.charCodeAt(index);
+    if (code >= 0xd800 && code <= 0xdbff) {
+      const next = value.charCodeAt(index + 1);
+      if (!(next >= 0xdc00 && next <= 0xdfff)) return true;
+    }
+    if (code >= 0xdc00 && code <= 0xdfff) {
+      const previous = value.charCodeAt(index - 1);
+      if (!(previous >= 0xd800 && previous <= 0xdbff)) return true;
+    }
+  }
+  return false;
+}
+
 test("main process exposes new-wiki scaffold IPC through main-owned filesystem work", () => {
   const mainSource = read("src/main/main.js");
 
@@ -195,13 +219,27 @@ test("renderer mirrors native new-wiki location middle truncation", () => {
 
   assert.match(rendererSource, /const newWikiLocationDisplayLimit = \d+/);
   assert.match(rendererSource, /function middleTruncatePath\(pathValue/);
-  assert.match(rendererSource, /return `\$\{pathValue\.slice\(0,\s*headLength\)\}…\$\{pathValue\.slice\(-tailLength\)\}`/);
+  assert.match(rendererSource, /Array\.from\(pathValue\)/);
+  assert.match(rendererSource, /pathCharacters\.slice\(0,\s*headLength\)\.join\(""\)/);
+  assert.match(rendererSource, /pathCharacters\.slice\(-tailLength\)\.join\(""\)/);
   assert.match(rendererSource, /newWikiLocationLabel\.textContent = middleTruncatePath\(fullLocationPath\)/);
   assert.match(rendererSource, /newWikiLocationLabel\.title = fullLocationPath/);
   assert.match(rendererSource, /newWikiLocationLabel\.setAttribute\("aria-label", fullLocationPath\)/);
   assert.match(rendererSource, /parentDir:\s*state\.newWikiLocation/);
   assert.match(locationPathBlock, /white-space:\s*nowrap/);
   assert.doesNotMatch(locationPathBlock, /text-overflow:\s*ellipsis/);
+});
+
+test("renderer middle-truncates Unicode new-wiki locations without splitting characters", () => {
+  const middleTruncatePath = rendererFunction("middleTruncatePath", "clearAutosave");
+  const longPath = "\u{10400}".repeat(8);
+  const shortPath = "\u{10400}".repeat(3);
+  const truncated = middleTruncatePath(longPath, 7);
+
+  assert.equal(middleTruncatePath(shortPath, 7), shortPath);
+  assert.equal(truncated, `${"\u{10400}".repeat(3)}…${"\u{10400}".repeat(3)}`);
+  assert.equal(Array.from(truncated).length, 7);
+  assert.equal(containsUnpairedSurrogate(truncated), false);
 });
 
 test("renderer mirrors native new-wiki location path font", () => {
