@@ -1372,8 +1372,20 @@ async function refreshGeneratedPage() {
 }
 
 async function refreshCurrentView() {
-  if (state.selectedFile?.path && isMarkdownFile(state.selectedFile.path)) {
+  if (!state.selectedFile?.path) return;
+  if (isMarkdownFile(state.selectedFile.path)) {
     await refreshSelectedMarkdown({ invalidate: true });
+    return;
+  }
+
+  const selectedPath = state.selectedFile.path;
+  const content = await window.wikiwise.readFile(selectedPath);
+  if (state.selectedFile?.path === selectedPath) {
+    state.selectedFile.content = content;
+    state.selectedFile.draftContent = content;
+    state.selectedFile.lastSavedContent = content;
+    state.selectedFile.isDirty = false;
+    renderDetail();
   }
 }
 

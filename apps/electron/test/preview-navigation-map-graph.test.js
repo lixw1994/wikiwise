@@ -182,7 +182,7 @@ test("preview markdown lookup uses native lowercase md extension candidates", ()
   assert.match(electronGlobalMarkdownHelperSource, /\/\\\.md\$\/i\.test\(filePath\)/);
 });
 
-test("manual Refresh Page command stays scoped to selected markdown like native", () => {
+test("manual Refresh Page command reloads selected source files like native", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
   const nativeRefreshSource = sourceBetween(
@@ -197,8 +197,18 @@ test("manual Refresh Page command stays scoped to selected markdown like native"
   );
 
   assert.match(nativeRefreshSource, /guard let url = selectedFileURL else \{ return \}/);
-  assert.match(rendererRefreshSource, /state\.selectedFile\?\.path && isMarkdownFile\(state\.selectedFile\.path\)/);
+  assert.doesNotMatch(nativeRefreshSource, /pathExtension/);
+  assert.match(nativeRefreshSource, /loadFile\(url\)/);
+  assert.match(rendererRefreshSource, /if \(!state\.selectedFile\?\.path\) return/);
+  assert.match(rendererRefreshSource, /if \(isMarkdownFile\(state\.selectedFile\.path\)\) \{/);
   assert.match(rendererRefreshSource, /refreshSelectedMarkdown\(\{ invalidate:\s*true \}\)/);
+  assert.match(rendererRefreshSource, /const selectedPath = state\.selectedFile\.path/);
+  assert.match(rendererRefreshSource, /window\.wikiwise\.readFile\(selectedPath\)/);
+  assert.match(rendererRefreshSource, /state\.selectedFile\?\.path === selectedPath/);
+  assert.match(rendererRefreshSource, /state\.selectedFile\.content = content/);
+  assert.match(rendererRefreshSource, /state\.selectedFile\.draftContent = content/);
+  assert.match(rendererRefreshSource, /state\.selectedFile\.lastSavedContent = content/);
+  assert.match(rendererRefreshSource, /renderDetail\(\)/);
   assert.doesNotMatch(rendererRefreshSource, /refreshGeneratedPage\(/);
 });
 
