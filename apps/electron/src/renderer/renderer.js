@@ -1099,7 +1099,9 @@ async function applyProjectResult(projectResult, options = {}) {
   state.tree = normalizeTreeNodes(projectResult.tree);
   state.expandedTreePaths = new Set();
   state.treeLoadingPaths = new Set();
-  state.showPostCreateGuide = Boolean(options.showPostCreateGuide);
+  if (options.showPostCreateGuide === true) {
+    state.showPostCreateGuide = true;
+  }
   state.generatedPage = null;
   state.backHistory = [];
   state.forwardHistory = [];

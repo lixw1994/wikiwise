@@ -964,3 +964,44 @@ test("renderer keeps post-create guide visible across incidental navigation like
   assert.doesNotMatch(showGeneratedPageSource, /state\.showPostCreateGuide = false/);
   assert.match(dismissFunctionSource, /state\.showPostCreateGuide = false/);
 });
+
+test("renderer preserves post-create guide across project result application like native", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const nativeOpenURLSource = sourceBetween(
+    nativeSource,
+    "private func openURL(_ url: URL)",
+    "private func createNewWiki()"
+  );
+  const applyProjectResultSource = sourceBetween(
+    rendererSource,
+    "async function applyProjectResult(projectResult, options = {})",
+    "async function openNewWikiDialog()"
+  );
+  const createNewWikiSource = sourceBetween(
+    rendererSource,
+    "async function createNewWiki()",
+    "function renderPostCreateGuide()"
+  );
+  const dismissFunctionSource = sourceBetween(
+    rendererSource,
+    "async function dismissPostCreateGuide()",
+    "async function loadAppSettings"
+  );
+
+  assert.notEqual(nativeOpenURLSource, "");
+  assert.match(nativeOpenURLSource, /if isDir\.boolValue \{[\s\S]*rootURL = url[\s\S]*terminalSession\.startIfNeeded/);
+  assert.doesNotMatch(nativeOpenURLSource, /showPostCreateGuide\s*=/);
+
+  assert.notEqual(applyProjectResultSource, "");
+  assert.doesNotMatch(applyProjectResultSource, /state\.showPostCreateGuide\s*=\s*Boolean\(options\.showPostCreateGuide\)/);
+  assert.doesNotMatch(applyProjectResultSource, /state\.showPostCreateGuide\s*=\s*false/);
+  assert.match(
+    applyProjectResultSource,
+    /if \(options\.showPostCreateGuide === true\) \{[\s\S]*state\.showPostCreateGuide = true/
+  );
+
+  assert.match(createNewWikiSource, /applyProjectResult\(result\.project,\s*\{\s*showPostCreateGuide:\s*true\s*\}\)/);
+  assert.match(createNewWikiSource, /catch \(error\)[\s\S]*state\.showPostCreateGuide = false/);
+  assert.match(dismissFunctionSource, /state\.showPostCreateGuide = false/);
+});
