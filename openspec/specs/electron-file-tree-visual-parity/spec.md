@@ -78,3 +78,14 @@ Electron file-tree rows for native special files SHALL render with the same medi
 - **THEN** those rows use a medium font weight matching native SwiftUI `.medium`
 - **AND** regular file rows remain regular weight
 - **AND** file-tree indentation, selected accent, serif typography, and special filename membership remain unchanged
+
+### Requirement: File Tree Row Typography Parity
+
+Electron file-tree folder and file row labels SHALL render with the same native 13px regular serif typography as SwiftUI, while preserving native medium weight for special file rows.
+
+#### Scenario: File-tree rows are rendered
+- **WHEN** Electron renders folder rows in the project file tree
+- **THEN** their labels use 13px regular serif typography matching native SwiftUI
+- **AND** regular file labels use 13px regular serif typography matching native SwiftUI
+- **AND** `home.md`, `index.md`, and `log.md` continue to use the native medium special-file weight
+- **AND** file-tree indentation, row padding, selected-row italic styling, selected accent, folder icons, and expansion behavior remain unchanged

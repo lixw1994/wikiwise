@@ -118,6 +118,37 @@ test("renderer includes native file tree visual affordances", () => {
   assert.doesNotMatch(specialFileRule, /font-weight:\s*600/);
 });
 
+test("renderer mirrors native file tree row typography", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const styleSource = read("src/renderer/styles.css");
+  const nativeFileTreeRowSource = nativeSource.slice(
+    nativeSource.indexOf("private func fileTreeRow"),
+    nativeSource.indexOf("// MARK: - Detail")
+  );
+  const folderButtonRule = cssBlock(styleSource, ".tree-folder-button");
+  const fileButtonRule = cssBlock(styleSource, ".tree-file-button");
+  const specialFileRule = cssBlock(styleSource, ".tree-file-button.special-file");
+
+  assert.match(
+    nativeFileTreeRowSource,
+    /Text\(node\.name\)[\s\S]*\.font\(\.system\(size:\s*13,\s*weight:\s*\.regular,\s*design:\s*\.serif\)\)/
+  );
+  assert.match(
+    nativeFileTreeRowSource,
+    /Text\(node\.name\)[\s\S]*\.font\(\.system\(size:\s*13,\s*weight:\s*isSpecialFile \? \.medium : \.regular,\s*design:\s*\.serif\)\)/
+  );
+
+  assert.match(folderButtonRule, /font-family:\s*Georgia,\s*serif/);
+  assert.match(folderButtonRule, /font-size:\s*13px/);
+  assert.match(folderButtonRule, /font-weight:\s*400/);
+  assert.match(fileButtonRule, /font-family:\s*Georgia,\s*serif/);
+  assert.match(fileButtonRule, /font-size:\s*13px/);
+  assert.match(fileButtonRule, /font-weight:\s*400/);
+  assert.match(specialFileRule, /font-weight:\s*500/);
+  assert.doesNotMatch(folderButtonRule, /font-size:\s*16px/);
+  assert.doesNotMatch(fileButtonRule, /font-size:\s*16px/);
+});
+
 test("renderer mirrors native file tree folder tooltip copy", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
