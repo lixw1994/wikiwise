@@ -1512,12 +1512,19 @@ async function openPublishDialog() {
   setError(null);
   state.publishError = null;
   const config = state.publishConfig ?? (await refreshPublishConfig());
-  state.publishSubdomain = config?.published ? config.subdomain : (config?.suggestedSubdomain ?? "");
-  state.publishAvailability = config?.published ? "owned" : "unknown";
+  let shouldCheckAvailability = false;
+  if (config?.published) {
+    state.publishSubdomain = config.subdomain;
+    state.publishAvailability = "owned";
+  } else if (!state.publishSubdomain) {
+    state.publishSubdomain = config?.suggestedSubdomain ?? "";
+    state.publishAvailability = "unknown";
+    shouldCheckAvailability = Boolean(state.publishSubdomain);
+  }
   state.isPublishDialogOpen = true;
   renderPublishDialog();
 
-  if (!config?.published && state.publishSubdomain) {
+  if (shouldCheckAvailability) {
     scheduleAvailabilityCheck();
   }
 }

@@ -419,6 +419,43 @@ test("renderer mirrors native publish dialog copy", () => {
   );
 });
 
+test("renderer preserves first-publish subdomain draft across cancel like native sheet state", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const nativeToolbarPublishAction =
+    nativeSource.match(/Button \{\s*if publishConfig == nil \{[\s\S]*?\n\s*\} label: \{/)?.[0] ?? "";
+  const nativeSheetOnAppear =
+    nativeSource.match(/\.onAppear \{\s*if pendingSubdomain\.isEmpty \{[\s\S]*?\n\s*\}\s*\}/)?.[0] ?? "";
+  const openPublishDialogBody =
+    rendererSource.match(/async function openPublishDialog\(\) \{([\s\S]*?)\n\}\n\nfunction closePublishDialog/)?.[1] ?? "";
+
+  assert.notEqual(nativeToolbarPublishAction, "");
+  assert.match(nativeToolbarPublishAction, /if publishConfig == nil \{\s*\/\/ First publish[\s\S]*showPublishConfirm = true/);
+  assert.match(
+    nativeToolbarPublishAction,
+    /else \{[\s\S]*pendingSubdomain = publishConfig\?\.subdomain \?\? ""[\s\S]*subdomainAvailability = \.owned/
+  );
+  assert.doesNotMatch(
+    nativeToolbarPublishAction.match(/if publishConfig == nil \{([\s\S]*?)\} else/)?.[1] ?? "",
+    /pendingSubdomain|subdomainAvailability/
+  );
+  assert.notEqual(nativeSheetOnAppear, "");
+  assert.match(nativeSheetOnAppear, /if pendingSubdomain\.isEmpty \{[\s\S]*pendingSubdomain = Publisher\.randomSubdomain/);
+
+  assert.notEqual(openPublishDialogBody, "");
+  assert.match(openPublishDialogBody, /let shouldCheckAvailability = false;/);
+  assert.match(openPublishDialogBody, /if \(config\?\.published\) \{/);
+  assert.match(openPublishDialogBody, /state\.publishSubdomain = config\.subdomain;/);
+  assert.match(openPublishDialogBody, /state\.publishAvailability = "owned";/);
+  assert.match(openPublishDialogBody, /\} else if \(!state\.publishSubdomain\) \{/);
+  assert.match(openPublishDialogBody, /state\.publishSubdomain = config\?\.suggestedSubdomain \?\? "";/);
+  assert.match(openPublishDialogBody, /state\.publishAvailability = "unknown";/);
+  assert.match(openPublishDialogBody, /shouldCheckAvailability = Boolean\(state\.publishSubdomain\);/);
+  assert.doesNotMatch(openPublishDialogBody, /state\.publishSubdomain = config\?\.published \?/);
+  assert.doesNotMatch(openPublishDialogBody, /state\.publishAvailability = config\?\.published \?/);
+  assert.match(openPublishDialogBody, /if \(shouldCheckAvailability\) \{[\s\S]*scheduleAvailabilityCheck\(\);/);
+});
+
 test("renderer mirrors native publish URL intro font", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const htmlSource = read("src/renderer/index.html");
