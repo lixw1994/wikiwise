@@ -126,6 +126,40 @@ test("preload exposes watcher APIs and cleans up project-change listeners", () =
   assert.match(preloadSource, /removeListener\("wikiwise:projectChanged"/);
 });
 
+test("renderer reloads selected non-markdown source files on native css and rebuild watcher events", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const recompileCurrentPageSource =
+    nativeSource.match(/private func recompileCurrentPage\(_ c: Compiler\) \{[\s\S]*?\n    \}/)?.[0] ?? "";
+  const handleProjectChangedSource =
+    rendererSource.match(/async function handleProjectChanged\(change\) \{[\s\S]*?\n\}\n\nasync function refreshSelectedMarkdown/)?.[0] ?? "";
+  const reloadSelectedFileSource =
+    rendererSource.match(/async function reloadSelectedFileFromDisk\(filePath\) \{[\s\S]*?\n\}/)?.[0] ?? "";
+
+  assert.match(nativeSource, /case \.css:[\s\S]*if selectedFileURL != nil \{\s*recompileCurrentPage\(c\)\s*\}/);
+  assert.match(nativeSource, /case \.rebuild:[\s\S]*if selectedFileURL != nil \{\s*recompileCurrentPage\(c\)\s*\}/);
+  assert.notEqual(recompileCurrentPageSource, "");
+  assert.match(recompileCurrentPageSource, /guard let url = selectedFileURL else \{ return \}/);
+  assert.match(recompileCurrentPageSource, /loadFile\(url\)/);
+  assert.doesNotMatch(recompileCurrentPageSource, /pathExtension/);
+
+  assert.notEqual(handleProjectChangedSource, "");
+  assert.match(handleProjectChangedSource, /const selectedNonMarkdownSourceChanged\s*=\s*Boolean\([\s\S]*!currentMarkdownSelected[\s\S]*change\.kind === "rebuild"[\s\S]*change\.cssChanged[\s\S]*\);/);
+  assert.match(
+    handleProjectChangedSource,
+    /if \(selectedNonMarkdownSourceChanged && state\.selectedFile && !state\.selectedFile\.isDirty\) \{\s*await reloadSelectedFileFromDisk\(currentPath\);\s*\}/
+  );
+
+  assert.notEqual(reloadSelectedFileSource, "");
+  assert.match(reloadSelectedFileSource, /window\.wikiwise\.readFile\(filePath\)/);
+  assert.match(reloadSelectedFileSource, /state\.selectedFile\.content = content/);
+  assert.match(reloadSelectedFileSource, /state\.selectedFile\.draftContent = content/);
+  assert.match(reloadSelectedFileSource, /state\.selectedFile\.lastSavedContent = content/);
+  assert.match(reloadSelectedFileSource, /state\.selectedFile\.isDirty = false/);
+  assert.match(reloadSelectedFileSource, /await refreshDocumentInfo\(\)/);
+  assert.doesNotMatch(reloadSelectedFileSource, /refreshSelectedMarkdown|compileMarkdownPreview|compilePage/);
+});
+
 test("renderer starts watching projects and refreshes tree, source, and preview from watcher events", () => {
   const rendererSource = read("src/renderer/renderer.js");
 

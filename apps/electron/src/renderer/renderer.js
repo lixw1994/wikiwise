@@ -1371,6 +1371,20 @@ async function refreshGeneratedPage() {
   return refreshed;
 }
 
+async function reloadSelectedFileFromDisk(filePath) {
+  const content = await window.wikiwise.readFile(filePath);
+  if (state.selectedFile?.path === filePath) {
+    state.selectedFile.content = content;
+    state.selectedFile.draftContent = content;
+    state.selectedFile.lastSavedContent = content;
+    state.selectedFile.isDirty = false;
+    renderDetail();
+    await refreshDocumentInfo();
+    return true;
+  }
+  return false;
+}
+
 async function refreshCurrentView() {
   if (!state.selectedFile?.path) return;
   if (isMarkdownFile(state.selectedFile.path)) {
@@ -1903,6 +1917,11 @@ async function handleProjectChanged(change) {
   const changedMarkdownPaths = change.changedMarkdownPaths ?? [];
   const selectedMarkdownChanged =
     currentMarkdownSelected && changedMarkdownPaths.includes(currentPath);
+  const selectedNonMarkdownSourceChanged = Boolean(
+    currentPath &&
+    !currentMarkdownSelected &&
+    (change.kind === "rebuild" || change.cssChanged)
+  );
 
   try {
     if (change.kind === "structure" || change.kind === "rebuild") {
@@ -1920,6 +1939,10 @@ async function handleProjectChanged(change) {
         state.selectedFile.isDirty = false;
         renderDetail();
       }
+    }
+
+    if (selectedNonMarkdownSourceChanged && state.selectedFile && !state.selectedFile.isDirty) {
+      await reloadSelectedFileFromDisk(currentPath);
     }
 
     if (
