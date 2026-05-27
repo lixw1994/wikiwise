@@ -910,7 +910,7 @@ function extractDirections(content) {
 function extractWikilinks(content) {
   const seen = new Set();
   const links = [];
-  const pattern = /\[\[([^\]]+)\]\]/g;
+  const pattern = /\[\[([\s\S]*?)\]\]/g;
   let match;
 
   while ((match = pattern.exec(String(content))) !== null) {

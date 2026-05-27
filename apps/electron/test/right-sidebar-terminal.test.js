@@ -490,6 +490,23 @@ test("shared document info mirrors native CRLF directions parsing", () => {
   assert.doesNotMatch(coreDirectionsSource, /split\(\/\\r\?\\n\/\)/);
 });
 
+test("shared document info mirrors native wikilink scanner bracket targets", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
+  const coreSource = readRepository("packages/wikiwise-core/src/index.js");
+  const nativeWikilinkSource =
+    nativeSource.match(/private func wikilinkTargets\(in url: URL\) -> \[String\] \{[\s\S]*?\n    \}/)?.[0] ?? "";
+  const coreWikilinkSource =
+    coreSource.match(/function extractWikilinks\(content\) \{[\s\S]*?\n\}/)?.[0] ?? "";
+
+  assert.notEqual(nativeWikilinkSource, "");
+  assert.notEqual(coreWikilinkSource, "");
+  assert.match(nativeWikilinkSource, /scanner\.range\(of: "\[\["\)/);
+  assert.match(nativeWikilinkSource, /scanner\.range\(of: "\]\]"\)/);
+  assert.match(nativeWikilinkSource, /String\(scanner\[..<close\.lowerBound\]\)/);
+  assert.ok(coreWikilinkSource.includes("const pattern = /\\[\\[([\\s\\S]*?)\\]\\]/g;"));
+  assert.doesNotMatch(coreWikilinkSource, /\[\^\\\]\]\+/);
+});
+
 test("renderer mirrors native numeric relative edited-time formatting", () => {
   const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
   const rendererSource = read("src/renderer/renderer.js");

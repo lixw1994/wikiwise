@@ -97,6 +97,20 @@ test("summarizeDocumentInfo preserves native raw wikilink targets", () => {
   assert.deepEqual(summarizeDocumentInfo(target).wikilinks, [" Alpha ", "Alpha", "Alpha ", "   "]);
 });
 
+test("summarizeDocumentInfo preserves native wikilink targets containing a single closing bracket", () => {
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), "wikiwise-document-info-bracket-links-"));
+  const target = path.join(root, "wiki", "bracket-links.md");
+  const content = [
+    "Bracket links:",
+    "[[Alpha]Beta]] and [[Gamma]] and [[Alpha]Beta]] and [[]]"
+  ].join("\n");
+
+  fs.mkdirSync(path.dirname(target), { recursive: true });
+  fs.writeFileSync(target, content, "utf8");
+
+  assert.deepEqual(summarizeDocumentInfo(target).wikilinks, ["Alpha]Beta", "Gamma"]);
+});
+
 test("summarizeDocumentInfo rejects missing files", () => {
   const root = fs.mkdtempSync(path.join(os.tmpdir(), "wikiwise-document-info-missing-"));
   const target = path.join(root, "wiki", "missing.md");
