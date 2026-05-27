@@ -123,3 +123,13 @@ Electron file-tree folder icons SHALL use the same native scaled stroke width as
 - **AND** the folder icon tab stroke width matches native `0.8 * 13 / 14`
 - **AND** special `raw` and `site` folder icons keep their special stroke color with the same stroke width
 - **AND** folder icon aspect, special marker geometry, folder row typography, disclosure marker, indentation, and expansion behavior remain unchanged
+
+### Requirement: Folder Row Trailing Padding Parity
+
+Electron file-tree folder rows SHALL match the native SwiftUI folder-row trailing padding behavior.
+
+#### Scenario: Folder and file rows are rendered
+- **WHEN** Electron renders folder and file rows in the project file tree
+- **THEN** folder rows omit the native file-row-only 8px trailing inset
+- **AND** file rows keep the native 8px trailing inset
+- **AND** row leading indentation, vertical padding, typography, selected-file accent alignment, folder icons, and expansion behavior remain unchanged

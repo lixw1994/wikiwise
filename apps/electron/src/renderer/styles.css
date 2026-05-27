@@ -483,7 +483,7 @@ input,
   width: 100%;
   overflow: hidden;
   border-radius: 0;
-  padding: 5px 8px 5px calc(18px + (var(--tree-depth, 0) * 16px));
+  padding: 5px 0 5px calc(18px + (var(--tree-depth, 0) * 16px));
   background: transparent;
   color: var(--color-sidebar-text);
   text-align: left;
@@ -566,6 +566,7 @@ input,
 .tree-file-button {
   position: relative;
   padding-left: calc(33px + (var(--tree-depth, 0) * 16px));
+  padding-right: 8px;
   font-family: Georgia, serif;
   font-size: 13px;
   font-weight: 400;

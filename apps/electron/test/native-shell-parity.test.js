@@ -341,7 +341,7 @@ test("matches native file tree zero row spacing", () => {
 
   assert.match(fileTreeBlock, /gap:\s*0/);
   assert.match(treeChildrenBlock, /gap:\s*0/);
-  assert.match(treeRowBlock, /padding:\s*5px 8px 5px calc\(18px \+ \(var\(--tree-depth,\s*0\) \* 16px\)\)/);
+  assert.match(treeRowBlock, /padding:\s*5px 0 5px calc\(18px \+ \(var\(--tree-depth,\s*0\) \* 16px\)\)/);
   assert.doesNotMatch(fileTreeBlock, /gap:\s*1px/);
   assert.doesNotMatch(treeChildrenBlock, /gap:\s*1px/);
 });

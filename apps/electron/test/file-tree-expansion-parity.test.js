@@ -149,6 +149,37 @@ test("renderer mirrors native file tree row typography", () => {
   assert.doesNotMatch(fileButtonRule, /font-size:\s*16px/);
 });
 
+test("renderer mirrors native folder and file row trailing padding", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const styleSource = read("src/renderer/styles.css");
+  const nativeFileTreeRowSource = nativeSource.slice(
+    nativeSource.indexOf("private func fileTreeRow"),
+    nativeSource.indexOf("// MARK: - Detail")
+  );
+  const nativeFolderRowSource =
+    nativeFileTreeRowSource.match(/if node\.isDirectory \{[\s\S]*?\.help\(folderTooltip\(node\.name\)\)/)?.[0] ?? "";
+  const nativeFileRowSource =
+    nativeFileTreeRowSource.match(/Button \{\s*navigateTo\(node\.url\)[\s\S]*?\.buttonStyle\(\.plain\)/)?.[0] ?? "";
+  const treeRowRule = cssBlock(styleSource, ".tree-row");
+  const folderButtonRule = cssBlock(styleSource, ".tree-folder-button");
+  const fileButtonRule = cssBlock(styleSource, ".tree-file-button");
+
+  assert.notEqual(nativeFolderRowSource, "");
+  assert.match(nativeFolderRowSource, /\.padding\(\.leading,\s*indent\)/);
+  assert.match(nativeFolderRowSource, /\.padding\(\.vertical,\s*5\)/);
+  assert.doesNotMatch(nativeFolderRowSource, /\.padding\(\.trailing,\s*8\)/);
+
+  assert.notEqual(nativeFileRowSource, "");
+  assert.match(nativeFileRowSource, /\.padding\(\.leading,\s*indent \+ 15\)/);
+  assert.match(nativeFileRowSource, /\.padding\(\.vertical,\s*5\)/);
+  assert.match(nativeFileRowSource, /\.padding\(\.trailing,\s*8\)/);
+
+  assert.match(treeRowRule, /padding:\s*5px 0 5px calc\(18px \+ \(var\(--tree-depth,\s*0\) \* 16px\)\)/);
+  assert.doesNotMatch(treeRowRule, /padding:\s*5px 8px 5px/);
+  assert.doesNotMatch(folderButtonRule, /padding-right:\s*8px/);
+  assert.match(fileButtonRule, /padding-right:\s*8px/);
+});
+
 test("renderer mirrors native selected file accent height", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const styleSource = read("src/renderer/styles.css");
