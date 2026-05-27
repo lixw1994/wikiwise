@@ -430,32 +430,19 @@ function findWikiHomeNode() {
   return wikiFolder?.children?.find((node) => !node.isDirectory && node.name === "home.md") ?? null;
 }
 
-function pruneExpandedTreePaths(nodes, expandedPaths) {
-  const allDirectoryPaths = new Set();
-  const visit = (entries) => {
-    for (const node of entries ?? []) {
-      if (!node.isDirectory) continue;
-      allDirectoryPaths.add(node.path);
-      visit(node.children);
-    }
-  };
-  visit(nodes);
-
-  return new Set([...expandedPaths].filter((folderPath) => allDirectoryPaths.has(folderPath)));
-}
-
 async function restoreExpandedTree(previousExpandedPaths) {
-  const sortedPaths = [...previousExpandedPaths].sort((a, b) => a.length - b.length);
+  const topLevelExpandedPaths = new Set(
+    state.tree.filter((node) => node.isDirectory && previousExpandedPaths.has(node.path)).map((node) => node.path)
+  );
   state.expandedTreePaths = new Set();
 
-  for (const folderPath of sortedPaths) {
+  for (const folderPath of topLevelExpandedPaths) {
     const node = findTreeNodeByPath(state.tree, folderPath);
     if (node?.isDirectory) {
       await expandProjectTreeFolder(node, { render: false });
     }
   }
 
-  state.expandedTreePaths = pruneExpandedTreePaths(state.tree, state.expandedTreePaths);
   renderTree(state.tree);
 }
 

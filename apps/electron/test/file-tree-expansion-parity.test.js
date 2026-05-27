@@ -112,6 +112,34 @@ test("renderer auto-expands native default folders and preserves expansion on re
   assert.match(rendererSource, /scanProject/);
 });
 
+test("renderer mirrors native refresh tree top-level expansion retention", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const nativeRefreshSource =
+    nativeSource.match(/private func refreshTree\(\) \{[\s\S]*?let snapshot = tree; tree = \[\]; tree = snapshot\n    \}/)?.[0] ??
+    "";
+  const restoreExpandedSource =
+    rendererSource.match(/async function restoreExpandedTree\(previousExpandedPaths\) \{[\s\S]*?\n\}/)?.[0] ?? "";
+
+  assert.notEqual(nativeRefreshSource, "");
+  assert.match(nativeRefreshSource, /tree = scanOneLevel\(at: root\)/);
+  assert.match(
+    nativeRefreshSource,
+    /let newFolderURLs = Set\(tree\.filter \{ \$0\.isDirectory \}\.map \{ \$0\.url \}\)/
+  );
+  assert.match(nativeRefreshSource, /expandedFolders = previousExpanded\.intersection\(newFolderURLs\)/);
+
+  assert.notEqual(restoreExpandedSource, "");
+  assert.match(restoreExpandedSource, /const topLevelExpandedPaths = new Set\(/);
+  assert.match(
+    restoreExpandedSource,
+    /state\.tree\s*\.\s*filter\(\(node\) => node\.isDirectory && previousExpandedPaths\.has\(node\.path\)\)/
+  );
+  assert.match(restoreExpandedSource, /for \(const folderPath of topLevelExpandedPaths\)/);
+  assert.doesNotMatch(restoreExpandedSource, /sort\(\(a, b\) => a\.length - b\.length\)/);
+  assert.doesNotMatch(restoreExpandedSource, /pruneExpandedTreePaths/);
+});
+
 test("renderer preserves file tree state across left sidebar visibility changes", () => {
   const rendererSource = read("src/renderer/renderer.js");
   const htmlSource = read("src/renderer/index.html");

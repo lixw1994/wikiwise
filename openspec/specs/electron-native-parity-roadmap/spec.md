@@ -138,6 +138,7 @@ The migration roadmap SHALL record Electron file-tree expansion parity as a nati
 - **WHEN** the Electron file-tree expansion parity change is archived
 - **THEN** retained verification records native ordering, default top-level expansion, lazy nested expansion, path-safe expansion IPC, nested file selection, and runtime audit evidence
 - **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation
+
 ### Requirement: Viewport Detail Chrome Parity Phase Completion Tracking
 The migration roadmap SHALL record Electron viewport/detail chrome parity as a visible shell polish phase.
 
@@ -751,4 +752,12 @@ The migration roadmap SHALL record Electron INFO serif font specificity parity a
 #### Scenario: INFO serif font specificity parity phase is archived
 - **WHEN** the Electron INFO serif font specificity parity change is archived
 - **THEN** retained verification records native Swift `RightSidebar` serif font evidence, Electron CSS specificity coverage, targeted right-sidebar test evidence, package/build/runtime evidence, and release-readiness gate evidence
+- **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation
+
+### Requirement: File Tree Refresh Depth Parity Phase Completion Tracking
+The migration roadmap SHALL record Electron file-tree refresh expansion-depth parity as a native project-browser gap closure phase.
+
+#### Scenario: File tree refresh depth phase is archived
+- **WHEN** the Electron file-tree refresh expansion-depth parity change is archived
+- **THEN** retained verification records native `refreshTree()` depth evidence, Electron restore-depth regression coverage, targeted file-tree tests, package/build/runtime evidence, and release-readiness gate evidence
 - **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation

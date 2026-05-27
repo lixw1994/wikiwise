@@ -50,13 +50,14 @@ Selecting a nested file from the Electron tree SHALL use the same selection pipe
 - **AND** uses the same CodeMirror save path as top-level non-markdown files
 
 ### Requirement: Tree Refresh Preserves Expansion
-The Electron app SHALL preserve compatible expanded folders across project tree refreshes.
+The Electron app SHALL match native project tree refresh depth by preserving only compatible top-level expanded folders across project tree refreshes.
 
 #### Scenario: Project watcher reports a structure change
 - **WHEN** the project watcher reports added or removed files
 - **THEN** the Electron app rescans the top-level project tree
-- **AND** re-expands folders that still exist and were expanded before the refresh
-- **AND** removes expansion state for folders that no longer exist
+- **AND** re-expands top-level folders that still exist and were expanded before the refresh
+- **AND** drops nested folder expansion state for that refresh path
+- **AND** removes expansion state for top-level folders that no longer exist
 
 ### Requirement: File Tree State Across Sidebar Visibility
 The Electron file tree SHALL preserve selection and expansion state when the left sidebar is hidden and restored.
