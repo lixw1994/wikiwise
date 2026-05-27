@@ -878,18 +878,36 @@ function startTerminal(webContents, payload) {
     throw new Error("startTerminal requires live webContents");
   }
 
+  const webContentsId = webContents.id;
+  const existingTerminal = terminalSessionsByWebContents.get(webContentsId);
+  if (existingTerminal) {
+    const { cols, rows } = normalizeTerminalSize(payload);
+    if (cols !== existingTerminal.cols || rows !== existingTerminal.rows) {
+      existingTerminal.process.resize(cols, rows);
+      existingTerminal.cols = cols;
+      existingTerminal.rows = rows;
+    }
+    return {
+      started: false,
+      reused: true,
+      projectRoot: existingTerminal.projectRoot,
+      shell: existingTerminal.shell,
+      pty: true,
+      cols: existingTerminal.cols,
+      rows: existingTerminal.rows
+    };
+  }
+
   const resolvedRoot = path.resolve(projectRoot);
   const stat = fs.statSync(resolvedRoot);
   if (!stat.isDirectory()) {
     throw new Error("startTerminal requires a project directory");
   }
 
-  const webContentsId = webContents.id;
-  closeTerminal(webContentsId);
-
   const { cols, rows } = normalizeTerminalSize(payload);
   const shellPath = process.env.SHELL || process.env.ComSpec || (process.platform === "win32" ? "cmd.exe" : "/bin/zsh");
   const shellArgs = loginShellArgs();
+  const shell = path.basename(shellPath);
   const ptyProcess = pty.spawn(shellPath, shellArgs, {
     name: "xterm-256color",
     cols,
@@ -905,6 +923,7 @@ function startTerminal(webContents, payload) {
   const session = {
     projectRoot: resolvedRoot,
     process: ptyProcess,
+    shell,
     cols,
     rows
   };
@@ -932,7 +951,7 @@ function startTerminal(webContents, payload) {
   return {
     started: true,
     projectRoot: resolvedRoot,
-    shell: path.basename(shellPath),
+    shell,
     pty: true,
     cols,
     rows

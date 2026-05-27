@@ -140,6 +140,7 @@ const state = {
   documentInfo: null,
   terminalInstance: null,
   terminalFitAddon: null,
+  terminalSessionProjectRoot: null,
   terminalResizeObserver: null,
   terminalResourcesLoaded: false,
   terminalResizeTimer: null,
@@ -1848,25 +1849,35 @@ async function startTerminal() {
   }
   if (!state.currentProject || !isProjectFolder()) {
     await window.wikiwise.stopTerminal();
+    state.terminalSessionProjectRoot = null;
     state.terminalInstance?.clear?.();
+    window.__wikiwiseTerminalText = "";
     renderTerminalTab();
     return;
   }
 
   const terminalInstance = await ensureTerminalInstance();
-  terminalInstance.clear();
-  terminalInstance.writeln("Starting shell...");
-  window.__wikiwiseTerminalText = "Starting shell...\n";
+  const previousTerminalProjectRoot = state.terminalSessionProjectRoot;
+  if (!state.terminalSessionProjectRoot) {
+    state.terminalSessionProjectRoot = state.currentProject.projectRoot;
+  }
   const cleanup = window.wikiwise.onTerminalOutput(handleTerminalOutput);
   try {
-    await window.wikiwise.startTerminal({
+    const terminalResult = await window.wikiwise.startTerminal({
       projectRoot: state.currentProject.projectRoot,
       cols: terminalInstance.cols,
       rows: terminalInstance.rows
     });
+    state.terminalSessionProjectRoot = terminalResult.projectRoot ?? state.currentProject.projectRoot;
+    if (terminalResult.started) {
+      terminalInstance.clear();
+      terminalInstance.writeln("Starting shell...");
+      window.__wikiwiseTerminalText = "Starting shell...\n";
+    }
     await sendTerminalResize();
     state.terminalOutputCleanup = cleanup;
   } catch (error) {
+    state.terminalSessionProjectRoot = previousTerminalProjectRoot;
     cleanup();
     throw error;
   }
@@ -1879,7 +1890,7 @@ function disposeTerminalView() {
 }
 
 function handleTerminalOutput(output) {
-  if (!state.currentProject || output.projectRoot !== state.currentProject.projectRoot) {
+  if (!state.terminalSessionProjectRoot || output.projectRoot !== state.terminalSessionProjectRoot) {
     return;
   }
 
@@ -1887,6 +1898,9 @@ function handleTerminalOutput(output) {
     .then((terminalInstance) => {
       window.__wikiwiseTerminalText = `${window.__wikiwiseTerminalText ?? ""}${output.data}`.slice(-4000);
       terminalInstance.write(output.data);
+      if (output.source === "system" && output.data.includes("[process exited")) {
+        state.terminalSessionProjectRoot = null;
+      }
     })
     .catch(setError);
 }

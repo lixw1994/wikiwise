@@ -101,6 +101,57 @@ test("main process starts right sidebar terminal as native login shell without c
   assert.match(resizeSource, /session\.rows = rows/);
 });
 
+test("terminal startup reuses an existing window session like native startIfNeeded", () => {
+  const nativeTerminalSource = readRepository("Sources/Wikiwise/TerminalEmbed.swift");
+  const nativeContentSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const mainSource = read("src/main/main.js");
+  const rendererSource = read("src/renderer/renderer.js");
+  const nativeStartSource =
+    nativeTerminalSource.match(/func startIfNeeded\(workingDirectory: URL\?\) \{[\s\S]*?tv\.startProcess\([\s\S]*?\n        \)\n    \}/)?.[0] ?? "";
+  const startTerminalStart = mainSource.indexOf("function startTerminal");
+  const normalizeStart = mainSource.indexOf("function normalizeTerminalSize", startTerminalStart);
+  const startTerminalSource = mainSource.slice(startTerminalStart, normalizeStart);
+  const existingLookupIndex = startTerminalSource.indexOf(
+    "const existingTerminal = terminalSessionsByWebContents.get(webContentsId);"
+  );
+  const spawnIndex = startTerminalSource.indexOf("pty.spawn");
+  const rendererStartTerminalStart = rendererSource.indexOf("async function startTerminal()");
+  const disposeTerminalStart = rendererSource.indexOf("function disposeTerminalView", rendererStartTerminalStart);
+  const rendererStartTerminalSource = rendererSource.slice(rendererStartTerminalStart, disposeTerminalStart);
+  const handleTerminalOutputStart = rendererSource.indexOf("function handleTerminalOutput");
+  const sendTerminalInputStart = rendererSource.indexOf("async function sendTerminalInput", handleTerminalOutputStart);
+  const handleTerminalOutputSource = rendererSource.slice(handleTerminalOutputStart, sendTerminalInputStart);
+
+  assert.notEqual(nativeStartSource, "");
+  assert.match(nativeContentSource, /terminalSession\.startIfNeeded\(workingDirectory:\s*url\)/);
+  assert.match(nativeStartSource, /guard !isStarted else \{ return \}/);
+  assert.match(nativeStartSource, /isStarted = true/);
+  assert.match(nativeStartSource, /currentDirectory:\s*cwd/);
+
+  assert.notEqual(startTerminalStart, -1);
+  assert.notEqual(normalizeStart, -1);
+  assert.ok(existingLookupIndex >= 0, "Electron startTerminal should look up an existing terminal session");
+  assert.ok(existingLookupIndex < spawnIndex, "Electron should check for an existing session before spawning a PTY");
+  assert.doesNotMatch(startTerminalSource, /^\s*closeTerminal\(webContentsId\);$/m);
+  assert.match(
+    startTerminalSource,
+    /if \(existingTerminal\) \{[\s\S]*started:\s*false[\s\S]*reused:\s*true[\s\S]*projectRoot:\s*existingTerminal\.projectRoot/
+  );
+  assert.match(startTerminalSource, /started:\s*true/);
+
+  assert.match(rendererSource, /terminalSessionProjectRoot:\s*null/);
+  assert.match(rendererStartTerminalSource, /const terminalResult = await window\.wikiwise\.startTerminal/);
+  assert.match(
+    rendererStartTerminalSource,
+    /if \(terminalResult\.started\) \{[\s\S]*terminalInstance\.clear\(\)[\s\S]*Starting shell/
+  );
+  assert.doesNotMatch(
+    handleTerminalOutputSource,
+    /output\.projectRoot !== state\.currentProject\.projectRoot/
+  );
+  assert.match(handleTerminalOutputSource, /output\.projectRoot !== state\.terminalSessionProjectRoot/);
+});
+
 test("preload exposes document info and terminal APIs with output listener cleanup", () => {
   const preloadSource = read("src/preload/preload.cjs");
 
