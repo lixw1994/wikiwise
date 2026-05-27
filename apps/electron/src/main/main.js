@@ -12,6 +12,7 @@ import {
   loadPublishConfig,
   publishSite,
   randomPublishSubdomain,
+  readDisplayTextFile,
   readTextFile,
   scanOneLevel,
   slugForPath,
@@ -1035,7 +1036,7 @@ function compileWikiHomeIfPresent(projectRoot) {
   return {
     path: homePath,
     name: "home.md",
-    content: readTextFile(homePath),
+    content: readDisplayTextFile(homePath),
     compiled
   };
 }
@@ -1055,7 +1056,7 @@ function createProjectResult(targetPath, webContents = null) {
     : {
         path: targetPath,
         name: path.basename(targetPath),
-        content: readTextFile(targetPath)
+        content: readDisplayTextFile(targetPath)
       };
   if (isDirectory) {
     startBackgroundCompilation(projectRoot);
@@ -1154,7 +1155,7 @@ ipcMain.handle("wikiwise:expandTreeDirectory", (_event, payload) => {
   return expandProjectTreeDirectory(payload);
 });
 ipcMain.handle("wikiwise:readFile", (_event, filePath) => {
-  return readTextFile(filePath);
+  return readDisplayTextFile(filePath);
 });
 ipcMain.handle("wikiwise:compilePage", (_event, payload) => {
   if (!payload?.projectRoot || !payload?.filePath) {

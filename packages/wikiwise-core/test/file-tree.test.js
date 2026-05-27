@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import * as core from "../src/index.js";
 import { expandTreeDirectory, readTextFile, scanOneLevel } from "../src/index.js";
 
 function makeFixture() {
@@ -90,4 +91,13 @@ test("readTextFile returns UTF-8 file contents", () => {
   const filePath = path.join(root, "CLAUDE.md");
 
   assert.equal(readTextFile(filePath), "# Claude");
+});
+
+test("display file reads mirror native loadFile fallback without changing throwing reads", () => {
+  const root = makeFixture();
+  const missingFile = path.join(root, "missing.md");
+
+  assert.equal(typeof core.readDisplayTextFile, "function");
+  assert.equal(core.readDisplayTextFile(missingFile), "Could not read file.");
+  assert.throws(() => readTextFile(missingFile), /ENOENT|no such file/i);
 });

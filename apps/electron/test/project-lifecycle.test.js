@@ -26,6 +26,30 @@ test("main process exposes project lifecycle IPC channels", () => {
   assert.match(mainSource, /readTextFile/);
 });
 
+test("main process mirrors native selected-file read fallback", () => {
+  const mainSource = read("src/main/main.js");
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const nativeLoadFileSource =
+    nativeSource.match(/private func loadFile\(_ url: URL\) \{[\s\S]*?\n    \}/)?.[0] ?? "";
+  const compileWikiHomeSource =
+    mainSource.match(/function compileWikiHomeIfPresent\(projectRoot\) \{[\s\S]*?\n\}/)?.[0] ?? "";
+  const createProjectResultSource =
+    mainSource.match(/function createProjectResult\(targetPath,\s*webContents = null\) \{[\s\S]*?\n\}/)?.[0] ?? "";
+  const readFileHandlerSource =
+    mainSource.match(/ipcMain\.handle\("wikiwise:readFile"[\s\S]*?\n\}\);/)?.[0] ?? "";
+
+  assert.notEqual(nativeLoadFileSource, "");
+  assert.match(nativeLoadFileSource, /\(try\? String\(contentsOf:\s*url,\s*encoding:\s*\.utf8\)\)\s*\?\?\s*"Could not read file\."/);
+  assert.match(mainSource, /readDisplayTextFile/);
+  assert.match(compileWikiHomeSource, /content:\s*readDisplayTextFile\(homePath\)/);
+  assert.match(createProjectResultSource, /content:\s*readDisplayTextFile\(targetPath\)/);
+  assert.match(readFileHandlerSource, /return readDisplayTextFile\(filePath\)/);
+  assert.doesNotMatch(compileWikiHomeSource, /content:\s*readTextFile\(homePath\)/);
+  assert.doesNotMatch(createProjectResultSource, /content:\s*readTextFile\(targetPath\)/);
+  assert.doesNotMatch(readFileHandlerSource, /return readTextFile\(filePath\)/);
+  assert.match(mainSource, /function readAppSettings\(\)[\s\S]*JSON\.parse\(readTextFile\(settingsPath\(\)\)\)/);
+});
+
 test("open existing picker mirrors native folder and plain text contract", () => {
   const mainSource = read("src/main/main.js");
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");

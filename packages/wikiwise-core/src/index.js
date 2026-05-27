@@ -47,6 +47,14 @@ export function readTextFile(filePath) {
   return fs.readFileSync(filePath, "utf8");
 }
 
+export function readDisplayTextFile(filePath) {
+  try {
+    return readTextFile(filePath);
+  } catch {
+    return "Could not read file.";
+  }
+}
+
 export function writeTextFile(filePath, content) {
   const text = String(content);
   fs.mkdirSync(path.dirname(filePath), { recursive: true });
