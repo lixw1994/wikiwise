@@ -102,6 +102,28 @@ test("renderer uses shared CodeMirror iframe for source editing, save, and scrol
   assert.match(rendererSource, /wikiwise\.saveFile/);
 });
 
+test("renderer ignores empty editor content changes like native EditorWebView", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/EditorWebView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const handleEditorContentChangedSource =
+    rendererSource.match(/function handleEditorContentChanged\(content\) \{[\s\S]*?\n\}/)?.[0] ?? "";
+
+  assert.match(
+    nativeSource,
+    /guard let content = message\.body as\? String,\s*!content\.isEmpty,\s*let fileURL = currentFileURL else \{ return \}/
+  );
+  assert.match(nativeSource, /never save empty content/);
+
+  assert.notEqual(handleEditorContentChangedSource, "");
+  assert.match(handleEditorContentChangedSource, /const nextContent = String\(content \?\? ""\)/);
+  assert.match(handleEditorContentChangedSource, /if \(!nextContent\) return/);
+  assert.match(handleEditorContentChangedSource, /file\.draftContent = nextContent/);
+  assert.match(handleEditorContentChangedSource, /state\.editorLoadedContent = file\.draftContent/);
+  assert.match(handleEditorContentChangedSource, /file\.isDirty = file\.draftContent !== file\.lastSavedContent/);
+  assert.match(handleEditorContentChangedSource, /scheduleAutosave\(\)/);
+  assert.doesNotMatch(handleEditorContentChangedSource, /file\.draftContent = String\(content \?\? ""\)/);
+});
+
 test("renderer refreshes compiled preview state after saving markdown", () => {
   const rendererSource = read("src/renderer/renderer.js");
 

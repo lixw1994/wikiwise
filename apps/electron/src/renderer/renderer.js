@@ -2068,7 +2068,10 @@ function handleEditorContentChanged(content) {
   const file = state.selectedFile;
   if (!file) return;
 
-  file.draftContent = String(content ?? "");
+  const nextContent = String(content ?? "");
+  if (!nextContent) return;
+
+  file.draftContent = nextContent;
   state.editorLoadedContent = file.draftContent;
   file.isDirty = file.draftContent !== file.lastSavedContent;
   renderSaveState();
