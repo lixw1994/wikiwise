@@ -109,6 +109,22 @@ test("matches native welcome secondary action foreground color", () => {
   assert.doesNotMatch(welcomeSecondaryActionBlock, /color:\s*var\(--color-control-text\)/);
 });
 
+test("matches native welcome mark foreground role", () => {
+  const welcomeMarkBlock = cssBlock(".welcome-mark");
+
+  assert.match(
+    nativeContentViewSource,
+    /VStack\(spacing:\s*12\)\s*\{[\s\S]*Text\("W"\)[\s\S]*\.font\(\.system\(size:\s*48,\s*weight:\s*\.light,\s*design:\s*\.serif\)\)[\s\S]*\.italic\(\)[\s\S]*\.foregroundStyle\(Color\.sidebarSelectedText\)[\s\S]*Text\("WikiWise helps you turn any folder\\nof markdown files into a browsable,\\npublishable wiki\."\)/
+  );
+  assert.match(htmlSource, /<div class="welcome-mark" aria-hidden="true">W<\/div>/);
+  assert.match(welcomeMarkBlock, /color:\s*var\(--color-sidebar-selected-text\)/);
+  assert.doesNotMatch(welcomeMarkBlock, /color:\s*var\(--color-tab-active\)/);
+  assert.match(welcomeMarkBlock, /font-family:\s*Georgia,\s*"Times New Roman",\s*serif/);
+  assert.match(welcomeMarkBlock, /font-size:\s*48px/);
+  assert.match(welcomeMarkBlock, /font-style:\s*italic/);
+  assert.match(welcomeMarkBlock, /font-weight:\s*300/);
+});
+
 test("matches native welcome toolbar brand chrome", () => {
   const welcomeToolbarBlock = cssBlock(".welcome-toolbar");
   const welcomeToolbarBrandBlock = cssBlock(".welcome-toolbar-brand");
