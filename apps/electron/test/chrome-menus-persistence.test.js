@@ -760,3 +760,31 @@ test("auto appearance reacts to system changes without changing explicit modes",
   );
   assert.match(rendererSource, /watchSystemAppearanceChanges\(\);[\s\S]*bootApp\(\);/);
 });
+
+test("appearance changes reload active preview frames like native WebView reload tokens", () => {
+  const nativeContentSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const nativeWebViewSource = readRepository("Sources/Wikiwise/WebView.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const cycleAppearanceSource = functionSource(rendererSource, "cycleAppearanceMode", "currentHistoryEntry");
+  const reloadPreviewSource =
+    rendererSource.match(/function refreshVisiblePreviewForAppearanceChange\(\) \{[\s\S]*?\n\}/)?.[0] ?? "";
+
+  assert.match(
+    nativeContentSource,
+    /\.onChange\(of: appearanceMode\) \{[\s\S]*DispatchQueue\.main\.asyncAfter[\s\S]*webViewReloadToken \+= 1[\s\S]*terminalSession\.updateAppearance\(\)/
+  );
+  assert.match(nativeWebViewSource, /wv\.appearance = NSApp\.effectiveAppearance/);
+  assert.match(nativeWebViewSource, /lastReloadToken != reloadToken/);
+  assert.match(nativeWebViewSource, /wv\.loadFileURL\(fileURL,\s*allowingReadAccessTo:\s*allowingReadAccessTo\)/);
+
+  assert.notEqual(reloadPreviewSource, "");
+  assert.match(reloadPreviewSource, /if \(!previewFrame\.hidden[\s\S]*renderPreview\(\)/);
+  assert.match(reloadPreviewSource, /if \(!generatedPreviewFrame\.hidden/);
+  assert.match(reloadPreviewSource, /generatedPreviewFrame\.getAttribute\("src"\)/);
+  assert.match(reloadPreviewSource, /generatedPreviewFrame\.src = generatedSource/);
+  assert.doesNotMatch(reloadPreviewSource, /compileMarkdownPreview|openGeneratedPage|pushHistoryEntry/);
+  assert.match(
+    cycleAppearanceSource,
+    /applyAppearanceModeToDocument\(\);\s*refreshVisiblePreviewForAppearanceChange\(\);\s*renderProjectToolbar\(\);/
+  );
+});

@@ -630,6 +630,25 @@ function renderPreview() {
   previewFrame.src = file.compiled.fileUrl;
 }
 
+function refreshVisiblePreviewForAppearanceChange() {
+  let didReload = false;
+
+  if (!previewFrame.hidden && state.selectedFile?.compiled?.fileUrl) {
+    renderPreview();
+    didReload = true;
+  }
+
+  if (!generatedPreviewFrame.hidden) {
+    const generatedSource = generatedPreviewFrame.getAttribute("src");
+    if (generatedSource) {
+      generatedPreviewFrame.src = generatedSource;
+      didReload = true;
+    }
+  }
+
+  return didReload;
+}
+
 function publishButtonHelpText() {
   if (state.publishConfig?.published && state.publishConfig.url) {
     return `Last published: ${state.publishConfig.lastPublishedAt ?? "never"}\n${state.publishConfig.url}\n⌥-click to change URL`;
@@ -1266,6 +1285,7 @@ async function cycleAppearanceMode() {
   const settings = await window.wikiwise.setAppearanceMode(nextMode);
   state.appearanceMode = settings.appearanceMode ?? nextMode;
   applyAppearanceModeToDocument();
+  refreshVisiblePreviewForAppearanceChange();
   renderProjectToolbar();
 }
 
