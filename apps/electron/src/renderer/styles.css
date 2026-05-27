@@ -223,6 +223,10 @@ button:disabled {
   padding-block: 8px;
 }
 
+.welcome-action.secondary-action {
+  color: var(--color-sidebar-selected-text);
+}
+
 .welcome-action-symbol {
   position: relative;
   flex: 0 0 auto;

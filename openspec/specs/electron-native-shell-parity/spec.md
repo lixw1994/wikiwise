@@ -129,3 +129,13 @@ The Electron no-folder welcome screen SHALL match the native SwiftUI line-spacin
 - **THEN** the main welcome summary uses 15px text with a 19px line height, matching SwiftUI 15px text with `.lineSpacing(4)`
 - **AND** the helper hint uses 12px text with a 15px line height, matching SwiftUI 12px text with `.lineSpacing(3)`
 - **AND** welcome copy, intentional line breaks, action buttons, action symbols, toolbar brand styling, colors, and overall welcome layout are unchanged
+
+### Requirement: Welcome Secondary Action Foreground Parity
+
+The Electron no-folder welcome secondary action SHALL use the same foreground color role as the native SwiftUI "Open Existing Folder" button.
+
+#### Scenario: Welcome secondary action is inspected
+- **WHEN** the Electron welcome view is rendered before a project is open
+- **THEN** the Open Existing Folder action uses `--color-sidebar-selected-text` for its label and native-symbol foreground, matching SwiftUI `Color.sidebarSelectedText`
+- **AND** the shared non-welcome `.secondary-action` color remains `--color-control-text`
+- **AND** welcome action labels, native-symbol metadata, width, padding, border, background, and click behavior remain unchanged

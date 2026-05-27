@@ -92,6 +92,23 @@ test("matches native welcome action symbols and preserves entry labels", () => {
   assert.match(htmlSource, /id="open-existing"/);
 });
 
+test("matches native welcome secondary action foreground color", () => {
+  assert.match(
+    nativeContentViewSource,
+    /Button\s*\{\s*openFolder\(\)\s*\} label:\s*\{[\s\S]*Image\(systemName:\s*"folder"\)[\s\S]*Text\("Open Existing Folder"\)[\s\S]*\.foregroundStyle\(Color\.sidebarSelectedText\)[\s\S]*\.background\([\s\S]*RoundedRectangle\(cornerRadius:\s*8\)[\s\S]*\.stroke\(Color\.sidebarRule,\s*lineWidth:\s*1\)/
+  );
+
+  const secondaryActionBlock = cssBlock(".secondary-action");
+  const welcomeActionBlock = cssBlock(".welcome-action");
+  const welcomeSecondaryActionBlock = cssBlock(".welcome-action.secondary-action");
+
+  assert.match(secondaryActionBlock, /color:\s*var\(--color-control-text\)/);
+  assert.match(welcomeActionBlock, /width:\s*100%/);
+  assert.match(welcomeActionBlock, /padding-block:\s*8px/);
+  assert.match(welcomeSecondaryActionBlock, /color:\s*var\(--color-sidebar-selected-text\)/);
+  assert.doesNotMatch(welcomeSecondaryActionBlock, /color:\s*var\(--color-control-text\)/);
+});
+
 test("matches native welcome toolbar brand chrome", () => {
   const welcomeToolbarBlock = cssBlock(".welcome-toolbar");
   const welcomeToolbarBrandBlock = cssBlock(".welcome-toolbar-brand");
