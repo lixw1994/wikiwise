@@ -799,7 +799,27 @@ function getPublishConfig(payload) {
   }
 
   const projectRoot = assertProjectRoot(payload.projectRoot);
-  const config = loadPublishConfig(projectRoot);
+  function unpublishedPublishConfig(projectRoot) {
+    const suggestedSubdomain = randomPublishSubdomain(path.basename(projectRoot));
+    return {
+      published: false,
+      subdomain: "",
+      suggestedSubdomain,
+      url: "",
+      lastPublishedAt: null
+    };
+  }
+
+  let config;
+  try {
+    config = loadPublishConfig(projectRoot);
+  } catch (error) {
+    if (error?.code === "corrupt_config") {
+      return unpublishedPublishConfig(projectRoot);
+    }
+    throw error;
+  }
+
   if (config) {
     return {
       published: true,
@@ -809,14 +829,7 @@ function getPublishConfig(payload) {
     };
   }
 
-  const suggestedSubdomain = randomPublishSubdomain(path.basename(projectRoot));
-  return {
-    published: false,
-    subdomain: "",
-    suggestedSubdomain,
-    url: "",
-    lastPublishedAt: null
-  };
+  return unpublishedPublishConfig(projectRoot);
 }
 
 async function checkProjectPublishAvailability(payload) {

@@ -42,6 +42,38 @@ test("main process exposes publishing IPC through core helpers", () => {
   assert.match(mainSource, /compileAll\(\)/);
 });
 
+test("main process mirrors native publish config refresh fallback", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const mainSource = read("src/main/main.js");
+  const nativeRefreshSource =
+    nativeSource.match(/private func loadPublishConfig\(\) \{[\s\S]*?\n    \}/)?.[0] ?? "";
+  const getPublishConfigSource =
+    mainSource.match(/function getPublishConfig\(payload\) \{[\s\S]*?\n\}/)?.[0] ?? "";
+  const publishProjectSource =
+    mainSource.match(/async function publishProject\(payload\) \{[\s\S]*?\n\}/)?.[0] ?? "";
+  const unpublishProjectSource =
+    mainSource.match(/async function unpublishProject\(payload\) \{[\s\S]*?\n\}/)?.[0] ?? "";
+
+  assert.notEqual(nativeRefreshSource, "");
+  assert.match(nativeRefreshSource, /publishConfig = try\? Publisher\.loadConfig\(projectRoot:\s*root\)/);
+  assert.doesNotMatch(nativeRefreshSource, /catch|publishError/);
+
+  assert.notEqual(getPublishConfigSource, "");
+  assert.match(getPublishConfigSource, /try\s*\{[\s\S]*loadPublishConfig\(projectRoot\)/);
+  assert.match(getPublishConfigSource, /catch \(error\) \{[\s\S]*error\?\.code === "corrupt_config"/);
+  assert.match(getPublishConfigSource, /return unpublishedPublishConfig\(projectRoot\)/);
+  assert.match(getPublishConfigSource, /const suggestedSubdomain = randomPublishSubdomain\(path\.basename\(projectRoot\)\)/);
+  assert.doesNotMatch(getPublishConfigSource, /throw error;\s*\}\s*$/);
+
+  assert.notEqual(publishProjectSource, "");
+  assert.match(publishProjectSource, /return publishSite\(/);
+  assert.doesNotMatch(publishProjectSource, /catch \(error\)/);
+
+  assert.notEqual(unpublishProjectSource, "");
+  assert.match(unpublishProjectSource, /return unpublishSite\(/);
+  assert.doesNotMatch(unpublishProjectSource, /catch \(error\)/);
+});
+
 test("preload exposes publishing APIs without renderer filesystem access", () => {
   const preloadSource = read("src/preload/preload.cjs");
 
