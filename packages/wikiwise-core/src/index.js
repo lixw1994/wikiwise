@@ -118,7 +118,10 @@ export function loadPublishConfig(projectRoot) {
     }
     return config;
   } catch {
-    throw publishError("corrupt_config", "publish.json exists but is malformed.");
+    throw publishError(
+      "corrupt_config",
+      "publish.json exists but is malformed. Delete it to start fresh, or fix its contents."
+    );
   }
 }
 
@@ -226,7 +229,10 @@ export async function unpublishSite(options = {}) {
   const configPath = path.join(projectRoot, "publish.json");
   const config = loadPublishConfig(projectRoot);
   if (!config) {
-    throw publishError("corrupt_config", "publish.json exists but is malformed.");
+    throw publishError(
+      "corrupt_config",
+      "publish.json exists but is malformed. Delete it to start fresh, or fix its contents."
+    );
   }
 
   const requestFetch = resolveFetch(options.fetch);
@@ -241,7 +247,7 @@ export async function unpublishSite(options = {}) {
     fs.rmSync(configPath, { force: true });
     return { unpublished: true };
   case 403:
-    throw publishError("token_mismatch", "Token does not match.", response.status);
+    throw publishError("token_mismatch", "Token doesn't match. Check your publish.json.", response.status);
   default:
     throw publishError("server_error", await responseText(response), response.status);
   }
@@ -814,7 +820,7 @@ async function uploadPublishFiles({ requestFetch, config, files, isFirstPublish,
   case 200:
     return { fileCount: payload.files.length };
   case 403:
-    throw publishError("token_mismatch", "Token does not match.", response.status);
+    throw publishError("token_mismatch", "Token doesn't match. Check your publish.json.", response.status);
   case 409:
     if (isFirstPublish && attempt < 3) {
       config.subdomain = randomSubdomain();
@@ -828,11 +834,15 @@ async function uploadPublishFiles({ requestFetch, config, files, isFirstPublish,
         attempt: attempt + 1
       });
     }
-    throw publishError("subdomain_taken", "That subdomain is already taken.", response.status);
+    throw publishError(
+      "subdomain_taken",
+      "That subdomain is already taken. Edit the subdomain in publish.json and try again.",
+      response.status
+    );
   case 413:
     throw publishError("too_large", await responseText(response), response.status);
   case 429:
-    throw publishError("rate_limited", "Too many publishes.", response.status);
+    throw publishError("rate_limited", "Too many publishes. Try again in a few minutes.", response.status);
   default:
     throw publishError("server_error", await responseText(response), response.status);
   }

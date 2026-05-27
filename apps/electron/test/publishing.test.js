@@ -19,6 +19,10 @@ function normalized(source) {
   return source.replace(/\s+/g, " ").trim();
 }
 
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 function cssBlock(source, selector) {
   const pattern = new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{([^}]+)\\}`);
   return source.match(pattern)?.[1] ?? "";
@@ -219,6 +223,29 @@ test("renderer mirrors native publish dialog dismissal before publishing", () =>
   assert.ok(closeIndex < requestIndex, "publish dialog should close before publish request starts");
   assert.ok(renderIndex < requestIndex, "publish dialog close should render before publish request starts");
   assert.equal(publishBody.indexOf("state.isPublishDialogOpen = false;", requestIndex), -1);
+});
+
+test("renderer publish error modal surfaces native publish failure descriptions", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/Publisher.swift");
+  const coreSource = readRepository("packages/wikiwise-core/src/index.js");
+  const rendererSource = read("src/renderer/renderer.js");
+  const htmlSource = read("src/renderer/index.html");
+  const nativeMessages = [
+    "publish.json exists but is malformed. Delete it to start fresh, or fix its contents.",
+    "Token doesn't match. Check your publish.json.",
+    "That subdomain is already taken. Edit the subdomain in publish.json and try again.",
+    "Too many publishes. Try again in a few minutes."
+  ];
+
+  for (const message of nativeMessages) {
+    assert.match(nativeSource, new RegExp(escapeRegExp(`return "${message}"`)));
+    assert.match(coreSource, new RegExp(escapeRegExp(message)));
+  }
+
+  assert.match(rendererSource, /state\.publishError = error instanceof Error \? error\.message : String\(error\)/);
+  assert.match(rendererSource, /publishErrorMessage\.textContent = state\.publishError \?\? ""/);
+  assert.match(htmlSource, /<h2 id="publish-error-title">Publish Error<\/h2>/);
+  assert.match(htmlSource, /id="dismiss-publish-error"[\s\S]*>\s*OK\s*<\/button>/);
 });
 
 test("renderer markup and styles include publish dialog, status, and unpublish controls", () => {

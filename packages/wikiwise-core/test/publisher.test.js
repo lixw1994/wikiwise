@@ -3,6 +3,7 @@ import fs from "node:fs";
 import os from "node:os";
 import path from "node:path";
 import test from "node:test";
+import { fileURLToPath } from "node:url";
 import {
   checkPublishAvailability,
   loadPublishConfig,
@@ -10,6 +11,9 @@ import {
   randomPublishSubdomain,
   unpublishSite
 } from "../src/index.js";
+
+const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const repositoryRoot = path.resolve(packageRoot, "..", "..");
 
 function tempRoot(prefix) {
   return fs.mkdtempSync(path.join(os.tmpdir(), prefix));
@@ -32,6 +36,14 @@ function response(status, payload = {}) {
   };
 }
 
+function readRepository(relativePath) {
+  return fs.readFileSync(path.join(repositoryRoot, relativePath), "utf8");
+}
+
+function escapeRegExp(value) {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+}
+
 test("loadPublishConfig returns native publish config and rejects malformed JSON", () => {
   const root = tempRoot("wikiwise-publish-config-");
 
@@ -49,6 +61,80 @@ test("loadPublishConfig returns native publish config and rejects malformed JSON
 
   writeFile(path.join(root, "publish.json"), "{not-json");
   assert.throws(() => loadPublishConfig(root), { code: "corrupt_config" });
+});
+
+test("publish helpers expose native fixed error descriptions with stable codes", async () => {
+  const nativeSource = readRepository("Sources/Wikiwise/Publisher.swift");
+  const nativeMessages = {
+    corrupt_config: "publish.json exists but is malformed. Delete it to start fresh, or fix its contents.",
+    token_mismatch: "Token doesn't match. Check your publish.json.",
+    subdomain_taken: "That subdomain is already taken. Edit the subdomain in publish.json and try again.",
+    rate_limited: "Too many publishes. Try again in a few minutes."
+  };
+
+  for (const message of Object.values(nativeMessages)) {
+    assert.match(nativeSource, new RegExp(escapeRegExp(`return "${message}"`)));
+  }
+
+  const malformedRoot = tempRoot("wikiwise-publish-copy-config-");
+  writeFile(path.join(malformedRoot, "publish.json"), "{not-json");
+  assert.throws(
+    () => loadPublishConfig(malformedRoot),
+    (error) => {
+      assert.equal(error.code, "corrupt_config");
+      assert.equal(error.message, nativeMessages.corrupt_config);
+      return true;
+    }
+  );
+
+  const cases = [
+    [403, "token_mismatch", nativeMessages.token_mismatch],
+    [409, "subdomain_taken", nativeMessages.subdomain_taken],
+    [429, "rate_limited", nativeMessages.rate_limited]
+  ];
+
+  for (const [status, code, message] of cases) {
+    const projectRoot = tempRoot(`wikiwise-publish-copy-${code}-`);
+    const siteFolder = path.join(projectRoot, "site", "out");
+    writeFile(path.join(siteFolder, "home.html"), "<h1>Home</h1>");
+
+    await assert.rejects(
+      () =>
+        publishSite({
+          projectRoot,
+          siteFolder,
+          subdomain: "fixed",
+          fetch: async () => response(status, "failed"),
+          randomSubdomain: () => "fixed",
+          tokenGenerator: () => "ww_testtoken"
+        }),
+      (error) => {
+        assert.equal(error.code, code);
+        assert.equal(error.message, message);
+        return true;
+      }
+    );
+  }
+
+  const unpublishRoot = tempRoot("wikiwise-unpublish-copy-token-");
+  writeFile(path.join(unpublishRoot, "publish.json"), JSON.stringify({
+    subdomain: "my-wiki",
+    token: "ww_token",
+    url: "https://my-wiki.wiki-wise.com"
+  }));
+
+  await assert.rejects(
+    () =>
+      unpublishSite({
+        projectRoot: unpublishRoot,
+        fetch: async () => response(403, "failed")
+      }),
+    (error) => {
+      assert.equal(error.code, "token_mismatch");
+      assert.equal(error.message, nativeMessages.token_mismatch);
+      return true;
+    }
+  );
 });
 
 test("randomPublishSubdomain preserves native slug prefix and suffix shape", () => {
