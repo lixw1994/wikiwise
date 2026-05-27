@@ -209,6 +209,32 @@ test("renderer mirrors native folder icon scaled geometry", () => {
   assert.doesNotMatch(specialFolderDotRule, /transform:\s*translate\(-50%,\s*-35%\)/);
 });
 
+test("renderer mirrors native folder icon scaled stroke weight", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const styleSource = read("src/renderer/styles.css");
+  const nativeFolderIconSource =
+    nativeSource.match(/struct FolderIcon:[\s\S]*?\/\/ Paper design palette/)?.[0] ?? "";
+  const nativeFileTreeRowSource = nativeSource.slice(
+    nativeSource.indexOf("private func fileTreeRow"),
+    nativeSource.indexOf("// MARK: - Detail")
+  );
+  const folderIconRule = cssBlock(styleSource, ".tree-folder-icon");
+  const folderIconTabRule = cssBlock(styleSource, ".tree-folder-icon::before");
+
+  assert.match(
+    nativeFileTreeRowSource,
+    /FolderIcon\(size:\s*13,\s*isSpecial:\s*node\.name == "raw" \|\| node\.name == "site"\)/
+  );
+  assert.match(nativeFolderIconSource, /let s = canvasSize\.width \/ 14\.0/);
+  assert.match(nativeFolderIconSource, /context\.stroke\(path,\s*with:\s*\.color\(strokeColor\),\s*lineWidth:\s*0\.8 \* s\)/);
+
+  assert.match(folderIconRule, /border:\s*0\.74px solid var\(--color-folder-stroke\)/);
+  assert.match(folderIconTabRule, /border:\s*0\.74px solid var\(--color-folder-stroke\)/);
+  assert.match(folderIconTabRule, /border-bottom:\s*0/);
+  assert.doesNotMatch(folderIconRule, /border:\s*1px solid var\(--color-folder-stroke\)/);
+  assert.doesNotMatch(folderIconTabRule, /border:\s*1px solid var\(--color-folder-stroke\)/);
+});
+
 test("renderer mirrors native file tree folder tooltip copy", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
