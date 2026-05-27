@@ -128,11 +128,11 @@ export function loadPublishConfig(projectRoot) {
 export function randomPublishSubdomain(wikiName = "") {
   const chars = "abcdefghijklmnopqrstuvwxyz0123456789";
   const suffix = Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join("");
-  const slug = String(wikiName)
+  const sanitized = String(wikiName)
     .toLowerCase()
     .replace(/ /g, "-")
-    .replace(/[^\p{L}\p{N}-]/gu, "")
-    .slice(0, 20);
+    .replace(/[^\p{L}\p{N}-]/gu, "");
+  const slug = Array.from(sanitized).slice(0, 20).join("");
 
   return slug ? `${slug}-${suffix}` : suffix;
 }

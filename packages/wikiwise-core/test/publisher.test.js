@@ -144,6 +144,18 @@ test("randomPublishSubdomain preserves native slug prefix and suffix shape", () 
   assert.ok(subdomain.length <= 48);
 });
 
+test("randomPublishSubdomain truncates Unicode slug prefixes like native Publisher", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/Publisher.swift");
+  const subdomain = randomPublishSubdomain("\u{10400}".repeat(21));
+  const prefix = subdomain.slice(0, -7);
+
+  assert.match(nativeSource, /\.prefix\(20\)/);
+  assert.equal(prefix, "\u{10428}".repeat(20));
+  assert.equal(Array.from(prefix).length, 20);
+  assert.equal(subdomain.slice(-7, -6), "-");
+  assert.match(subdomain.slice(-6), /^[a-z0-9]{6}$/);
+});
+
 test("checkPublishAvailability maps service reasons and sends bearer token", async () => {
   const calls = [];
   const fetch = async (url, init) => {

@@ -756,6 +756,26 @@ test("renderer mirrors native publish subdomain character count behavior", () =>
   assert.doesNotMatch(scheduleBody, /subdomain\.length\s*<\s*3/);
 });
 
+test("renderer inherits native random publish subdomain Unicode prefix behavior from core", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/Publisher.swift");
+  const coreSource = readRepository("packages/wikiwise-core/src/index.js");
+  const nativeRandomSubdomain = nativeSource.match(
+    /static func randomSubdomain\(wikiName: String\? = nil\) -> String \{[\s\S]*?\n    \}/
+  )?.[0] ?? "";
+  const coreRandomSubdomain = coreSource.match(
+    /export function randomPublishSubdomain\(wikiName = ""\) \{[\s\S]*?\n\}/
+  )?.[0] ?? "";
+
+  assert.match(nativeRandomSubdomain, /\.filter \{ \$0\.isLetter \|\| \$0\.isNumber \|\| \$0 == "-" \}/);
+  assert.match(nativeRandomSubdomain, /\.prefix\(20\)/);
+  assert.match(coreRandomSubdomain, /replace\(\/\[\^\\p\{L\}\\p\{N\}-\]\/gu,\s*""\)/);
+  assert.match(coreRandomSubdomain, /Array\.from\(sanitized\)\s*\.slice\(0,\s*20\)\s*\.join\(""\)/);
+  assert.doesNotMatch(
+    coreRandomSubdomain,
+    /replace\(\/\[\^\\p\{L\}\\p\{N\}-\]\/gu,\s*""\)\s*\.slice\(0,\s*20\)/
+  );
+});
+
 test("renderer mirrors native publish availability inline indicator", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const htmlSource = read("src/renderer/index.html");
