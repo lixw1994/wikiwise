@@ -149,6 +149,34 @@ test("renderer mirrors native file tree row typography", () => {
   assert.doesNotMatch(fileButtonRule, /font-size:\s*16px/);
 });
 
+test("renderer mirrors native selected file accent height", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
+  const styleSource = read("src/renderer/styles.css");
+  const nativeFileTreeRowSource = nativeSource.slice(
+    nativeSource.indexOf("private func fileTreeRow"),
+    nativeSource.indexOf("// MARK: - Detail")
+  );
+  const nativeSelectedAccentSource =
+    nativeFileTreeRowSource.match(
+      /Color\.sidebarSelectedBg[\s\S]*?\.padding\(\.leading,\s*indent \+ 4\)/
+    )?.[0] ?? "";
+  const selectedAccentRule = cssBlock(styleSource, ".tree-selected-accent");
+
+  assert.notEqual(nativeSelectedAccentSource, "");
+  assert.match(
+    nativeSelectedAccentSource,
+    /Color\.sidebarSelectedBg[\s\S]*\.overlay\(alignment:\s*\.leading\)[\s\S]*Rectangle\(\)[\s\S]*\.frame\(width:\s*2\)[\s\S]*\.padding\(\.leading,\s*indent \+ 4\)/
+  );
+  assert.doesNotMatch(nativeSelectedAccentSource, /\.padding\(\.vertical/);
+
+  assert.match(selectedAccentRule, /top:\s*0/);
+  assert.match(selectedAccentRule, /bottom:\s*0/);
+  assert.match(selectedAccentRule, /left:\s*calc\(22px \+ \(var\(--tree-depth,\s*0\) \* 16px\)\)/);
+  assert.match(selectedAccentRule, /width:\s*2px/);
+  assert.doesNotMatch(selectedAccentRule, /top:\s*5px/);
+  assert.doesNotMatch(selectedAccentRule, /bottom:\s*5px/);
+});
+
 test("renderer mirrors native file tree folder tooltip copy", () => {
   const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");

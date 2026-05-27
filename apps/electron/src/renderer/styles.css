@@ -583,8 +583,8 @@ input,
 
 .tree-selected-accent {
   position: absolute;
-  top: 5px;
-  bottom: 5px;
+  top: 0;
+  bottom: 0;
   left: calc(22px + (var(--tree-depth, 0) * 16px));
   width: 2px;
   background: var(--color-sidebar-selected-text);
