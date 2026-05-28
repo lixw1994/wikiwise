@@ -575,6 +575,10 @@ test("main process owns packaged runtime smoke audit mode", () => {
     /node_modules",\s*"node-pty"/,
     /entry\.name\.startsWith\("darwin-"\)/,
     /spawn-helper/,
+    /function packagedRuntimeAuditTerminalEvidence/,
+    /PACKAGED_RUNTIME_TERMINAL_AUDIT/,
+    /pty\.spawn/,
+    /terminalEchoObserved/,
     /window\.webContents\.executeJavaScript/,
     /window\.close\(\)/,
     /app\.quit\(\)/
@@ -594,6 +598,7 @@ test("packaged runtime audit launcher runs Wikiwise.app and validates retained r
     /status !== "passed"/,
     /rendererLoaded !== true/,
     /preloadBridgeObserved !== true/,
+    /terminal\?\.terminalEchoObserved !== true/,
     /Packaged runtime audit report/
   ]);
 });

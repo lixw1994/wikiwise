@@ -186,6 +186,78 @@ test("terminal startup reuses an existing window session like native startIfNeed
   assert.match(handleTerminalOutputSource, /output\.projectRoot !== state\.terminalSessionProjectRoot/);
 });
 
+test("renderer retries terminal startup from active terminal tab without overlapping starts", () => {
+  const rendererSource = read("src/renderer/renderer.js");
+  const renderTerminalTabStart = rendererSource.indexOf("function renderTerminalTab");
+  const ensureTerminalInstanceStart = rendererSource.indexOf("async function ensureTerminalInstance", renderTerminalTabStart);
+  const startTerminalStart = rendererSource.indexOf("async function startTerminal()");
+  const disposeTerminalStart = rendererSource.indexOf("function disposeTerminalView", startTerminalStart);
+  const renderTerminalTabSource = rendererSource.slice(renderTerminalTabStart, ensureTerminalInstanceStart);
+  const startTerminalSource = rendererSource.slice(startTerminalStart, disposeTerminalStart);
+
+  assert.notEqual(renderTerminalTabStart, -1);
+  assert.notEqual(ensureTerminalInstanceStart, -1);
+  assert.notEqual(startTerminalStart, -1);
+  assert.notEqual(disposeTerminalStart, -1);
+
+  assert.match(rendererSource, /terminalStartPromise:\s*null/);
+  assert.match(rendererSource, /async function startTerminalSession\(\)/);
+  assert.match(
+    renderTerminalTabSource,
+    /if \(isProjectFolder\(\) && !state\.terminalSessionProjectRoot\) \{[\s\S]*startTerminal\(\)\.catch\(setError\)[\s\S]*return/
+  );
+  assert.match(
+    startTerminalSource,
+    /if \(state\.terminalStartPromise\) \{[\s\S]*return state\.terminalStartPromise/
+  );
+  assert.match(startTerminalSource, /state\.terminalStartPromise\s*=\s*startPromise/);
+  assert.match(startTerminalSource, /state\.terminalStartPromise\s*=\s*null/);
+});
+
+test("renderer terminal retry does not start project PTY for standalone files", () => {
+  const rendererSource = read("src/renderer/renderer.js");
+  const renderTerminalTabStart = rendererSource.indexOf("function renderTerminalTab");
+  const ensureTerminalInstanceStart = rendererSource.indexOf("async function ensureTerminalInstance", renderTerminalTabStart);
+  const startTerminalSessionStart = rendererSource.indexOf("async function startTerminalSession()");
+  const disposeTerminalStart = rendererSource.indexOf("function disposeTerminalView", startTerminalSessionStart);
+  const renderTerminalTabSource = rendererSource.slice(renderTerminalTabStart, ensureTerminalInstanceStart);
+  const startTerminalSessionSource = rendererSource.slice(startTerminalSessionStart, disposeTerminalStart);
+  const standaloneBranch =
+    startTerminalSessionSource.match(/if \(!state\.currentProject \|\| !isProjectFolder\(\)\) \{[\s\S]*?return;\n  \}/)?.[0] ?? "";
+
+  assert.notEqual(renderTerminalTabStart, -1);
+  assert.notEqual(ensureTerminalInstanceStart, -1);
+  assert.notEqual(startTerminalSessionStart, -1);
+  assert.notEqual(disposeTerminalStart, -1);
+
+  assert.match(renderTerminalTabSource, /if \(isProjectFolder\(\) && !state\.terminalSessionProjectRoot\)/);
+  assert.match(standaloneBranch, /renderTerminalTab\(\);/);
+  assert.doesNotMatch(standaloneBranch, /window\.wikiwise\.startTerminal/);
+});
+
+test("renderer starts terminal before forwarding xterm input when no session is tracked", () => {
+  const rendererSource = read("src/renderer/renderer.js");
+  const ensureTerminalInstanceStart = rendererSource.indexOf("async function ensureTerminalInstance");
+  const observeTerminalResizeStart = rendererSource.indexOf("function observeTerminalResize", ensureTerminalInstanceStart);
+  const sendTerminalDataStart = rendererSource.indexOf("async function sendTerminalData");
+  const sendTerminalInputStart = rendererSource.indexOf("async function sendTerminalInput", sendTerminalDataStart);
+  const ensureTerminalInstanceSource = rendererSource.slice(ensureTerminalInstanceStart, observeTerminalResizeStart);
+  const sendTerminalDataSource = rendererSource.slice(sendTerminalDataStart, sendTerminalInputStart);
+
+  assert.notEqual(ensureTerminalInstanceStart, -1);
+  assert.notEqual(observeTerminalResizeStart, -1);
+  assert.notEqual(sendTerminalDataStart, -1);
+  assert.notEqual(sendTerminalInputStart, -1);
+
+  assert.match(ensureTerminalInstanceSource, /terminalInstance\.onData\(\(input\) => \{[\s\S]*sendTerminalData\(input\)\.catch\(setError\)/);
+  assert.match(
+    sendTerminalDataSource,
+    /if \(!state\.terminalSessionProjectRoot \|\| state\.terminalStartPromise\) \{[\s\S]*await startTerminal\(\)/
+  );
+  assert.match(sendTerminalDataSource, /if \(!state\.terminalSessionProjectRoot\) return/);
+  assert.match(sendTerminalDataSource, /window\.wikiwise\.sendTerminalInput\(\{ input \}\)/);
+});
+
 test("preload exposes document info and terminal APIs with output listener cleanup", () => {
   const preloadSource = read("src/preload/preload.cjs");
 

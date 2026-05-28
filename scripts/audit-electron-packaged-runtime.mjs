@@ -70,6 +70,9 @@ function validateReport() {
   if (report.renderer?.preloadBridgeObserved !== true) {
     throw new Error("Packaged runtime audit did not observe preloadBridgeObserved.");
   }
+  if (report.terminal?.terminalEchoObserved !== true) {
+    throw new Error("Packaged runtime audit did not observe terminalEchoObserved.");
+  }
 
   return report;
 }

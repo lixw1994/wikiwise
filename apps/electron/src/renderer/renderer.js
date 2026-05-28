@@ -142,6 +142,7 @@ const state = {
   terminalInstance: null,
   terminalFitAddon: null,
   terminalSessionProjectRoot: null,
+  terminalStartPromise: null,
   terminalResizeObserver: null,
   terminalResourcesLoaded: false,
   terminalResizeTimer: null,
@@ -972,6 +973,10 @@ function renderInfoLink(target) {
 function renderTerminalTab() {
   terminalSurface.classList.toggle("inactive", !state.currentProject);
   if (state.currentProject && state.rightSidebarTab === "terminal") {
+    if (isProjectFolder() && !state.terminalSessionProjectRoot) {
+      startTerminal().catch(setError);
+      return;
+    }
     ensureTerminalInstance().catch(setError);
     fitTerminal();
   }
@@ -1001,7 +1006,7 @@ async function ensureTerminalInstance() {
   terminalInstance.loadAddon(terminalFitAddon);
   terminalInstance.open(terminalSurface);
   terminalInstance.onData((input) => {
-    window.wikiwise.sendTerminalInput({ input }).catch(setError);
+    sendTerminalData(input).catch(setError);
   });
 
   state.terminalInstance = terminalInstance;
@@ -1862,6 +1867,22 @@ async function startProjectWatcher() {
 }
 
 async function startTerminal() {
+  if (state.terminalStartPromise) {
+    return state.terminalStartPromise;
+  }
+
+  const startPromise = startTerminalSession();
+  state.terminalStartPromise = startPromise;
+  try {
+    return await startPromise;
+  } finally {
+    if (state.terminalStartPromise === startPromise) {
+      state.terminalStartPromise = null;
+    }
+  }
+}
+
+async function startTerminalSession() {
   if (!state.currentProject || !isProjectFolder()) {
     renderTerminalTab();
     return;
@@ -1919,6 +1940,15 @@ function handleTerminalOutput(output) {
       }
     })
     .catch(setError);
+}
+
+async function sendTerminalData(input) {
+  if (!state.terminalSessionProjectRoot || state.terminalStartPromise) {
+    await startTerminal();
+  }
+  if (!state.terminalSessionProjectRoot) return;
+
+  await window.wikiwise.sendTerminalInput({ input });
 }
 
 async function sendTerminalInput() {

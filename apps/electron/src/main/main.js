@@ -996,7 +996,7 @@ function writePackagedRuntimeAuditReport(reportPath, report) {
   fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`);
 }
 
-function packagedRuntimeAuditAssertions(fileEvidence, rendererEvidence) {
+function packagedRuntimeAuditAssertions(fileEvidence, rendererEvidence, terminalEvidence) {
   const assertions = [];
   for (const [name, passed] of Object.entries(fileEvidence.files)) {
     if (!passed) {
@@ -1023,8 +1023,88 @@ function packagedRuntimeAuditAssertions(fileEvidence, rendererEvidence) {
   if (rendererEvidence.welcomeTextObserved !== true) {
     assertions.push("Packaged welcome text was not observed");
   }
+  if (terminalEvidence.terminalEchoObserved !== true) {
+    assertions.push("Packaged PTY terminal did not echo the audit command");
+  }
 
   return assertions;
+}
+
+function packagedRuntimeAuditTerminalEvidence() {
+  const marker = "PACKAGED_RUNTIME_TERMINAL_AUDIT";
+  const shellPath = process.env.SHELL || process.env.ComSpec || (process.platform === "win32" ? "cmd.exe" : "/bin/zsh");
+  const shellArgs = loginShellArgs();
+  const cwd = fs.existsSync(packageRoot) ? packageRoot : app.getPath("home");
+  const evidence = {
+    marker,
+    shellPath,
+    shellArgs,
+    cwd,
+    spawned: false,
+    terminalEchoObserved: false,
+    outputSample: "",
+    exit: null,
+    error: null
+  };
+
+  return new Promise((resolve) => {
+    let ptyProcess;
+    let finished = false;
+    let output = "";
+
+    function finish(patch = {}) {
+      if (finished) return;
+      finished = true;
+      clearTimeout(timeout);
+      Object.assign(evidence, patch);
+      evidence.outputSample = output.slice(-1000);
+      try {
+        ptyProcess?.kill();
+      } catch {
+        // The process may already be gone after an early shell exit.
+      }
+      resolve(evidence);
+    }
+
+    const timeout = setTimeout(() => {
+      finish({ error: "Timed out waiting for packaged PTY echo" });
+    }, 5000);
+
+    try {
+      ensureNodePtySpawnHelperExecutable();
+      ptyProcess = pty.spawn(shellPath, shellArgs, {
+        name: "xterm-256color",
+        cols: 80,
+        rows: 24,
+        cwd,
+        env: {
+          ...process.env,
+          TERM: "xterm-256color",
+          COLORTERM: "truecolor"
+        }
+      });
+      evidence.spawned = true;
+      ptyProcess.onData((data) => {
+        output += String(data);
+        if (output.includes(marker)) {
+          finish({ terminalEchoObserved: true });
+        }
+      });
+      ptyProcess.onExit(({ exitCode, signal }) => {
+        evidence.exit = { exitCode, signal };
+        finish({ error: "Packaged PTY exited before echoing the audit command" });
+      });
+      setTimeout(() => {
+        try {
+          ptyProcess.write(`echo ${marker}\r`);
+        } catch (error) {
+          finish({ error: error instanceof Error ? error.message : String(error) });
+        }
+      }, 300);
+    } catch (error) {
+      finish({ error: error instanceof Error ? error.message : String(error) });
+    }
+  });
 }
 
 async function runPackagedRuntimeSmokeAudit() {
@@ -1032,6 +1112,7 @@ async function runPackagedRuntimeSmokeAudit() {
 
   const reportPath = packagedRuntimeAuditReportPath();
   const fileEvidence = packagedRuntimeAuditFileEvidence();
+  const terminalEvidence = await packagedRuntimeAuditTerminalEvidence();
   const window = new BrowserWindow({
     show: false,
     width: nativeWindowDefaultSize.width,
@@ -1068,7 +1149,7 @@ async function runPackagedRuntimeSmokeAudit() {
     window.close();
   }
 
-  const assertions = packagedRuntimeAuditAssertions(fileEvidence, rendererEvidence);
+  const assertions = packagedRuntimeAuditAssertions(fileEvidence, rendererEvidence, terminalEvidence);
   const report = {
     generatedAt: new Date().toISOString(),
     status: assertions.length === 0 ? "passed" : "failed",
@@ -1079,6 +1160,7 @@ async function runPackagedRuntimeSmokeAudit() {
       executablePath: app.getPath("exe")
     },
     files: fileEvidence,
+    terminal: terminalEvidence,
     renderer: rendererEvidence
   };
   writePackagedRuntimeAuditReport(reportPath, report);
