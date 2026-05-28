@@ -177,8 +177,10 @@ test("terminal startup reuses an existing window session like native startIfNeed
   assert.match(rendererStartTerminalSource, /const terminalResult = await window\.wikiwise\.startTerminal/);
   assert.match(
     rendererStartTerminalSource,
-    /if \(terminalResult\.started\) \{[\s\S]*terminalInstance\.clear\(\)[\s\S]*Starting shell/
+    /if \(terminalResult\.started\) \{[\s\S]*terminalInstance\.clear\(\)[\s\S]*window\.__wikiwiseTerminalText\s*=\s*""/
   );
+  assert.doesNotMatch(rendererStartTerminalSource, /Starting shell/);
+  assert.doesNotMatch(rendererStartTerminalSource, /terminalInstance\.writeln/);
   assert.doesNotMatch(
     handleTerminalOutputSource,
     /output\.projectRoot !== state\.currentProject\.projectRoot/
@@ -290,6 +292,7 @@ test("renderer contains right sidebar info and terminal state", () => {
   assert.match(rendererSource, /terminalOutputCleanup/);
   assert.match(rendererSource, /startProjectServices/);
   assert.match(rendererSource, /refreshDocumentInfo/);
+  assert.match(rendererSource, /loadStylesheetOnce/);
   assert.match(rendererSource, /renderInfoTab/);
   assert.match(rendererSource, /renderTerminalTab/);
   assert.match(rendererSource, /fitTerminal/);
@@ -327,6 +330,8 @@ test("renderer markup and styles include native right sidebar tabs and terminal 
   assert.doesNotMatch(htmlSource, /id="terminal-output"/);
   assert.doesNotMatch(htmlSource, /id="terminal-input"/);
   assert.doesNotMatch(htmlSource, /id="terminal-send"/);
+  assert.match(htmlSource, /style-src 'self' 'unsafe-inline'/);
+  assert.doesNotMatch(htmlSource, /script-src 'self' 'unsafe-inline'/);
 
   assert.match(cssSource, /\.right-sidebar/);
   assert.match(cssSource, /--right-sidebar-width:\s*360px/);
@@ -336,6 +341,7 @@ test("renderer markup and styles include native right sidebar tabs and terminal 
   assert.match(cssSource, /\.right-tab/);
   assert.match(cssSource, /\.terminal-surface/);
   assert.match(cssSource, /\.xterm/);
+  assert.match(cssSource, /\.terminal-surface \.xterm-accessibility:not\(\.debug\)/);
   assert.match(cssSource, /\.info-links/);
 });
 
@@ -489,16 +495,93 @@ test("renderer terminal CSS fallback mirrors native SwiftTerm palette", () => {
   );
   assert.match(rendererSource, /background:\s*"#0E0C08"[\s\S]*foreground:\s*"#CFC3A3"/);
   assert.match(rendererSource, /background:\s*"#F3EDDE"[\s\S]*foreground:\s*"#5B5240"/);
+  assert.match(rendererSource, /drawBoldTextInBrightColors:\s*true/);
+  assert.match(rendererSource, /brightGreen:\s*"#6FA24F"/);
+  assert.match(rendererSource, /cyan:\s*"#2F7F83"/);
+  assert.match(rendererSource, /brightCyan:\s*"#3F9CA1"/);
 
   assert.match(rootBlock, /--color-terminal-bg:\s*#f3edde/);
   assert.match(rootBlock, /--color-terminal-fg:\s*#5b5240/);
+  assert.match(rootBlock, /--color-terminal-cursor-border:\s*#9cc9df/);
+  assert.match(rootBlock, /--color-terminal-cursor-fill:\s*rgba\(214,\s*232,\s*247,\s*0\.42\)/);
   assert.match(darkRootBlock, /--color-terminal-bg:\s*#0e0c08/);
   assert.match(darkRootBlock, /--color-terminal-fg:\s*#cfc3a3/);
+  assert.match(darkRootBlock, /--color-terminal-cursor-border:\s*#80adad/);
+  assert.match(darkRootBlock, /--color-terminal-cursor-fill:\s*rgba\(128,\s*173,\s*173,\s*0\.28\)/);
   assert.match(terminalPanelBlock, /background:\s*var\(--color-terminal-bg\)/);
   assert.match(terminalSurfaceBlock, /background:\s*var\(--color-terminal-bg\)/);
   assert.match(terminalSurfaceBlock, /color:\s*var\(--color-terminal-fg\)/);
+  assert.match(cssSource, /\.terminal-surface \.xterm-accessibility:not\(\.debug\),\s*\.terminal-surface \.xterm-message/);
+  assert.match(cssSource, /color:\s*transparent/);
+  assert.match(cssSource, /pointer-events:\s*none/);
   assert.doesNotMatch(terminalPanelBlock, /#161714/);
   assert.doesNotMatch(terminalSurfaceBlock, /#10110f|#d7ead0/);
+});
+
+test("renderer terminal cursor mirrors native visible focused and inactive styles", () => {
+  const nativeSource = readRepository("Sources/Wikiwise/TerminalEmbed.swift");
+  const rendererSource = read("src/renderer/renderer.js");
+  const cssSource = read("src/renderer/styles.css");
+  const setRightSidebarTabStart = rendererSource.indexOf("function setRightSidebarTab");
+  const renderRightSidebarStart = rendererSource.indexOf("function renderRightSidebar", setRightSidebarTabStart);
+  const setRightSidebarTabSource = rendererSource.slice(setRightSidebarTabStart, renderRightSidebarStart);
+  const rendererStartTerminalStart = rendererSource.indexOf("async function startTerminalSession()");
+  const disposeTerminalStart = rendererSource.indexOf("function disposeTerminalView", rendererStartTerminalStart);
+  const rendererStartTerminalSource = rendererSource.slice(rendererStartTerminalStart, disposeTerminalStart);
+  const ensureTerminalInstanceStart = rendererSource.indexOf("async function ensureTerminalInstance()");
+  const observeTerminalResizeStart = rendererSource.indexOf("function observeTerminalResize", ensureTerminalInstanceStart);
+  const ensureTerminalInstanceSource = rendererSource.slice(ensureTerminalInstanceStart, observeTerminalResizeStart);
+  const terminalFocusStart = rendererSource.indexOf("function setTerminalFocused");
+  const terminalFocusEnd = rendererSource.indexOf("function observeTerminalResize", terminalFocusStart);
+  const terminalFocusSource = rendererSource.slice(terminalFocusStart, terminalFocusEnd);
+  const handleTerminalOutputStart = rendererSource.indexOf("function handleTerminalOutput");
+  const sendTerminalInputStart = rendererSource.indexOf("async function sendTerminalInput", handleTerminalOutputStart);
+  const handleTerminalOutputSource = rendererSource.slice(handleTerminalOutputStart, sendTerminalInputStart);
+  const terminalConstructorSource =
+    rendererSource.match(/const terminalInstance = new TerminalCtor\(\{[\s\S]*?\n  \}\);/)?.[0] ?? "";
+  const terminalSurfaceBlock = cssBlock(cssSource, ".terminal-surface");
+  const cursorOverlayBlock = cssBlock(cssSource, ".terminal-cursor-overlay");
+  const focusedCursorOverlayBlock = cssBlock(cssSource, ".terminal-surface.terminal-focused .terminal-cursor-overlay");
+  const unfocusedCursorOverlayBlock = cssBlock(cssSource, ".terminal-surface:not(.terminal-focused) .terminal-cursor-overlay");
+  const cursorOverlayHiddenBlock = cssBlock(cssSource, ".terminal-cursor-overlay[hidden]");
+
+  assert.match(nativeSource, /LocalProcessTerminalView/);
+  assert.match(nativeSource, /tv\.nativeForegroundColor/);
+  assert.notEqual(setRightSidebarTabStart, -1);
+  assert.notEqual(renderRightSidebarStart, -1);
+  assert.notEqual(terminalConstructorSource, "");
+  assert.match(terminalConstructorSource, /cursorBlink:\s*false/);
+  assert.match(terminalConstructorSource, /cursorStyle:\s*"block"/);
+  assert.match(terminalConstructorSource, /cursorInactiveStyle:\s*"outline"/);
+  assert.match(terminalConstructorSource, /minimumContrastRatio:\s*1/);
+  assert.match(rendererSource, /cursor:\s*"#80ADAD"/);
+  assert.match(rendererSource, /cursor:\s*"#D6E8F7"/);
+  assert.match(setRightSidebarTabSource, /if \(tab === "terminal"\)[\s\S]*focusTerminalIfVisible/);
+  assert.match(rendererStartTerminalSource, /focusTerminalIfVisible\(\)/);
+  assert.match(rendererSource, /terminalFocused:\s*false/);
+  assert.match(rendererSource, /terminalCursorOverlay:\s*null/);
+  assert.match(rendererSource, /function ensureTerminalCursorOverlay\(\)/);
+  assert.match(rendererSource, /function updateTerminalCursorOverlay\(\)/);
+  assert.notEqual(terminalFocusStart, -1);
+  assert.match(terminalFocusSource, /terminalSurface\.classList\.toggle\("terminal-focused",\s*focused\)/);
+  assert.match(terminalFocusSource, /updateTerminalCursorOverlay\(\)/);
+  assert.match(ensureTerminalInstanceSource, /terminalSurface\.addEventListener\("focusin",\s*handleTerminalFocusIn\)/);
+  assert.match(ensureTerminalInstanceSource, /terminalSurface\.addEventListener\("focusout",\s*handleTerminalFocusOut\)/);
+  assert.match(ensureTerminalInstanceSource, /terminalInstance\.onCursorMove\(\(\) => updateTerminalCursorOverlay\(\)\)/);
+  assert.match(ensureTerminalInstanceSource, /terminalInstance\.onRender\(\(\) => updateTerminalCursorOverlay\(\)\)/);
+  assert.match(handleTerminalOutputSource, /terminalInstance\.write\(output\.data,\s*\(\) => updateTerminalCursorOverlay\(\)\)/);
+  assert.match(terminalSurfaceBlock, /position:\s*relative/);
+  assert.match(cursorOverlayBlock, /position:\s*absolute/);
+  assert.match(cursorOverlayBlock, /border:\s*1\.5px solid var\(--color-terminal-cursor-border\)/);
+  assert.match(cursorOverlayBlock, /background:\s*var\(--color-terminal-cursor-fill\)/);
+  assert.match(cursorOverlayBlock, /z-index:\s*3/);
+  assert.match(cssSource, /@keyframes terminal-cursor-blink/);
+  assert.match(focusedCursorOverlayBlock, /animation:\s*terminal-cursor-blink 1s steps\(1,\s*end\) infinite/);
+  assert.match(unfocusedCursorOverlayBlock, /animation:\s*none/);
+  assert.match(unfocusedCursorOverlayBlock, /opacity:\s*1/);
+  assert.match(cursorOverlayHiddenBlock, /display:\s*none !important/);
+  assert.doesNotMatch(rendererSource, /cursor:\s*"#C2A96B"/);
+  assert.doesNotMatch(rendererSource, /cursor:\s*"#7A1F1F"/);
 });
 
 test("renderer directions info uses native gold callout styling", () => {

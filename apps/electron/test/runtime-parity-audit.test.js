@@ -175,6 +175,24 @@ test("runtime audit script covers native shell scenarios and assertions", () => 
     /infoDirectionsSectionVisible/,
     /infoLinksSectionVisible/,
     /xtermTerminalPresent/,
+    /terminalCursorEvidence/,
+    /xtermCursorPresent/,
+    /xtermCursorNativeStyle/,
+    /terminalCursorOverlayVisible/,
+    /terminalCursorRenderedEvidence/,
+    /terminalCursorFocusedBlinkEvidence/,
+    /terminalCursorOverlayAnimationName/,
+    /terminalCursorOverlayRect/,
+    /configuredCursorBlink/,
+    /configuredCursorColor/,
+    /terminalPromptColorEvidence/,
+    /terminalPromptCellColorEvidence/,
+    /promptGreenCellPaletteObserved/,
+    /promptCyanCellPaletteObserved/,
+    /terminalCanvasColorEvidence/,
+    /terminalStartupPlaceholderAbsent/,
+    /promptGreenAnsiObserved/,
+    /promptCyanAnsiObserved/,
     /rightSidebarResizeHandlePresent/,
     /rightSidebarInitialWidth/,
     /rightSidebarResizedWidth/,
@@ -246,6 +264,25 @@ test("runtime audit uses production terminal IPC for real PTY evidence", () => {
   assert.match(script, /window\.__wikiwiseTerminal\?\.input\([\s\S]*realTerminalAuditCommand[\s\S]*\\\\r/);
   assert.match(script, /window\.__wikiwiseTerminalText[\s\S]*WIKIWISE_REAL_TERMINAL_AUDIT/);
   assert.match(script, /realTerminalOutputObserved/);
+  assert.match(script, /terminalCursorEvidence/);
+  assert.match(script, /terminalPromptColorEvidence/);
+  assert.match(script, /terminalStartupPlaceholderAbsent/);
+  assert.match(script, /window\.__wikiwiseTerminal\?\.focus\?\.\(\)/);
+  assert.match(script, /terminalCursorOverlayVisible/);
+  assert.match(script, /terminalCursorRenderedEvidence/);
+  assert.match(script, /terminalCursorFocusedBlinkEvidence/);
+  assert.match(script, /terminalCursorOverlayAnimationName/);
+  assert.match(script, /terminalPromptCellColorEvidence/);
+  assert.match(script, /promptGreenCellPaletteObserved/);
+  assert.match(script, /promptCyanCellPaletteObserved/);
+  assert.match(script, /terminalCanvasColorEvidence/);
+  assert.match(script, /Terminal rendered cursor evidence is missing/);
+  assert.match(script, /Terminal focused cursor blink evidence is missing/);
+  assert.match(script, /Terminal cursor parity evidence is missing/);
+  assert.match(script, /Terminal prompt color parity evidence is missing/);
+  assert.match(script, /Terminal prompt cell color evidence is missing/);
+  assert.match(script, /Terminal panel rendered Electron startup placeholder text/);
+  assert.doesNotMatch(script, /WIKIWISE_REAL_TERMINAL_AUDIT\|Starting shell/);
   assert.match(script, /Real terminal input did not echo audit command/);
 });
 

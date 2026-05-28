@@ -725,6 +725,7 @@ async function runScenario(window, scenario) {
     await captureInfoPopulatedSectionEvidence(window);
     await capturePublishDialogRuntimeEvidence(window);
     await capturePublishFeedbackRuntimeEvidence(window);
+    await window.webContents.executeJavaScript(`window.__wikiwiseTerminal?.focus?.()`, true);
   }
   await delay(120);
 
@@ -748,7 +749,7 @@ async function runScenario(window, scenario) {
   dom.activeFileObserved = activeFileObserved;
   dom.standaloneFileWatcherStopped = scenario.kind !== "standalone-file" || !projectWatcherStarted;
   dom.standaloneFileTerminalStopped = scenario.kind !== "standalone-file"
-    || !/Starting shell|WIKIWISE_REAL_TERMINAL_AUDIT/.test(dom.terminalText);
+    || !/WIKIWISE_REAL_TERMINAL_AUDIT/.test(dom.terminalText);
   dom.standaloneFileGeneratedMapServiceStopped = scenario.kind !== "standalone-file" || !generatedPageOpenObserved;
   const screenshot = screenshotStats(image);
   const assertions = assertScenario(scenario, dom, screenshot);
@@ -2446,11 +2447,187 @@ async function readDomEvidence(window) {
 	    const sourceEditorFrame = document.querySelector("#source-editor-frame");
 	    const sourceEditorDocument = sourceEditorFrame?.contentDocument;
 	    const terminalSurface = document.querySelector("#terminal-surface");
+	    const xtermRoot = terminalSurface?.querySelector(".xterm");
+	    const terminalCursor = terminalSurface?.querySelector(".xterm-cursor");
+	    const terminalCursorClassName = terminalCursor?.className ?? "";
+	    const terminalCursorOverlay = terminalSurface?.querySelector(".terminal-cursor-overlay");
+	    const terminalCursorOverlayStyle = terminalCursorOverlay
+	      ? window.getComputedStyle(terminalCursorOverlay)
+	      : null;
+	    const terminalCursorOverlayAnimationName = terminalCursorOverlayStyle?.animationName ?? "";
+	    const terminalCursorOverlayAnimationDuration = terminalCursorOverlayStyle?.animationDuration ?? "";
+	    const terminalCursorOverlayAnimationPlayState = terminalCursorOverlayStyle?.animationPlayState ?? "";
+	    const terminalCursorOverlayRectValue = terminalCursorOverlay?.getBoundingClientRect();
+	    const terminalCursorOverlayRect = terminalCursorOverlayRectValue
+	      ? {
+	          left: terminalCursorOverlayRectValue.left,
+	          top: terminalCursorOverlayRectValue.top,
+	          width: terminalCursorOverlayRectValue.width,
+	          height: terminalCursorOverlayRectValue.height
+	        }
+	      : null;
+	    const terminalCursorOverlayVisible = Boolean(
+	      terminalCursorOverlay &&
+	        !terminalCursorOverlay.hidden &&
+	        terminalCursorOverlayStyle?.display !== "none" &&
+	        terminalCursorOverlayStyle?.visibility !== "hidden" &&
+	        terminalCursorOverlayRect &&
+	        terminalCursorOverlayRect.width > 1 &&
+	        terminalCursorOverlayRect.height > 1
+	    );
+	    const terminalSurfaceFocused = Boolean(
+	      terminalSurface?.classList.contains("terminal-focused") ||
+	        (terminalSurface && terminalSurface.contains(document.activeElement))
+	    );
+	    const terminalCursorFocusedBlinkEvidence = Boolean(
+	      terminalCursorOverlayVisible &&
+	        terminalSurfaceFocused &&
+	        terminalCursorOverlayAnimationName.includes("terminal-cursor-blink") &&
+	        terminalCursorOverlayAnimationDuration !== "0s" &&
+	        terminalCursorOverlayAnimationPlayState !== "paused"
+	    );
+	    const terminalTheme = window.__wikiwiseTerminal?.options?.theme ?? {};
+	    const nativeInsertionCursorColors = ["#80ADAD", "#D6E8F7"];
+	    const configuredCursorColor = terminalTheme.cursor ?? "";
+	    const nativeInsertionCursorColor = nativeInsertionCursorColors.includes(configuredCursorColor);
+	    const configuredCursorBlink = window.__wikiwiseTerminal?.options?.cursorBlink ?? null;
+	    const configuredCursorStyle = window.__wikiwiseTerminal?.options?.cursorStyle ?? "";
+	    const configuredCursorInactiveStyle = window.__wikiwiseTerminal?.options?.cursorInactiveStyle ?? "";
+	    const terminalCursorEvidence = {
+	      terminalCursorEvidence: Boolean(xtermRoot),
+	      xtermCursorPresent: Boolean(xtermRoot && window.__wikiwiseTerminal && configuredCursorInactiveStyle !== "none"),
+	      xtermCursorNativeStyle:
+	        configuredCursorBlink === false &&
+	        configuredCursorStyle === "block" &&
+	        configuredCursorInactiveStyle === "outline" &&
+	        nativeInsertionCursorColor,
+	      xtermCursorDomPresent: Boolean(terminalCursor),
+	      xtermCursorClassName: terminalCursorClassName,
+	      terminalCursorOverlayVisible,
+	      terminalCursorRenderedEvidence: Boolean(xtermRoot && terminalCursorOverlayVisible),
+	      terminalCursorFocusedBlinkEvidence,
+	      terminalCursorOverlayRect,
+	      terminalCursorOverlayBorderColor: terminalCursorOverlayStyle?.borderColor ?? "",
+	      terminalCursorOverlayBackgroundColor: terminalCursorOverlayStyle?.backgroundColor ?? "",
+	      terminalCursorOverlayAnimationName,
+	      terminalCursorOverlayAnimationDuration,
+	      terminalCursorOverlayAnimationPlayState,
+	      terminalSurfaceFocused,
+	      configuredCursorBlink,
+	      configuredCursorColor,
+	      nativeInsertionCursorColor,
+	      configuredCursorStyle,
+	      configuredCursorInactiveStyle
+	    };
 	    const terminalLineText = window.__wikiwiseTerminal?.buffer?.active
 	      ? Array.from({ length: window.__wikiwiseTerminal.buffer.active.length }, (_value, index) =>
 	          window.__wikiwiseTerminal.buffer.active.getLine(index)?.translateToString(true) ?? ""
 	        ).join("\\n").trim()
 	      : "";
+	    const terminalRawText = window.__wikiwiseTerminalText ?? "";
+	    const terminalDisplayText = terminalRawText || terminalLineText || textFor("#terminal-surface");
+	    const terminalPromptCellColorEvidence = (() => {
+	      const terminal = window.__wikiwiseTerminal;
+	      const activeBuffer = terminal?.buffer?.active;
+	      if (!terminal || !activeBuffer) {
+	        return {
+	          terminalPromptCellColorEvidence: false,
+	          promptGreenCellPaletteObserved: false,
+	          promptCyanCellPaletteObserved: false,
+	          promptLineIndex: -1,
+	          promptLineText: "",
+	          promptCells: []
+	        };
+	      }
+
+	      let promptLineIndex = -1;
+	      let promptLineText = "";
+	      for (let index = Math.max(0, activeBuffer.length - terminal.rows - 4); index < activeBuffer.length; index += 1) {
+	        const lineText = activeBuffer.getLine(index)?.translateToString(true) ?? "";
+	        if (lineText.includes("git:(") || lineText.includes("runtime-created-wiki")) {
+	          promptLineIndex = index;
+	          promptLineText = lineText;
+	        }
+	      }
+
+	      const promptLine = promptLineIndex >= 0 ? activeBuffer.getLine(promptLineIndex) : null;
+	      const promptCells = [];
+	      if (promptLine) {
+	        for (let column = 0; column < Math.min(promptLine.length, terminal.cols, 100); column += 1) {
+	          const cell = promptLine.getCell(column);
+	          if (!cell?.getChars()) continue;
+	          promptCells.push({
+	            column,
+	            chars: cell.getChars(),
+	            fgColor: cell.getFgColor(),
+	            fgColorMode: cell.getFgColorMode(),
+	            fgPalette: cell.isFgPalette(),
+	            fgDefault: cell.isFgDefault(),
+	            fgRgb: cell.isFgRGB(),
+	            bold: Boolean(cell.isBold())
+	          });
+	        }
+	      }
+
+	      return {
+	        terminalPromptCellColorEvidence: promptCells.length > 0,
+	        promptGreenCellPaletteObserved: promptCells.some(
+	          (cell) => cell.fgPalette && cell.fgColor === 2 && (cell.bold || cell.chars === "➜")
+	        ),
+	        promptCyanCellPaletteObserved: promptCells.some(
+	          (cell) => cell.fgPalette && cell.fgColor === 6 && /[A-Za-z0-9_-]/.test(cell.chars)
+	        ),
+	        promptLineIndex,
+	        promptLineText,
+	        promptCells
+	      };
+	    })();
+	    const terminalCanvasColorEvidence = Array.from(
+	      terminalSurface?.querySelectorAll(".xterm-screen canvas") ?? []
+	    ).map((canvas, index) => {
+	      const rect = canvas.getBoundingClientRect();
+	      const context = canvas.getContext("2d", { willReadFrequently: true });
+	      if (!context || canvas.width <= 0 || canvas.height <= 0) {
+	        return { index, width: canvas.width, height: canvas.height, rect, colors: [] };
+	      }
+
+	      const image = context.getImageData(0, 0, canvas.width, canvas.height).data;
+	      const counts = new Map();
+	      const stride = Math.max(1, Math.floor(Math.sqrt((canvas.width * canvas.height) / 18000)));
+	      for (let y = 0; y < canvas.height; y += stride) {
+	        for (let x = 0; x < canvas.width; x += stride) {
+	          const offset = (y * canvas.width + x) * 4;
+	          const alpha = image[offset + 3];
+	          if (alpha === 0) continue;
+	          const key = [image[offset], image[offset + 1], image[offset + 2], alpha].join(",");
+	          counts.set(key, (counts.get(key) ?? 0) + 1);
+	        }
+	      }
+
+	      return {
+	        index,
+	        width: canvas.width,
+	        height: canvas.height,
+	        rect: { left: rect.left, top: rect.top, width: rect.width, height: rect.height },
+	        colors: Array.from(counts.entries())
+	          .sort((a, b) => b[1] - a[1])
+	          .slice(0, 16)
+	          .map(([rgba, count]) => ({ rgba, count }))
+	      };
+	    });
+	    const nativePromptBrightGreen = ["#6FA24F", "#A4D27A"];
+	    const nativePromptCyan = ["#2F7F83", "#75B8BC"];
+	    const terminalPromptColorEvidence = {
+	      terminalPromptColorEvidence: Boolean(xtermRoot && window.__wikiwiseTerminal),
+	      promptGreenAnsiObserved: /\\u001b\\[[0-9;]*32m/.test(terminalRawText),
+	      promptCyanAnsiObserved: /\\u001b\\[[0-9;]*36m/.test(terminalRawText),
+	      drawBoldTextInBrightColors: window.__wikiwiseTerminal?.options?.drawBoldTextInBrightColors === true,
+	      configuredBrightGreen: terminalTheme.brightGreen ?? "",
+	      configuredCyan: terminalTheme.cyan ?? "",
+	      nativeWarmPromptPalette:
+	        nativePromptBrightGreen.includes(terminalTheme.brightGreen) &&
+	        nativePromptCyan.includes(terminalTheme.cyan)
+	    };
 	    const rightSidebarResizeEvidence = window.__wikiwiseRightSidebarResizeEvidence ?? {};
 	    const leftSidebarResizeEvidence = window.__wikiwiseLeftSidebarResizeEvidence ?? {};
 	    const leftSidebarVisibilityEvidence = window.__wikiwiseLeftSidebarVisibilityEvidence ?? {};
@@ -2843,10 +3020,21 @@ async function readDomEvidence(window) {
 		      rightSidebarResizedWidth: rightSidebarResizeEvidence.rightSidebarResizedWidth ?? null,
 		      rightSidebarMaxWidth: rightSidebarResizeEvidence.rightSidebarMaxWidth ?? null,
 		      rightSidebarResizeObserved: Boolean(rightSidebarResizeEvidence.rightSidebarResizeObserved),
-		      xtermTerminalPresent: Boolean(terminalSurface?.querySelector(".xterm")),
-	      terminalText: window.__wikiwiseTerminalText || terminalLineText || textFor("#terminal-surface"),
-	      errorText: textFor("#error-message")
-	    };
+			      xtermTerminalPresent: Boolean(xtermRoot),
+		      terminalCursorEvidence,
+		      xtermCursorPresent: terminalCursorEvidence.xtermCursorPresent,
+		      xtermCursorNativeStyle: terminalCursorEvidence.xtermCursorNativeStyle,
+		      terminalCursorOverlayVisible: terminalCursorEvidence.terminalCursorOverlayVisible,
+		      terminalCursorRenderedEvidence: terminalCursorEvidence.terminalCursorRenderedEvidence,
+		      terminalCursorFocusedBlinkEvidence: terminalCursorEvidence.terminalCursorFocusedBlinkEvidence,
+		      terminalCursorOverlayRect: terminalCursorEvidence.terminalCursorOverlayRect,
+		      terminalPromptColorEvidence,
+		      terminalPromptCellColorEvidence,
+		      terminalCanvasColorEvidence,
+		      terminalStartupPlaceholderAbsent: !terminalDisplayText.includes("Starting shell"),
+		      terminalText: terminalDisplayText,
+		      errorText: textFor("#error-message")
+		    };
   })()`, true);
 }
 
@@ -3393,6 +3581,34 @@ function assertScenario(scenario, dom, screenshot) {
 	    if (!dom.xtermTerminalPresent) {
 	      failures.push("Terminal panel did not render an xterm terminal surface.");
 	    }
+	    if (!dom.xtermCursorPresent || !dom.xtermCursorNativeStyle) {
+	      failures.push("Terminal cursor parity evidence is missing.");
+	    }
+	    if (!dom.terminalCursorRenderedEvidence) {
+	      failures.push("Terminal rendered cursor evidence is missing.");
+	    }
+	    if (!dom.terminalCursorFocusedBlinkEvidence) {
+	      failures.push("Terminal focused cursor blink evidence is missing.");
+	    }
+	    if (!dom.terminalStartupPlaceholderAbsent) {
+	      failures.push("Terminal panel rendered Electron startup placeholder text.");
+	    }
+	    if (
+	      !dom.terminalPromptColorEvidence?.terminalPromptColorEvidence ||
+	      !dom.terminalPromptColorEvidence.promptGreenAnsiObserved ||
+	      !dom.terminalPromptColorEvidence.promptCyanAnsiObserved ||
+	      !dom.terminalPromptColorEvidence.drawBoldTextInBrightColors ||
+	      !dom.terminalPromptColorEvidence.nativeWarmPromptPalette
+	    ) {
+	      failures.push("Terminal prompt color parity evidence is missing.");
+	    }
+	    if (
+	      !dom.terminalPromptCellColorEvidence?.terminalPromptCellColorEvidence ||
+	      !dom.terminalPromptCellColorEvidence.promptGreenCellPaletteObserved ||
+	      !dom.terminalPromptCellColorEvidence.promptCyanCellPaletteObserved
+	    ) {
+	      failures.push("Terminal prompt cell color evidence is missing.");
+	    }
 	    if (!dom.terminalResizeObserved) {
 	      failures.push("Terminal resize was not sent through the preload bridge.");
 	    }
@@ -3402,7 +3618,7 @@ function assertScenario(scenario, dom, screenshot) {
 	    if (!dom.terminalInputObserved || !dom.realTerminalOutputObserved) {
 	      failures.push("Real terminal input did not echo audit command.");
 	    }
-	    if (!/WIKIWISE_REAL_TERMINAL_AUDIT|Starting shell/.test(dom.terminalText)) {
+	    if (!/WIKIWISE_REAL_TERMINAL_AUDIT/.test(dom.terminalText)) {
 	      failures.push("Terminal panel did not render audit output.");
 	    }
   }

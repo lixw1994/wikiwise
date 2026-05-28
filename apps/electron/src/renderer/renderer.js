@@ -141,6 +141,8 @@ const state = {
   documentInfo: null,
   terminalInstance: null,
   terminalFitAddon: null,
+  terminalCursorOverlay: null,
+  terminalFocused: false,
   terminalSessionProjectRoot: null,
   terminalStartPromise: null,
   terminalResizeObserver: null,
@@ -218,18 +220,39 @@ function loadScriptOnce(id, src) {
   return loadPromise;
 }
 
+function loadStylesheetOnce(id, href) {
+  if (scriptLoadPromises.has(id)) return scriptLoadPromises.get(id);
+
+  const existingLink = document.getElementById(id);
+  if (existingLink) {
+    if (existingLink.sheet) return Promise.resolve();
+
+    const existingLoadPromise = new Promise((resolve, reject) => {
+      existingLink.addEventListener("load", () => resolve(), { once: true });
+      existingLink.addEventListener("error", () => reject(new Error(`Failed to load ${href}`)), { once: true });
+    });
+    scriptLoadPromises.set(id, existingLoadPromise);
+    return existingLoadPromise;
+  }
+
+  const loadPromise = new Promise((resolve, reject) => {
+    const link = document.createElement("link");
+    link.id = id;
+    link.rel = "stylesheet";
+    link.href = href;
+    link.onload = () => resolve();
+    link.onerror = () => reject(new Error(`Failed to load ${href}`));
+    document.head.append(link);
+  });
+  scriptLoadPromises.set(id, loadPromise);
+  return loadPromise;
+}
+
 async function loadTerminalResources() {
   if (state.terminalResourcesLoaded) return;
 
   const resource = await window.wikiwise.getTerminalResource();
-  if (!document.getElementById("wikiwise-terminal-css")) {
-    const link = document.createElement("link");
-    link.id = "wikiwise-terminal-css";
-    link.rel = "stylesheet";
-    link.href = resource.xtermCssUrl;
-    document.head.append(link);
-  }
-
+  await loadStylesheetOnce("wikiwise-terminal-css", resource.xtermCssUrl);
   await loadScriptOnce("wikiwise-xterm-script", resource.xtermScriptUrl);
   await loadScriptOnce("wikiwise-xterm-fit-script", resource.fitScriptUrl);
   state.terminalResourcesLoaded = true;
@@ -924,6 +947,12 @@ function endLeftSidebarResize(event) {
 function setRightSidebarTab(tab) {
   state.rightSidebarTab = tab;
   renderRightSidebar();
+  if (tab === "terminal") {
+    requestAnimationFrame(focusTerminalIfVisible);
+  } else {
+    setTerminalFocused(false);
+    updateTerminalCursorOverlay();
+  }
 }
 
 function renderRightSidebar() {
@@ -982,6 +1011,13 @@ function renderTerminalTab() {
   }
 }
 
+function focusTerminalIfVisible() {
+  if (state.rightSidebarTab !== "terminal" || terminalPanel.hidden || !state.terminalInstance) return;
+  state.terminalInstance.focus();
+  setTerminalFocused(true);
+  updateTerminalCursorOverlay();
+}
+
 async function ensureTerminalInstance() {
   if (state.terminalInstance) return state.terminalInstance;
 
@@ -993,7 +1029,11 @@ async function ensureTerminalInstance() {
   }
 
   const terminalInstance = new TerminalCtor({
-    cursorBlink: true,
+    cursorBlink: false,
+    cursorStyle: "block",
+    cursorInactiveStyle: "outline",
+    drawBoldTextInBrightColors: true,
+    minimumContrastRatio: 1,
     fontFamily: '"JetBrains Mono", "SFMono-Regular", Menlo, monospace',
     fontSize: 12,
     lineHeight: 1.1,
@@ -1008,14 +1048,37 @@ async function ensureTerminalInstance() {
   terminalInstance.onData((input) => {
     sendTerminalData(input).catch(setError);
   });
+  terminalSurface.addEventListener("focusin", handleTerminalFocusIn);
+  terminalSurface.addEventListener("focusout", handleTerminalFocusOut);
+  terminalInstance.onCursorMove(() => updateTerminalCursorOverlay());
+  terminalInstance.onRender(() => updateTerminalCursorOverlay());
 
   state.terminalInstance = terminalInstance;
   state.terminalFitAddon = terminalFitAddon;
   window.__wikiwiseTerminal = terminalInstance;
   window.__wikiwiseTerminalText = "";
+  ensureTerminalCursorOverlay();
   observeTerminalResize();
   fitTerminal();
   return terminalInstance;
+}
+
+function setTerminalFocused(focused) {
+  state.terminalFocused = focused;
+  terminalSurface.classList.toggle("terminal-focused", focused);
+  updateTerminalCursorOverlay();
+}
+
+function handleTerminalFocusIn() {
+  setTerminalFocused(true);
+}
+
+function handleTerminalFocusOut(event) {
+  if (event.relatedTarget instanceof Node && terminalSurface.contains(event.relatedTarget)) return;
+
+  requestAnimationFrame(() => {
+    setTerminalFocused(terminalSurface.contains(document.activeElement));
+  });
 }
 
 function observeTerminalResize() {
@@ -1032,45 +1095,47 @@ function terminalTheme() {
     ? {
         background: "#0E0C08",
         foreground: "#CFC3A3",
-        cursor: "#C2A96B",
+        cursor: "#80ADAD",
+        cursorAccent: "#0E0C08",
         selectionBackground: "#C2A96B33",
         black: "#1E1B14",
         red: "#B85E5E",
-        green: "#7F965B",
+        green: "#8DBB6B",
         yellow: "#C2A96B",
         blue: "#6B7FA3",
         magenta: "#A36B8F",
-        cyan: "#6B9696",
+        cyan: "#75B8BC",
         white: "#A89A7C",
         brightBlack: "#6F6450",
         brightRed: "#D07070",
-        brightGreen: "#96AD70",
+        brightGreen: "#A4D27A",
         brightYellow: "#D4BE80",
         brightBlue: "#8096B8",
         brightMagenta: "#B880A3",
-        brightCyan: "#80ADAD",
+        brightCyan: "#8ED0D4",
         brightWhite: "#F4EACF"
       }
     : {
         background: "#F3EDDE",
         foreground: "#5B5240",
-        cursor: "#7A1F1F",
+        cursor: "#D6E8F7",
+        cursorAccent: "#5B5240",
         selectionBackground: "#B89B5A33",
         black: "#3A2F1C",
         red: "#9B3D3D",
-        green: "#6B7F4A",
+        green: "#5E8E3E",
         yellow: "#B89B5A",
         blue: "#5B6A8A",
         magenta: "#8A5B7A",
-        cyan: "#5B7F7F",
+        cyan: "#2F7F83",
         white: "#D9CFB9",
         brightBlack: "#7A6E54",
         brightRed: "#B84E4E",
-        brightGreen: "#7F965B",
+        brightGreen: "#6FA24F",
         brightYellow: "#C8AE6B",
         brightBlue: "#6B7FA3",
         brightMagenta: "#A36B8F",
-        brightCyan: "#6B9696",
+        brightCyan: "#3F9CA1",
         brightWhite: "#F3EDDE"
       };
 }
@@ -1078,6 +1143,56 @@ function terminalTheme() {
 function applyTerminalTheme() {
   if (!state.terminalInstance) return;
   state.terminalInstance.options.theme = terminalTheme();
+  updateTerminalCursorOverlay();
+}
+
+function ensureTerminalCursorOverlay() {
+  if (state.terminalCursorOverlay) return state.terminalCursorOverlay;
+
+  const overlay = document.createElement("div");
+  overlay.className = "terminal-cursor-overlay";
+  overlay.hidden = true;
+  overlay.setAttribute("aria-hidden", "true");
+  terminalSurface.append(overlay);
+  state.terminalCursorOverlay = overlay;
+  return overlay;
+}
+
+function updateTerminalCursorOverlay() {
+  if (!state.terminalInstance) {
+    if (state.terminalCursorOverlay) {
+      state.terminalCursorOverlay.hidden = true;
+    }
+    return;
+  }
+
+  const overlay = ensureTerminalCursorOverlay();
+  if (terminalPanel.hidden || state.rightSidebarTab !== "terminal" || !state.currentProject) {
+    overlay.hidden = true;
+    return;
+  }
+
+  const screen = terminalSurface.querySelector(".xterm-screen");
+  const screenRect = screen?.getBoundingClientRect();
+  const surfaceRect = terminalSurface.getBoundingClientRect();
+  if (!screenRect || screenRect.width <= 0 || screenRect.height <= 0) {
+    overlay.hidden = true;
+    return;
+  }
+
+  const cols = Math.max(1, state.terminalInstance.cols || 0);
+  const rows = Math.max(1, state.terminalInstance.rows || 0);
+  const cellWidth = screenRect.width / cols;
+  const cellHeight = screenRect.height / rows;
+  const activeBuffer = state.terminalInstance.buffer?.active;
+  const cursorX = Math.min(Math.max(activeBuffer?.cursorX ?? 0, 0), cols - 1);
+  const cursorY = Math.min(Math.max(activeBuffer?.cursorY ?? 0, 0), rows - 1);
+
+  overlay.style.left = `${screenRect.left - surfaceRect.left + cursorX * cellWidth}px`;
+  overlay.style.top = `${screenRect.top - surfaceRect.top + cursorY * cellHeight}px`;
+  overlay.style.width = `${Math.max(2, cellWidth)}px`;
+  overlay.style.height = `${Math.max(2, cellHeight)}px`;
+  overlay.hidden = false;
 }
 
 function fitTerminal() {
@@ -1085,6 +1200,7 @@ function fitTerminal() {
 
   try {
     state.terminalFitAddon.fit();
+    updateTerminalCursorOverlay();
     resizeTerminal();
   } catch {
     // xterm cannot fit until fonts and cell metrics are ready.
@@ -1908,8 +2024,8 @@ async function startTerminalSession() {
     state.terminalSessionProjectRoot = terminalResult.projectRoot ?? state.currentProject.projectRoot;
     if (terminalResult.started) {
       terminalInstance.clear();
-      terminalInstance.writeln("Starting shell...");
-      window.__wikiwiseTerminalText = "Starting shell...\n";
+      window.__wikiwiseTerminalText = "";
+      focusTerminalIfVisible();
     }
     await sendTerminalResize();
     state.terminalOutputCleanup = cleanup;
@@ -1934,7 +2050,7 @@ function handleTerminalOutput(output) {
   ensureTerminalInstance()
     .then((terminalInstance) => {
       window.__wikiwiseTerminalText = `${window.__wikiwiseTerminalText ?? ""}${output.data}`.slice(-4000);
-      terminalInstance.write(output.data);
+      terminalInstance.write(output.data, () => updateTerminalCursorOverlay());
       if (output.source === "system" && output.data.includes("[process exited")) {
         state.terminalSessionProjectRoot = null;
       }

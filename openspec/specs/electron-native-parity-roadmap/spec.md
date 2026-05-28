@@ -128,7 +128,7 @@ The migration roadmap SHALL record Electron PTY terminal parity as a final nativ
 #### Scenario: PTY terminal parity phase is archived
 
 - **WHEN** the Electron PTY terminal parity change is archived
-- **THEN** retained verification records PTY-backed shell startup, xterm-compatible rendering, direct input, resize evidence, and native warm palette evidence
+- **THEN** retained verification records PTY-backed shell startup, xterm-compatible rendering, direct input, resize evidence, native warm palette evidence, xterm style/CSP color evidence, prompt cell color evidence, focused cursor blink evidence, rendered cursor evidence, and absence of Electron-only terminal startup text
 - **AND** remaining final parity evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation
 
 ### Requirement: File Tree Expansion Parity Phase Completion Tracking
@@ -1069,4 +1069,12 @@ The migration roadmap SHALL record release workflow retention of detailed runtim
 #### Scenario: Release audit artifact retention phase is archived
 - **WHEN** the release audit artifact retention change is archived
 - **THEN** retained verification records workflow artifact upload coverage for the DMG, release report, runtime audit report/screenshots, packaged runtime smoke report, release documentation coverage, package/build/runtime evidence, and release-readiness gate evidence
+- **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation
+
+### Requirement: Terminal Cursor Parity Phase Tracking
+The migration roadmap SHALL record Electron terminal cursor visibility as a native terminal visual parity correction phase.
+
+#### Scenario: Terminal cursor parity phase is archived
+- **WHEN** the Electron terminal cursor parity change is archived
+- **THEN** retained verification records native SwiftTerm cursor evidence, Electron xterm cursor option coverage, runtime cursor evidence, preserved terminal behavior coverage, package/build evidence, and release-readiness gate evidence
 - **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation
