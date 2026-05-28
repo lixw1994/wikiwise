@@ -125,6 +125,26 @@ test("matches native welcome mark foreground role", () => {
   assert.match(welcomeMarkBlock, /font-weight:\s*300/);
 });
 
+test("matches native welcome intro grouping and spacing", () => {
+  const welcomeContentBlock = cssBlock(".welcome-content");
+  const welcomeIntroBlock = cssBlock(".welcome-intro");
+  const actionsBlock = cssBlock(".actions");
+
+  assert.match(
+    nativeContentViewSource,
+    /VStack\(spacing:\s*32\)\s*\{[\s\S]*Spacer\(\)[\s\S]*VStack\(spacing:\s*12\)\s*\{[\s\S]*Text\("W"\)[\s\S]*Text\("WikiWise helps you turn any folder\\nof markdown files into a browsable,\\npublishable wiki\."\)[\s\S]*\}[\s\S]*VStack\(spacing:\s*12\)\s*\{[\s\S]*Text\("Create a New Wiki"\)[\s\S]*Text\("Open Existing Folder"\)/
+  );
+  assert.match(
+    htmlSource,
+    /<div class="welcome-content">[\s\S]*<div class="welcome-intro">[\s\S]*<div class="welcome-mark" aria-hidden="true">W<\/div>[\s\S]*<p class="summary">[\s\S]*WikiWise helps you turn any folder[\s\S]*<\/p>[\s\S]*<\/div>[\s\S]*<div class="actions">/
+  );
+  assert.match(welcomeContentBlock, /gap:\s*32px/);
+  assert.match(welcomeIntroBlock, /display:\s*grid/);
+  assert.match(welcomeIntroBlock, /justify-items:\s*center/);
+  assert.match(welcomeIntroBlock, /gap:\s*12px/);
+  assert.match(actionsBlock, /gap:\s*12px/);
+});
+
 test("matches native welcome toolbar brand chrome", () => {
   const welcomeToolbarBlock = cssBlock(".welcome-toolbar");
   const welcomeToolbarBrandBlock = cssBlock(".welcome-toolbar-brand");

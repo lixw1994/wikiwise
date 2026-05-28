@@ -174,6 +174,12 @@ body {
   padding: 32px 20px;
 }
 
+.welcome-intro {
+  display: grid;
+  justify-items: center;
+  gap: 12px;
+}
+
 .welcome-mark {
   color: var(--color-sidebar-selected-text);
   font-family: Georgia, "Times New Roman", serif;
