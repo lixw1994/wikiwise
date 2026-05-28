@@ -101,6 +101,34 @@ test("main process starts right sidebar terminal as native login shell without c
   assert.match(resizeSource, /session\.rows = rows/);
 });
 
+test("main process repairs node-pty spawn helper permissions before PTY startup", () => {
+  const mainSource = read("src/main/main.js");
+  const startTerminalStart = mainSource.indexOf("function startTerminal");
+  const normalizeStart = mainSource.indexOf("function normalizeTerminalSize", startTerminalStart);
+  const resolveHelperStart = mainSource.indexOf("function resolveNodePtySpawnHelperPath");
+  const ensureHelperStart = mainSource.indexOf("function ensureNodePtySpawnHelperExecutable");
+  const startTerminalSource = mainSource.slice(startTerminalStart, normalizeStart);
+  const ensureHelperSource = mainSource.slice(ensureHelperStart, startTerminalStart);
+  const ensureCallIndex = startTerminalSource.indexOf("ensureNodePtySpawnHelperExecutable();");
+  const spawnIndex = startTerminalSource.indexOf("pty.spawn");
+
+  assert.notEqual(resolveHelperStart, -1);
+  assert.notEqual(ensureHelperStart, -1);
+  assert.ok(ensureHelperStart < startTerminalStart, "spawn-helper permission guard should be defined before startTerminal");
+  assert.match(mainSource, /nodePtySpawnHelperRelativePath/);
+  assert.match(mainSource, /prebuilds/);
+  assert.match(mainSource, /spawn-helper/);
+  assert.match(mainSource, /requireFromMain\.resolve\("node-pty\/package\.json"\)/);
+  assert.match(ensureHelperSource, /process\.platform === "win32"/);
+  assert.match(ensureHelperSource, /fs\.statSync\(helperPath\)/);
+  assert.match(ensureHelperSource, /stat\.mode & 0o111/);
+  assert.match(ensureHelperSource, /fs\.chmodSync\(helperPath,\s*stat\.mode \| 0o111\)/);
+  assert.match(ensureHelperSource, /Unable to make node-pty spawn helper executable/);
+  assert.ok(ensureCallIndex >= 0, "startTerminal should ensure spawn-helper permissions before spawning");
+  assert.ok(ensureCallIndex < spawnIndex, "spawn-helper permission guard must run before pty.spawn");
+  assert.match(startTerminalSource, /pty\.spawn\(shellPath,\s*shellArgs,\s*\{/);
+});
+
 test("terminal startup reuses an existing window session like native startIfNeeded", () => {
   const nativeTerminalSource = readRepository("Sources/Wikiwise/TerminalEmbed.swift");
   const nativeContentSource = readRepository("Sources/Wikiwise/ContentView.swift");

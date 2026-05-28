@@ -20,6 +20,7 @@ const electronMainSourceRelativePath = "src/main";
 const electronPreloadSourceRelativePath = "src/preload";
 const electronRendererSourceRelativePath = "src/renderer";
 const embeddedCoreRelativePath = "node_modules/@wikiwise/core";
+const nodePtySpawnHelperRelativePath = path.join("prebuilds", `darwin-${process.arch}`, "spawn-helper");
 const coreSourceRelativePath = "packages/wikiwise-core/src";
 const corePackageManifestRelativePath = "packages/wikiwise-core/package.json";
 const electronTemplatePath = path.join(repositoryRoot, electronTemplateRelativePath);
@@ -321,6 +322,26 @@ function copyElectronRuntimeDependencies() {
   }
 }
 
+function ensurePackagedNodePtySpawnHelperExecutable() {
+  const appRoot = path.join(outputAppPath, embeddedAppRelativePath);
+  const helperPath = path.join(
+    dependencyDestination(appRoot, "node-pty"),
+    nodePtySpawnHelperRelativePath
+  );
+
+  if (!fs.existsSync(helperPath)) {
+    return false;
+  }
+
+  const stat = fs.statSync(helperPath);
+  if ((stat.mode & 0o111) !== 0) {
+    return false;
+  }
+
+  fs.chmodSync(helperPath, stat.mode | 0o111);
+  return true;
+}
+
 function copyNativeResources() {
   const packagedResources = path.join(outputAppPath, "Contents", "Sources", "Wikiwise", "Resources");
   copyDirectory(nativeResourcesRoot, packagedResources);
@@ -363,6 +384,7 @@ function packageElectronMacApp() {
   copyElectronAppSource();
   copyCorePackage();
   copyElectronRuntimeDependencies();
+  ensurePackagedNodePtySpawnHelperExecutable();
   copyNativeResources();
   rewriteInfoPlist();
   assertPackagedInfoPlistKeyDelta();

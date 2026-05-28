@@ -45,6 +45,7 @@ const nativeWindowDefaultSize = Object.freeze({ width: 1500, height: 1000 });
 const nativeWindowMinimumSize = Object.freeze({ width: 800, height: 500 });
 const nativeBroadcastAppCommands = new Set(["goBack", "goForward", "refreshWiki"]);
 const terminalRuntimeDependencies = Object.freeze(["node-pty", "@xterm/xterm", "@xterm/addon-fit"]);
+const nodePtySpawnHelperRelativePath = path.join("prebuilds", `${process.platform}-${process.arch}`, "spawn-helper");
 const defaultAppSettings = Object.freeze({
   appearanceMode: "Auto",
   lastFolderPath: ""
@@ -869,6 +870,67 @@ async function unpublishProject(payload) {
   });
 }
 
+function resolveNodePtySpawnHelperPath() {
+  if (process.platform === "win32") {
+    return null;
+  }
+
+  let nodePtyRoot;
+  try {
+    nodePtyRoot = path.dirname(requireFromMain.resolve("node-pty/package.json"));
+  } catch {
+    return null;
+  }
+
+  const helperCandidates = [
+    path.join(nodePtyRoot, "build", "Release", "spawn-helper"),
+    path.join(nodePtyRoot, "build", "Debug", "spawn-helper"),
+    path.join(nodePtyRoot, nodePtySpawnHelperRelativePath)
+  ];
+
+  return helperCandidates.find((helperPath) => fs.existsSync(helperPath)) ?? null;
+}
+
+function ensureNodePtySpawnHelperExecutable() {
+  if (process.platform === "win32") {
+    return {
+      checked: false,
+      fixed: false,
+      helperPath: null
+    };
+  }
+
+  const helperPath = resolveNodePtySpawnHelperPath();
+  if (!helperPath) {
+    return {
+      checked: false,
+      fixed: false,
+      helperPath: null
+    };
+  }
+
+  try {
+    const stat = fs.statSync(helperPath);
+    if ((stat.mode & 0o111) !== 0) {
+      return {
+        checked: true,
+        fixed: false,
+        helperPath
+      };
+    }
+
+    fs.chmodSync(helperPath, stat.mode | 0o111);
+    return {
+      checked: true,
+      fixed: true,
+      helperPath
+    };
+  } catch (error) {
+    const message = error instanceof Error ? error.message : String(error);
+    throw new Error(`Unable to make node-pty spawn helper executable: ${message}`);
+  }
+}
+
 function startTerminal(webContents, payload) {
   const projectRoot = typeof payload === "string" ? payload : payload?.projectRoot;
   if (!projectRoot) {
@@ -908,6 +970,7 @@ function startTerminal(webContents, payload) {
   const shellPath = process.env.SHELL || process.env.ComSpec || (process.platform === "win32" ? "cmd.exe" : "/bin/zsh");
   const shellArgs = loginShellArgs();
   const shell = path.basename(shellPath);
+  ensureNodePtySpawnHelperExecutable();
   const ptyProcess = pty.spawn(shellPath, shellArgs, {
     name: "xterm-256color",
     cols,

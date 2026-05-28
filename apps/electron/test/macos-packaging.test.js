@@ -217,6 +217,24 @@ test("packaging script embeds the Electron app and shared core package layout", 
   assert.match(script, /@xterm\/addon-fit/);
 });
 
+test("packaging script makes the packaged node-pty spawn helper executable", () => {
+  const script = read("scripts/package-electron-macos.mjs");
+  const copyDependenciesIndex = script.indexOf("copyElectronRuntimeDependencies();");
+  const ensureHelperIndex = script.indexOf("ensurePackagedNodePtySpawnHelperExecutable();");
+  const copyResourcesIndex = script.indexOf("copyNativeResources();");
+
+  assert.match(script, /nodePtySpawnHelperRelativePath/);
+  assert.match(script, /prebuilds/);
+  assert.match(script, /spawn-helper/);
+  assert.match(script, /function ensurePackagedNodePtySpawnHelperExecutable\(\)/);
+  assert.match(script, /dependencyDestination\(appRoot,\s*"node-pty"\)/);
+  assert.match(script, /fs\.statSync\(helperPath\)/);
+  assert.match(script, /fs\.chmodSync\(helperPath,\s*stat\.mode \| 0o111\)/);
+  assert.ok(copyDependenciesIndex >= 0, "package command should copy runtime dependencies");
+  assert.ok(ensureHelperIndex > copyDependenciesIndex, "helper permissions should be fixed after dependency copy");
+  assert.ok(ensureHelperIndex < copyResourcesIndex, "helper permissions should be fixed before remaining package checks");
+});
+
 test("README documents local unsigned packaging and release guardrails", () => {
   const readme = read("apps/electron/README.md");
 

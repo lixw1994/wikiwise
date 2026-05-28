@@ -2,7 +2,6 @@
 
 ## Purpose
 Define local Electron macOS packaging behavior, app bundle metadata parity, reviewed Electron runtime plist deltas, and the separation between unsigned local packages and signed release distribution.
-
 ## Requirements
 ### Requirement: Electron macOS Package Command
 
@@ -141,3 +140,11 @@ The Electron package command SHALL reject unexpected package-only top-level `Inf
 - **AND** package-only top-level keys are limited to `CFBundleInfoDictionaryVersion`, `ElectronAsarIntegrity`, `LSEnvironment`, `NSMainNibFile`, `NSPrefersDisplaySafeAreaCompatibilityMode`, `NSPrincipalClass`, `NSQuitAlwaysKeepsWindows`, `NSRequiresAquaSystemAppearance`, and `NSSupportsAutomaticGraphicsSwitching`
 - **AND** it exits non-zero if any other package-only top-level plist key remains
 - **AND** Wikiwise product metadata, native-aligned version metadata, minimum macOS metadata, template metadata cleanup, template resource cleanup, Electron runtime resources, and release packaging behavior remain unchanged
+
+### Requirement: Packaged Node PTY Spawn Helper Permissions
+The Electron macOS package command SHALL preserve an executable `node-pty` spawn helper inside the packaged app bundle.
+
+#### Scenario: Packaged app runtime dependencies are assembled
+- **WHEN** the Electron macOS package command copies runtime dependencies into `apps/electron/out/Wikiwise.app/Contents/Resources/app`
+- **THEN** the packaged `node-pty` spawn helper is made executable before package verification and later release signing steps
+- **AND** app bundle metadata, embedded app layout, native resource copying, and local unsigned packaging behavior remain unchanged
