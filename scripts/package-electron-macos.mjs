@@ -20,7 +20,6 @@ const electronMainSourceRelativePath = "src/main";
 const electronPreloadSourceRelativePath = "src/preload";
 const electronRendererSourceRelativePath = "src/renderer";
 const embeddedCoreRelativePath = "node_modules/@wikiwise/core";
-const nodePtySpawnHelperRelativePath = path.join("prebuilds", `darwin-${process.arch}`, "spawn-helper");
 const coreSourceRelativePath = "packages/wikiwise-core/src";
 const corePackageManifestRelativePath = "packages/wikiwise-core/package.json";
 const electronTemplatePath = path.join(repositoryRoot, electronTemplateRelativePath);
@@ -322,24 +321,32 @@ function copyElectronRuntimeDependencies() {
   }
 }
 
-function ensurePackagedNodePtySpawnHelperExecutable() {
+function packagedNodePtySpawnHelperPaths() {
   const appRoot = path.join(outputAppPath, embeddedAppRelativePath);
-  const helperPath = path.join(
-    dependencyDestination(appRoot, "node-pty"),
-    nodePtySpawnHelperRelativePath
-  );
+  const prebuildsPath = path.join(dependencyDestination(appRoot, "node-pty"), "prebuilds");
 
-  if (!fs.existsSync(helperPath)) {
-    return false;
+  if (!fs.existsSync(prebuildsPath)) {
+    return [];
   }
 
-  const stat = fs.statSync(helperPath);
-  if ((stat.mode & 0o111) !== 0) {
-    return false;
-  }
+  return fs.readdirSync(prebuildsPath, { withFileTypes: true })
+    .filter((entry) => entry.isDirectory() && entry.name.startsWith("darwin-"))
+    .map((entry) => path.join(prebuildsPath, entry.name, "spawn-helper"))
+    .filter((helperPath) => fs.existsSync(helperPath));
+}
 
-  fs.chmodSync(helperPath, stat.mode | 0o111);
-  return true;
+function ensurePackagedNodePtySpawnHelperExecutable() {
+  let repairedCount = 0;
+  for (const helperPath of packagedNodePtySpawnHelperPaths()) {
+    const stat = fs.statSync(helperPath);
+    if ((stat.mode & 0o111) !== 0) {
+      continue;
+    }
+
+    fs.chmodSync(helperPath, stat.mode | 0o111);
+    repairedCount += 1;
+  }
+  return repairedCount;
 }
 
 function copyNativeResources() {

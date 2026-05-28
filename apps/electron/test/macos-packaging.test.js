@@ -223,13 +223,18 @@ test("packaging script makes the packaged node-pty spawn helper executable", () 
   const ensureHelperIndex = script.indexOf("ensurePackagedNodePtySpawnHelperExecutable();");
   const copyResourcesIndex = script.indexOf("copyNativeResources();");
 
-  assert.match(script, /nodePtySpawnHelperRelativePath/);
   assert.match(script, /prebuilds/);
   assert.match(script, /spawn-helper/);
+  assert.match(script, /function packagedNodePtySpawnHelperPaths\(\)/);
   assert.match(script, /function ensurePackagedNodePtySpawnHelperExecutable\(\)/);
   assert.match(script, /dependencyDestination\(appRoot,\s*"node-pty"\)/);
-  assert.match(script, /fs\.statSync\(helperPath\)/);
+  assert.match(script, /fs\.readdirSync\(prebuildsPath,\s*\{\s*withFileTypes:\s*true\s*\}\)/);
+  assert.match(script, /entry\.isDirectory\(\)/);
+  assert.match(script, /entry\.name\.startsWith\("darwin-"\)/);
+  assert.match(script, /path\.join\(prebuildsPath,\s*entry\.name,\s*"spawn-helper"\)/);
+  assert.match(script, /for \(const helperPath of packagedNodePtySpawnHelperPaths\(\)\)/);
   assert.match(script, /fs\.chmodSync\(helperPath,\s*stat\.mode \| 0o111\)/);
+  assert.doesNotMatch(script, /darwin-\$\{process\.arch\}/);
   assert.ok(copyDependenciesIndex >= 0, "package command should copy runtime dependencies");
   assert.ok(ensureHelperIndex > copyDependenciesIndex, "helper permissions should be fixed after dependency copy");
   assert.ok(ensureHelperIndex < copyResourcesIndex, "helper permissions should be fixed before remaining package checks");
