@@ -91,3 +91,19 @@ jobs:
           name: Wikiwise-electron-release-report
           path: apps/electron/out/release/report.json
           if-no-files-found: error
+
+      - name: Upload Electron runtime audit evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: Wikiwise-electron-runtime-audit
+          path: |
+            apps/electron/out/runtime-audit/report.json
+            apps/electron/out/runtime-audit/screenshots/
+          if-no-files-found: error
+
+      - name: Upload Electron packaged runtime audit evidence
+        uses: actions/upload-artifact@v4
+        with:
+          name: Wikiwise-electron-packaged-runtime-audit
+          path: apps/electron/out/packaged-runtime-audit/report.json
+          if-no-files-found: error

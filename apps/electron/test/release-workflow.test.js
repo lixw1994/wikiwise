@@ -66,6 +66,17 @@ test("Electron release workflow uploads the DMG and retained release report", ()
   assert.match(workflow, /apps\/electron\/out\/release\/report\.json/);
 });
 
+test("Electron release workflow uploads retained runtime audit evidence", () => {
+  const workflow = readRepository(".github/workflows/electron-release.yml");
+
+  assert.match(workflow, /Wikiwise-electron-runtime-audit/);
+  assert.match(workflow, /apps\/electron\/out\/runtime-audit\/report\.json/);
+  assert.match(workflow, /apps\/electron\/out\/runtime-audit\/screenshots/);
+  assert.match(workflow, /Wikiwise-electron-packaged-runtime-audit/);
+  assert.match(workflow, /apps\/electron\/out\/packaged-runtime-audit\/report\.json/);
+  assert.match(workflow, /if-no-files-found:\s*error/);
+});
+
 test("Electron documentation describes the credential-backed release workflow", () => {
   const electronReadme = readRepository("apps/electron/README.md");
 
@@ -78,5 +89,8 @@ test("Electron documentation describes the credential-backed release workflow", 
   assert.match(electronReadme, /APPLE_NOTARY_KEY_BASE64/);
   assert.match(electronReadme, /Wikiwise-macOS\.dmg/);
   assert.match(electronReadme, /apps\/electron\/out\/release\/report\.json/);
+  assert.match(electronReadme, /apps\/electron\/out\/runtime-audit\/report\.json/);
+  assert.match(electronReadme, /apps\/electron\/out\/runtime-audit\/screenshots/);
+  assert.match(electronReadme, /apps\/electron\/out\/packaged-runtime-audit\/report\.json/);
   assert.match(electronReadme, /successful signed and notarized release run/i);
 });

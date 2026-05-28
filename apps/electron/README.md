@@ -78,7 +78,10 @@ Required secrets:
 - `APPLE_NOTARY_KEY_BASE64`: base64-encoded notarization API private key.
 
 After a successful signed and notarized release run, the workflow uploads
-`Wikiwise-macOS.dmg` and `apps/electron/out/release/report.json` as artifacts.
+`Wikiwise-macOS.dmg`, `apps/electron/out/release/report.json`,
+`apps/electron/out/runtime-audit/report.json`,
+`apps/electron/out/runtime-audit/screenshots/`, and
+`apps/electron/out/packaged-runtime-audit/report.json` as artifacts.
 Final Electron migration completion still requires that successful signed and
 notarized release run, or an accepted OpenSpec deviation.
 
