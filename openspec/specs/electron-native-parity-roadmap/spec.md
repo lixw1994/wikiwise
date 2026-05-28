@@ -138,7 +138,6 @@ The migration roadmap SHALL record Electron file-tree expansion parity as a nati
 - **WHEN** the Electron file-tree expansion parity change is archived
 - **THEN** retained verification records native ordering, default top-level expansion, lazy nested expansion, path-safe expansion IPC, nested file selection, and runtime audit evidence
 - **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation
-
 ### Requirement: Viewport Detail Chrome Parity Phase Completion Tracking
 The migration roadmap SHALL record Electron viewport/detail chrome parity as a visible shell polish phase.
 
@@ -1029,4 +1028,12 @@ The migration roadmap SHALL record Electron terminal spawn-helper permission cor
 #### Scenario: Terminal spawn-helper permission phase is archived
 - **WHEN** the Electron terminal spawn-helper permission change is archived
 - **THEN** retained verification records root-cause evidence for `node-pty` helper permissions, runtime startup guard coverage, packaged helper permission evidence, package/build/runtime evidence, and release-readiness gate evidence
+- **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation
+
+### Requirement: Real Terminal Runtime Evidence Phase Completion Tracking
+The migration roadmap SHALL record real Electron terminal runtime evidence as a native terminal parity proof phase.
+
+#### Scenario: Real terminal runtime evidence phase is archived
+- **WHEN** the real Electron terminal runtime evidence change is archived
+- **THEN** retained verification records production PTY startup coverage, production terminal input coverage, echoed command output evidence, package/build/runtime evidence, and release-readiness gate evidence
 - **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation

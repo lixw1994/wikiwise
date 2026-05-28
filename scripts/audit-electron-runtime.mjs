@@ -47,6 +47,7 @@ const publishFeedbackExpectedErrorTitle = "Publish Error";
 const publishFeedbackExpectedErrorMessage = "Runtime audit publish failed.";
 const publishFeedbackExpectedUnpublishTitle = "Unpublish wiki?";
 const publishFeedbackExpectedUnpublishBody = "Your local files are not affected.";
+const realTerminalAuditCommand = "echo WIKIWISE_REAL_TERMINAL_AUDIT";
 const scenarios = Object.freeze([
   { name: "welcome-light", kind: "welcome", appearanceMode: "Light" },
   { name: "welcome-dark", kind: "welcome", appearanceMode: "Dark" },
@@ -72,8 +73,6 @@ let projectWatcherSender = null;
 let watcherRuntimeCaptureActive = false;
 let watcherRuntimeReadFilePaths = [];
 let watcherRuntimeCompilePayloads = [];
-let terminalStarted = false;
-let terminalStartedProjectRoot = "";
 let newWikiRuntimeCreatedScaffold = null;
 let newWikiRuntimeCreatedProject = null;
 let previewNavigationResolvePayloads = [];
@@ -87,8 +86,6 @@ const auditIpcChannels = Object.freeze([
   "wikiwise:restoreLastProject",
   "wikiwise:startProjectWatcher",
   "wikiwise:stopProjectWatcher",
-  "wikiwise:startTerminal",
-  "wikiwise:sendTerminalInput",
   "wikiwise:resizeTerminal",
   "wikiwise:stopTerminal",
   "wikiwise:getDocumentInfo",
@@ -418,24 +415,6 @@ function registerAuditIpcHandlers() {
     projectWatcherSender = null;
     return { ok: true };
   });
-  ipcMain.handle("wikiwise:startTerminal", (event, payload) => {
-    terminalStarted = true;
-    terminalStartedProjectRoot = payload?.projectRoot ?? "";
-    setTimeout(() => {
-      if (!event.sender.isDestroyed()) {
-        event.sender.send("wikiwise:terminalOutput", {
-          projectRoot: payload?.projectRoot,
-          source: "system",
-          data: "\x1b[32m$ runtime audit ready\x1b[0m\r\n"
-        });
-      }
-    }, 25);
-    return { ok: true, pty: true, cols: payload?.cols, rows: payload?.rows };
-  });
-  ipcMain.handle("wikiwise:sendTerminalInput", (_event, payload) => {
-    terminalInputObserved = Boolean(payload?.input);
-    return { ok: true };
-  });
   ipcMain.handle("wikiwise:resizeTerminal", (_event, payload) => {
     terminalResizeObserved = Number(payload?.cols) > 0 && Number(payload?.rows) > 0;
     if (terminalResizeObserved) {
@@ -655,8 +634,6 @@ async function runScenario(window, scenario) {
   watcherRuntimeCaptureActive = false;
   watcherRuntimeReadFilePaths = [];
   watcherRuntimeCompilePayloads = [];
-  terminalStarted = false;
-  terminalStartedProjectRoot = "";
   newWikiRuntimeCreatedScaffold = null;
   newWikiRuntimeCreatedProject = null;
   previewNavigationResolvePayloads = [];
@@ -735,8 +712,15 @@ async function runScenario(window, scenario) {
     await delay(80);
     await simulateLeftSidebarToggle(window);
     await delay(80);
-    await window.webContents.executeJavaScript(`window.__wikiwiseTerminal?.input("echo runtime audit\\r")`, true);
-    await delay(80);
+    await window.webContents.executeJavaScript(
+      `window.__wikiwiseTerminal?.input(\`${realTerminalAuditCommand}\\r\`)`,
+      true
+    );
+    await waitForCondition(
+      window,
+      `Boolean(window.__wikiwiseTerminalText?.includes("WIKIWISE_REAL_TERMINAL_AUDIT"))`,
+      `scenario ${scenario.name} real terminal command echo`
+    );
     await captureInfoOptionalSectionEvidence(window);
     await captureInfoPopulatedSectionEvidence(window);
     await capturePublishDialogRuntimeEvidence(window);
@@ -754,12 +738,17 @@ async function runScenario(window, scenario) {
     : null;
   dom.backgroundCompilationComplete = scenario.kind !== "project"
     || Boolean(dom.backgroundCompilationEvidence?.complete && dom.backgroundCompilationEvidence.remaining === 0);
+  const realTerminalOutputObserved = /WIKIWISE_REAL_TERMINAL_AUDIT/.test(dom.terminalText);
+  dom.realTerminalOutputObserved = realTerminalOutputObserved;
   dom.terminalResizeObserved = terminalResizeObserved;
   dom.rightSidebarTerminalResizeObserved = rightSidebarTerminalResizeObserved;
-  dom.terminalInputObserved = terminalInputObserved;
+  dom.terminalInputObserved = scenario.kind === "project"
+    ? realTerminalOutputObserved
+    : terminalInputObserved;
   dom.activeFileObserved = activeFileObserved;
   dom.standaloneFileWatcherStopped = scenario.kind !== "standalone-file" || !projectWatcherStarted;
-  dom.standaloneFileTerminalStopped = scenario.kind !== "standalone-file" || !terminalStarted;
+  dom.standaloneFileTerminalStopped = scenario.kind !== "standalone-file"
+    || !/Starting shell|WIKIWISE_REAL_TERMINAL_AUDIT/.test(dom.terminalText);
   dom.standaloneFileGeneratedMapServiceStopped = scenario.kind !== "standalone-file" || !generatedPageOpenObserved;
   const screenshot = screenshotStats(image);
   const assertions = assertScenario(scenario, dom, screenshot);
@@ -2111,7 +2100,9 @@ async function captureNewWikiCreationEvidence(window, scenario) {
       newWikiDismissActionLabel: "",
       newWikiDismissedGuide: false,
       newWikiHomeSelectedAfterDismiss: false,
-      newWikiPreviewVisibleAfterDismiss: false
+      newWikiPreviewVisibleAfterDismiss: false,
+      newWikiTerminalStarted: false,
+      newWikiTerminalText: ""
     };
 
     createButton?.click();
@@ -2177,6 +2168,20 @@ async function captureNewWikiCreationEvidence(window, scenario) {
       document.querySelector("#preview-frame") &&
       !document.querySelector("#preview-frame").hidden
     );
+    const terminalLineText = window.__wikiwiseTerminal?.buffer?.active
+      ? Array.from({ length: window.__wikiwiseTerminal.buffer.active.length }, (_value, index) =>
+          window.__wikiwiseTerminal.buffer.active.getLine(index)?.translateToString(true) ?? ""
+        ).join("\\n").trim()
+      : "";
+    evidence.newWikiTerminalText =
+      window.__wikiwiseTerminalText ||
+      terminalLineText ||
+      textFor("#terminal-surface");
+    evidence.newWikiTerminalStarted = Boolean(
+      window.__wikiwiseTerminal &&
+      document.querySelector("#terminal-surface .xterm") &&
+      evidence.newWikiTerminalText
+    );
 
     window.__wikiwiseNewWikiRuntimeEvidence = evidence;
     return evidence;
@@ -2207,6 +2212,8 @@ async function captureNewWikiCreationEvidence(window, scenario) {
     newWikiDismissedGuide: false,
     newWikiHomeSelectedAfterDismiss: false,
     newWikiPreviewVisibleAfterDismiss: false,
+    newWikiTerminalStarted: false,
+    newWikiTerminalText: "",
     error: error instanceof Error ? error.message : String(error)
   }));
 
@@ -2223,11 +2230,6 @@ async function captureNewWikiCreationEvidence(window, scenario) {
       createdProjectRoot &&
       projectWatcherStarted &&
       path.resolve(projectWatcherProjectRoot) === createdProjectRoot
-    ),
-    newWikiTerminalStarted: Boolean(
-      createdProjectRoot &&
-      terminalStarted &&
-      path.resolve(terminalStartedProjectRoot) === createdProjectRoot
     )
   };
 
@@ -3397,10 +3399,10 @@ function assertScenario(scenario, dom, screenshot) {
 		    if (!dom.rightSidebarTerminalResizeObserved) {
 		      failures.push("Terminal resize was not sent after right sidebar drag.");
 		    }
-	    if (!dom.terminalInputObserved) {
-	      failures.push("Terminal input was not sent through the preload bridge.");
+	    if (!dom.terminalInputObserved || !dom.realTerminalOutputObserved) {
+	      failures.push("Real terminal input did not echo audit command.");
 	    }
-	    if (!/runtime audit ready|Starting shell/.test(dom.terminalText)) {
+	    if (!/WIKIWISE_REAL_TERMINAL_AUDIT|Starting shell/.test(dom.terminalText)) {
 	      failures.push("Terminal panel did not render audit output.");
 	    }
   }

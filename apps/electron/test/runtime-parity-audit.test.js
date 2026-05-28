@@ -230,6 +230,23 @@ test("runtime audit script covers native shell scenarios and assertions", () => 
   ]);
 });
 
+test("runtime audit uses production terminal IPC for real PTY evidence", () => {
+  const script = read("scripts/audit-electron-runtime.mjs");
+  const auditChannels =
+    script.match(/const auditIpcChannels = Object\.freeze\(\[([\s\S]*?)\]\);/)?.[1] ?? "";
+
+  assert.notEqual(auditChannels, "");
+  assert.doesNotMatch(auditChannels, /"wikiwise:startTerminal"/);
+  assert.doesNotMatch(auditChannels, /"wikiwise:sendTerminalInput"/);
+  assert.doesNotMatch(script, /ipcMain\.handle\("wikiwise:startTerminal"/);
+  assert.doesNotMatch(script, /ipcMain\.handle\("wikiwise:sendTerminalInput"/);
+  assert.match(script, /const realTerminalAuditCommand = "echo WIKIWISE_REAL_TERMINAL_AUDIT"/);
+  assert.match(script, /window\.__wikiwiseTerminal\?\.input\([\s\S]*realTerminalAuditCommand[\s\S]*\\\\r/);
+  assert.match(script, /window\.__wikiwiseTerminalText[\s\S]*WIKIWISE_REAL_TERMINAL_AUDIT/);
+  assert.match(script, /realTerminalOutputObserved/);
+  assert.match(script, /Real terminal input did not echo audit command/);
+});
+
 test("runtime audit waits for native sidebar visibility animation before measuring", () => {
   const script = read("scripts/audit-electron-runtime.mjs");
 
@@ -510,9 +527,9 @@ test("runtime audit script creates scaffold project evidence through core helper
     /wikiwise:restoreLastProject/,
     /wikiwise:expandTreeDirectory/,
     /wikiwise:startProjectWatcher/,
-    /wikiwise:startTerminal/,
     /wikiwise:resizeTerminal/,
-    /wikiwise:sendTerminalInput/
+    /realTerminalAuditCommand/,
+    /WIKIWISE_REAL_TERMINAL_AUDIT/
   ]);
 });
 
