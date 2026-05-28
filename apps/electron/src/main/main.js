@@ -45,7 +45,6 @@ const nativeWindowDefaultSize = Object.freeze({ width: 1500, height: 1000 });
 const nativeWindowMinimumSize = Object.freeze({ width: 800, height: 500 });
 const nativeBroadcastAppCommands = new Set(["goBack", "goForward", "refreshWiki"]);
 const terminalRuntimeDependencies = Object.freeze(["node-pty", "@xterm/xterm", "@xterm/addon-fit"]);
-const nodePtySpawnHelperRelativePath = path.join("prebuilds", `${process.platform}-${process.arch}`, "spawn-helper");
 const defaultAppSettings = Object.freeze({
   appearanceMode: "Auto",
   lastFolderPath: ""
@@ -870,25 +869,38 @@ async function unpublishProject(payload) {
   });
 }
 
-function resolveNodePtySpawnHelperPath() {
+function resolveNodePtyPrebuildSpawnHelperPaths(nodePtyRoot) {
+  const prebuildsPath = path.join(nodePtyRoot, "prebuilds");
+  if (!fs.existsSync(prebuildsPath)) {
+    return [];
+  }
+
+  const prebuildEntries = fs.readdirSync(prebuildsPath, { withFileTypes: true });
+  return prebuildEntries
+    .filter((entry) => entry.isDirectory() && entry.name.startsWith("darwin-"))
+    .map((entry) => path.join(prebuildsPath, entry.name, "spawn-helper"))
+    .filter((helperPath) => fs.existsSync(helperPath));
+}
+
+function resolveNodePtySpawnHelperPaths() {
   if (process.platform === "win32") {
-    return null;
+    return [];
   }
 
   let nodePtyRoot;
   try {
     nodePtyRoot = path.dirname(requireFromMain.resolve("node-pty/package.json"));
   } catch {
-    return null;
+    return [];
   }
 
   const helperCandidates = [
     path.join(nodePtyRoot, "build", "Release", "spawn-helper"),
     path.join(nodePtyRoot, "build", "Debug", "spawn-helper"),
-    path.join(nodePtyRoot, nodePtySpawnHelperRelativePath)
+    ...resolveNodePtyPrebuildSpawnHelperPaths(nodePtyRoot)
   ];
 
-  return helperCandidates.find((helperPath) => fs.existsSync(helperPath)) ?? null;
+  return helperCandidates.filter((helperPath) => fs.existsSync(helperPath));
 }
 
 function ensureNodePtySpawnHelperExecutable() {
@@ -896,34 +908,38 @@ function ensureNodePtySpawnHelperExecutable() {
     return {
       checked: false,
       fixed: false,
-      helperPath: null
+      helperPath: null,
+      helperPaths: []
     };
   }
 
-  const helperPath = resolveNodePtySpawnHelperPath();
-  if (!helperPath) {
+  const helperPaths = resolveNodePtySpawnHelperPaths();
+  if (helperPaths.length === 0) {
     return {
       checked: false,
       fixed: false,
-      helperPath: null
+      helperPath: null,
+      helperPaths
     };
   }
 
   try {
-    const stat = fs.statSync(helperPath);
-    if ((stat.mode & 0o111) !== 0) {
-      return {
-        checked: true,
-        fixed: false,
-        helperPath
-      };
+    let fixed = false;
+    for (const helperPath of helperPaths) {
+      const stat = fs.statSync(helperPath);
+      if ((stat.mode & 0o111) !== 0) {
+        continue;
+      }
+
+      fs.chmodSync(helperPath, stat.mode | 0o111);
+      fixed = true;
     }
 
-    fs.chmodSync(helperPath, stat.mode | 0o111);
     return {
       checked: true,
-      fixed: true,
-      helperPath
+      fixed,
+      helperPath: helperPaths[0],
+      helperPaths
     };
   } catch (error) {
     const message = error instanceof Error ? error.message : String(error);

@@ -138,6 +138,7 @@ The migration roadmap SHALL record Electron file-tree expansion parity as a nati
 - **WHEN** the Electron file-tree expansion parity change is archived
 - **THEN** retained verification records native ordering, default top-level expansion, lazy nested expansion, path-safe expansion IPC, nested file selection, and runtime audit evidence
 - **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation
+
 ### Requirement: Viewport Detail Chrome Parity Phase Completion Tracking
 The migration roadmap SHALL record Electron viewport/detail chrome parity as a visible shell polish phase.
 
@@ -1044,4 +1045,12 @@ The migration roadmap SHALL record universal packaged Electron terminal helper p
 #### Scenario: Universal terminal helper permission phase is archived
 - **WHEN** the universal packaged terminal helper permission change is archived
 - **THEN** retained verification records package-script coverage for all packaged Darwin `node-pty` helpers, package output permission evidence for `darwin-arm64` and `darwin-x64` when present, package/build/runtime evidence, and release-readiness gate evidence
+- **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation
+
+### Requirement: Runtime All-Helper Terminal Permission Phase Tracking
+The migration roadmap SHALL record runtime Electron terminal helper permission correction across all discovered Darwin `node-pty` helpers as a native terminal startup reliability phase.
+
+#### Scenario: Runtime all-helper terminal permission phase is archived
+- **WHEN** the runtime all-helper terminal permission change is archived
+- **THEN** retained verification records root-cause evidence for mixed-architecture `node-pty` helper permissions, runtime startup guard coverage for all discovered Darwin helpers, package/build/runtime evidence, and release-readiness gate evidence
 - **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation

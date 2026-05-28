@@ -1,0 +1,24 @@
+## Verification
+
+- `stat -f '%Sp %Lp %N' node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper node_modules/node-pty/prebuilds/darwin-x64/spawn-helper`
+  - Before the runtime audit, `darwin-arm64/spawn-helper` was `755` and `darwin-x64/spawn-helper` was `644`, matching the reported failure class for mixed-architecture installs.
+- `npm test -- --test-reporter=spec test/right-sidebar-terminal.test.js`
+  - RED before implementation: failed because `resolveNodePtySpawnHelperPaths` did not exist.
+  - GREEN after implementation: 27/27 Electron terminal tests passed.
+- `npm run electron:audit:runtime`
+  - Result: 7/7 runtime audit scenarios passed.
+  - Project-light and project-dark recorded `realTerminalOutputObserved`, `terminalInputObserved`, and `terminalResizeObserved` as true through the production PTY handlers.
+- `stat -f '%Sp %Lp %N' node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper node_modules/node-pty/prebuilds/darwin-x64/spawn-helper`
+  - After the real Electron terminal path ran, both runtime helpers were `755`.
+- `openspec validate --all --strict`
+  - Result: 34/34 items passed before archive.
+- `npm test`
+  - Result: Electron 274/274 tests passed; core 42/42 tests passed.
+- `swift build`
+  - Result: build completed successfully.
+- `npm run electron:package:mac`
+  - Result: packaged `apps/electron/out/Wikiwise.app`.
+- `stat -f '%Sp %Lp %N' apps/electron/out/Wikiwise.app/Contents/Resources/app/node_modules/node-pty/prebuilds/darwin-arm64/spawn-helper apps/electron/out/Wikiwise.app/Contents/Resources/app/node_modules/node-pty/prebuilds/darwin-x64/spawn-helper`
+  - Result: both packaged Darwin helpers were `755`.
+- `npm run electron:release:readiness`
+  - Result: expected exit 1 with only credential blockers: missing Developer ID signing identity `Developer ID Application: Readwise, Inc (QV36BMA4LN)` and missing/unusable Apple notarization keychain profile `notarytool`.
