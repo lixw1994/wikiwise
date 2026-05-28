@@ -11,6 +11,7 @@ npm --prefix apps/electron test
 npm run electron:dev
 npm run electron:package:mac
 npm run electron:audit:runtime
+npm run electron:audit:packaged
 npm run electron:release:preflight
 npm run electron:release:readiness
 npm run electron:release:evidence
@@ -38,9 +39,10 @@ to reviewed Electron runtime metadata such as `ElectronAsarIntegrity`, and the
 command fails if an unexpected package-only plist key remains before any signed and
 notarized release is produced.
 Production release distribution uses `bash scripts/build-release.sh <version>`,
-which runs the Electron runtime audit, signs the Electron app with a Developer ID
-identity, creates `Wikiwise-macOS.dmg`, submits Apple notarization, staples the
-ticket, assesses the final DMG, and only then reports a notarized release.
+which runs the Electron runtime audit, packages the app, runs packaged runtime
+smoke against `apps/electron/out/Wikiwise.app`, signs the Electron app with a
+Developer ID identity, creates `Wikiwise-macOS.dmg`, submits Apple notarization,
+staples the ticket, assesses the final DMG, and only then reports a notarized release.
 `bash scripts/build-release.sh --preflight <version>` checks release tooling,
 Developer ID signing identity, and Apple notarization profile availability
 without producing app, DMG, signed, or notarized release artifacts.
@@ -51,7 +53,7 @@ were produced, and keeps the final gate explicit: Electron migration completion
 still requires an actual signed and notarized release run, or an accepted OpenSpec deviation.
 `npm run electron:release:evidence` runs the full production release command with
 a retained release success report at `apps/electron/out/release/report.json`.
-That report is written only after runtime audit, packaging, signing, notarization, stapling, and assessment complete,
+That report is written only after runtime audit, packaging, packaged runtime smoke, signing, notarization, stapling, and assessment complete,
 and it records the DMG path plus SHA-256 checksum. It is not a substitute for a completed production release;
 it is the structured evidence retained by that completed release.
 
@@ -90,3 +92,9 @@ appearance, and writes retained evidence to
 Screenshots are written under `apps/electron/out/runtime-audit/screenshots/`.
 The audit is a local runtime check for migration parity evidence and is also
 part of the canonical Electron release gate.
+
+`npm run electron:audit:packaged` launches the packaged app bundle at
+`apps/electron/out/Wikiwise.app` after `npm run electron:package:mac` and writes
+retained smoke evidence to `apps/electron/out/packaged-runtime-audit/report.json`.
+It verifies the packaged renderer, preload bridge, shared core package, native
+resources, and `node-pty` helper permissions before release signing mutates the bundle.

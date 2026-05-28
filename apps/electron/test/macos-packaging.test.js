@@ -240,6 +240,13 @@ test("packaging script makes the packaged node-pty spawn helper executable", () 
   assert.ok(ensureHelperIndex < copyResourcesIndex, "helper permissions should be fixed before remaining package checks");
 });
 
+test("packaging script preserves Electron framework symlinks as bundle-relative", () => {
+  const script = read("scripts/package-electron-macos.mjs");
+
+  assert.match(script, /fs\.cpSync\(electronTemplatePath,\s*outputAppPath,\s*\{[\s\S]*verbatimSymlinks:\s*true/);
+  assert.doesNotMatch(script, /dereference:\s*true/);
+});
+
 test("README documents local unsigned packaging and release guardrails", () => {
   const readme = read("apps/electron/README.md");
 
@@ -262,9 +269,13 @@ test("README documents package-only Electron runtime plist delta auditing", () =
 
 test("canonical release script builds a signed notarized Electron DMG", () => {
   const script = read("scripts/build-release.sh");
+  const packageIndex = script.indexOf("npm run electron:package:mac -- \"$VERSION\"");
+  const packagedAuditIndex = script.indexOf("npm run electron:audit:packaged");
+  const signingIndex = script.indexOf("Signing Electron app");
 
   assert.match(script, /npm run electron:audit:runtime/);
   assert.match(script, /npm run electron:package:mac -- "\$VERSION"/);
+  assert.match(script, /npm run electron:audit:packaged/);
   assert.match(script, /apps\/electron\/out\/Wikiwise\.app/);
   assert.match(script, /Wikiwise-macOS\.dmg/);
   assert.match(script, /codesign[\s\S]*--options runtime/);
@@ -276,6 +287,9 @@ test("canonical release script builds a signed notarized Electron DMG", () => {
   assert.match(script, /spctl --assess --type open --context context:primary-signature "\$DMG"/);
   assert.doesNotMatch(script, /swift build -c release/);
   assert.doesNotMatch(script, /lipo -create/);
+  assert.ok(packageIndex >= 0, "release script should package the Electron app");
+  assert.ok(packagedAuditIndex > packageIndex, "packaged runtime smoke should run after packaging");
+  assert.ok(signingIndex > packagedAuditIndex, "packaged runtime smoke should run before app signing");
 });
 
 test("canonical release script exposes a no-artifact preflight mode", () => {
@@ -289,7 +303,7 @@ test("canonical release script exposes a no-artifact preflight mode", () => {
   assert.match(script, /No release artifacts were produced/);
 
   const preflightSuccessIndex = script.indexOf("Release preflight passed");
-  const auditStepIndex = script.indexOf("[1/7] Running Electron runtime parity audit");
+  const auditStepIndex = script.indexOf("[1/8] Running Electron runtime parity audit");
   assert.ok(preflightSuccessIndex >= 0);
   assert.ok(auditStepIndex > preflightSuccessIndex);
 });
@@ -317,6 +331,7 @@ test("canonical release script can write retained signed release success reports
   assert.match(script, /write_release_success_report/);
   assert.match(script, /releaseGates/);
   assert.match(script, /runtime-audit/);
+  assert.match(script, /packaged-runtime-smoke/);
   assert.match(script, /app-signing/);
   assert.match(script, /dmg-signing/);
   assert.match(script, /notarization/);
@@ -482,6 +497,6 @@ test("Electron documentation describes retained signed release success evidence"
   assert.match(electronReadme, /apps\/electron\/out\/release\/report\.json/);
   assert.match(electronReadme, /release success report/i);
   assert.match(electronReadme, /SHA-256/i);
-  assert.match(electronReadme, /runtime audit, packaging, signing, notarization, stapling, and assessment/i);
+  assert.match(electronReadme, /runtime audit, packaging, packaged runtime smoke, signing, notarization, stapling, and assessment/i);
   assert.match(electronReadme, /not a substitute for a completed production release/i);
 });

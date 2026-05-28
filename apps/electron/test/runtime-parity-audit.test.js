@@ -26,7 +26,9 @@ test("package manifests expose Electron runtime audit commands", () => {
   const electronPackage = readJson("apps/electron/package.json");
 
   assert.equal(rootPackage.scripts["electron:audit:runtime"], "npm --workspace @wikiwise/electron-app run audit:runtime");
+  assert.equal(rootPackage.scripts["electron:audit:packaged"], "npm --workspace @wikiwise/electron-app run audit:packaged");
   assert.equal(electronPackage.scripts["audit:runtime"], "electron . --audit-runtime");
+  assert.equal(electronPackage.scripts["audit:packaged"], "node ../../scripts/audit-electron-packaged-runtime.mjs");
 });
 
 test("runtime audit success path uses graceful Electron shutdown", () => {
@@ -558,11 +560,51 @@ test("main process delegates audit mode to checked-in runtime audit script", () 
   ]);
 });
 
+test("main process owns packaged runtime smoke audit mode", () => {
+  const mainSource = read("apps/electron/src/main/main.js");
+
+  assertSourceContains(mainSource, [
+    /--audit-packaged-runtime/,
+    /function runPackagedRuntimeSmokeAudit\(\)/,
+    /function packagedRuntimeAuditReportPath\(\)/,
+    /function writePackagedRuntimeAuditReport/,
+    /BrowserWindow/,
+    /src",\s*"renderer",\s*"index\.html"/,
+    /src",\s*"preload",\s*"preload\.cjs"/,
+    /node_modules",\s*"@wikiwise",\s*"core"/,
+    /node_modules",\s*"node-pty"/,
+    /entry\.name\.startsWith\("darwin-"\)/,
+    /spawn-helper/,
+    /window\.webContents\.executeJavaScript/,
+    /window\.close\(\)/,
+    /app\.quit\(\)/
+  ]);
+});
+
+test("packaged runtime audit launcher runs Wikiwise.app and validates retained report", () => {
+  const script = read("scripts/audit-electron-packaged-runtime.mjs");
+
+  assertSourceContains(script, [
+    /apps",\s*"electron",\s*"out",\s*"Wikiwise\.app"/,
+    /Contents",\s*"MacOS",\s*"Wikiwise"/,
+    /--audit-packaged-runtime/,
+    /--audit-report/,
+    /apps",\s*"electron",\s*"out",\s*"packaged-runtime-audit",\s*"report\.json"/,
+    /spawn\(/,
+    /status !== "passed"/,
+    /rendererLoaded !== true/,
+    /preloadBridgeObserved !== true/,
+    /Packaged runtime audit report/
+  ]);
+});
+
 test("README documents runtime audit workflow without stale debug resource wording", () => {
   const readme = read("apps/electron/README.md");
 
   assert.match(readme, /npm run electron:audit:runtime/);
+  assert.match(readme, /npm run electron:audit:packaged/);
   assert.match(readme, /apps\/electron\/out\/runtime-audit\/report\.json/);
   assert.match(readme, /apps\/electron\/out\/runtime-audit\/screenshots/);
+  assert.match(readme, /apps\/electron\/out\/packaged-runtime-audit\/report\.json/);
   assert.doesNotMatch(readme, /shared resource metadata/i);
 });

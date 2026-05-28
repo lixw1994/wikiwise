@@ -383,7 +383,8 @@ function packageElectronMacApp() {
   fs.mkdirSync(path.dirname(outputAppPath), { recursive: true });
   fs.cpSync(electronTemplatePath, outputAppPath, {
     recursive: true,
-    force: true
+    force: true,
+    verbatimSymlinks: true
   });
 
   renameExecutable();

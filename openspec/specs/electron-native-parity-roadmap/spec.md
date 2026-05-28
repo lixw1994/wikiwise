@@ -1054,3 +1054,11 @@ The migration roadmap SHALL record runtime Electron terminal helper permission c
 - **WHEN** the runtime all-helper terminal permission change is archived
 - **THEN** retained verification records root-cause evidence for mixed-architecture `node-pty` helper permissions, runtime startup guard coverage for all discovered Darwin helpers, package/build/runtime evidence, and release-readiness gate evidence
 - **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation
+
+### Requirement: Packaged Runtime Smoke Phase Tracking
+The migration roadmap SHALL record packaged Electron runtime smoke evidence as final app-bundle bootability evidence.
+
+#### Scenario: Packaged runtime smoke phase is archived
+- **WHEN** the packaged runtime smoke audit change is archived
+- **THEN** retained verification records package command evidence, packaged app launch evidence, packaged renderer/preload evidence, packaged runtime dependency evidence, release-gate ordering coverage, and release-readiness gate evidence
+- **AND** remaining final migration evidence still includes actual signed/notarized release execution or an explicitly accepted OpenSpec deviation

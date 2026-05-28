@@ -309,21 +309,25 @@ if [[ "$PREFLIGHT_ONLY" == "1" ]]; then
   exit 0
 fi
 
-echo "[1/7] Running Electron runtime parity audit..."
+echo "[1/8] Running Electron runtime parity audit..."
 npm run electron:audit:runtime
 record_release_gate "runtime-audit"
 
-echo "[2/7] Packaging Electron app..."
+echo "[2/8] Packaging Electron app..."
 npm run electron:package:mac -- "$VERSION"
 require_directory "$APP"
 record_release_gate "package"
 
-echo "[3/7] Signing Electron app..."
+echo "[3/8] Running packaged Electron runtime smoke audit..."
+npm run electron:audit:packaged
+record_release_gate "packaged-runtime-smoke"
+
+echo "[4/8] Signing Electron app..."
 codesign --deep --force --options runtime --entitlements "$ENTITLEMENTS" --sign "$SIGNING_IDENTITY" "$APP"
 codesign --verify --deep --strict --verbose=2 "$APP"
 record_release_gate "app-signing"
 
-echo "[4/7] Creating DMG..."
+echo "[5/8] Creating DMG..."
 rm -rf "$DMG_STAGING_DIR"
 mkdir -p "$DMG_STAGING_DIR"
 cp -R "$APP" "$DMG_STAGING_DIR/${PRODUCT_NAME}.app"
@@ -333,16 +337,16 @@ hdiutil create -volname "$PRODUCT_NAME" -srcfolder "$DMG_STAGING_DIR" -ov -forma
 rm -rf "$DMG_STAGING_DIR"
 record_release_gate "dmg-creation"
 
-echo "[5/7] Signing DMG..."
+echo "[6/8] Signing DMG..."
 codesign --sign "$SIGNING_IDENTITY" "$DMG"
 codesign --verify --verbose=2 "$DMG"
 record_release_gate "dmg-signing"
 
-echo "[6/7] Notarizing DMG..."
+echo "[7/8] Notarizing DMG..."
 xcrun notarytool submit "$DMG" --keychain-profile "$NOTARY_PROFILE" --wait
 record_release_gate "notarization"
 
-echo "[7/7] Stapling and assessing DMG..."
+echo "[8/8] Stapling and assessing DMG..."
 xcrun stapler staple "$DMG"
 record_release_gate "stapling"
 spctl --assess --type open --context context:primary-signature "$DMG"

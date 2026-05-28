@@ -51,6 +51,7 @@ const defaultAppSettings = Object.freeze({
 });
 const generatedPageNames = new Set(["map-3d.html", "map.html", "graph.html", "index.html", "catalog.html"]);
 const isRuntimeAudit = process.argv.includes("--audit-runtime");
+const isPackagedRuntimeAudit = process.argv.includes("--audit-packaged-runtime");
 const pngSignature = Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
 
 function getCompiler(projectRoot) {
@@ -947,6 +948,148 @@ function ensureNodePtySpawnHelperExecutable() {
   }
 }
 
+function packagedRuntimeAuditReportPath() {
+  const reportFlagIndex = process.argv.indexOf("--audit-report");
+  if (reportFlagIndex >= 0 && process.argv[reportFlagIndex + 1]) {
+    return path.resolve(process.argv[reportFlagIndex + 1]);
+  }
+
+  return path.join(app.getPath("userData"), "packaged-runtime-audit-report.json");
+}
+
+function packagedRuntimeAuditFileEvidence() {
+  const rendererHtmlPath = path.join(packageRoot, "src", "renderer", "index.html");
+  const preloadPath = path.join(packageRoot, "src", "preload", "preload.cjs");
+  const corePackagePath = path.join(packageRoot, "node_modules", "@wikiwise", "core", "package.json");
+  const nodePtyPackagePath = path.join(packageRoot, "node_modules", "node-pty", "package.json");
+  const nativeIconPath = path.join(nativeResourcesRoot, "Wikiwise.icns");
+  const helperPaths = resolveNodePtySpawnHelperPaths();
+
+  return {
+    mainPath: currentFile,
+    packageRoot,
+    rendererHtmlPath,
+    preloadPath,
+    corePackagePath,
+    nodePtyPackagePath,
+    nativeIconPath,
+    files: {
+      mainExists: fs.existsSync(currentFile),
+      rendererHtmlExists: fs.existsSync(rendererHtmlPath),
+      preloadExists: fs.existsSync(preloadPath),
+      corePackageExists: fs.existsSync(corePackagePath),
+      nodePtyPackageExists: fs.existsSync(nodePtyPackagePath),
+      nativeIconExists: fs.existsSync(nativeIconPath)
+    },
+    nodePtySpawnHelpers: helperPaths.map((helperPath) => {
+      const stat = fs.statSync(helperPath);
+      return {
+        path: helperPath,
+        executable: (stat.mode & 0o111) !== 0
+      };
+    })
+  };
+}
+
+function writePackagedRuntimeAuditReport(reportPath, report) {
+  fs.mkdirSync(path.dirname(reportPath), { recursive: true });
+  fs.writeFileSync(reportPath, `${JSON.stringify(report, null, 2)}\n`);
+}
+
+function packagedRuntimeAuditAssertions(fileEvidence, rendererEvidence) {
+  const assertions = [];
+  for (const [name, passed] of Object.entries(fileEvidence.files)) {
+    if (!passed) {
+      assertions.push(`${name} is missing`);
+    }
+  }
+  if (fileEvidence.nodePtySpawnHelpers.length === 0) {
+    assertions.push("No Darwin node-pty spawn helpers were discovered");
+  }
+  for (const helper of fileEvidence.nodePtySpawnHelpers) {
+    if (!helper.executable) {
+      assertions.push(`node-pty spawn helper is not executable: ${helper.path}`);
+    }
+  }
+  if (rendererEvidence.documentTitle !== "Wikiwise") {
+    assertions.push(`Unexpected packaged renderer title: ${rendererEvidence.documentTitle}`);
+  }
+  if (rendererEvidence.rendererLoaded !== true) {
+    assertions.push("Packaged renderer did not load");
+  }
+  if (rendererEvidence.preloadBridgeObserved !== true) {
+    assertions.push("Packaged preload bridge was not observed");
+  }
+  if (rendererEvidence.welcomeTextObserved !== true) {
+    assertions.push("Packaged welcome text was not observed");
+  }
+
+  return assertions;
+}
+
+async function runPackagedRuntimeSmokeAudit() {
+  ensureNodePtySpawnHelperExecutable();
+
+  const reportPath = packagedRuntimeAuditReportPath();
+  const fileEvidence = packagedRuntimeAuditFileEvidence();
+  const window = new BrowserWindow({
+    show: false,
+    width: nativeWindowDefaultSize.width,
+    height: nativeWindowDefaultSize.height,
+    useContentSize: true,
+    webPreferences: {
+      preload: fileEvidence.preloadPath,
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: true
+    }
+  });
+
+  let rendererEvidence = {
+    documentTitle: "",
+    rendererLoaded: false,
+    preloadBridgeObserved: false,
+    welcomeTextObserved: false
+  };
+
+  try {
+    await window.loadFile(fileEvidence.rendererHtmlPath);
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    rendererEvidence = await window.webContents.executeJavaScript(`(() => {
+      const bodyText = document.body?.innerText ?? "";
+      return {
+        documentTitle: document.title,
+        rendererLoaded: Boolean(document.querySelector("#welcome") && document.querySelector("#project")),
+        preloadBridgeObserved: Boolean(window.wikiwise && typeof window.wikiwise.getAppSettings === "function"),
+        welcomeTextObserved: bodyText.includes("WikiWise helps you turn any folder")
+      };
+    })()`);
+  } finally {
+    window.close();
+  }
+
+  const assertions = packagedRuntimeAuditAssertions(fileEvidence, rendererEvidence);
+  const report = {
+    generatedAt: new Date().toISOString(),
+    status: assertions.length === 0 ? "passed" : "failed",
+    assertions,
+    app: {
+      isPackaged: app.isPackaged,
+      appPath: app.getAppPath(),
+      executablePath: app.getPath("exe")
+    },
+    files: fileEvidence,
+    renderer: rendererEvidence
+  };
+  writePackagedRuntimeAuditReport(reportPath, report);
+
+  if (assertions.length > 0) {
+    throw new Error(`Packaged runtime smoke audit failed:\n${assertions.join("\n")}`);
+  }
+
+  console.log(`Packaged runtime audit report: ${reportPath}`);
+}
+
 function startTerminal(webContents, payload) {
   const projectRoot = typeof payload === "string" ? payload : payload?.projectRoot;
   if (!projectRoot) {
@@ -1343,6 +1486,13 @@ app.whenReady().then(async () => {
       pathToFileURL(path.join(repositoryRoot, "scripts", "audit-electron-runtime.mjs")).href
     );
     await auditModule.runElectronRuntimeAudit();
+    process.exitCode = 0;
+    app.quit();
+    return;
+  }
+
+  if (isPackagedRuntimeAudit) {
+    await runPackagedRuntimeSmokeAudit();
     process.exitCode = 0;
     app.quit();
     return;

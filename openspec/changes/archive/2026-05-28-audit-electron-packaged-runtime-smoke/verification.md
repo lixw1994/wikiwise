@@ -1,0 +1,28 @@
+## Verification
+
+- `npm test -- --test-reporter=spec test/runtime-parity-audit.test.js test/macos-packaging.test.js`
+  - RED before implementation: failed because packaged audit scripts/modes/release gates were missing.
+  - GREEN after implementation: 47/47 targeted tests passed.
+- `npm run electron:audit:packaged`
+  - First run before symlink fix failed with `icudtl.dat not found in bundle`, exposing absolute Electron framework symlinks in the packaged app.
+- `npm test -- --test-reporter=spec test/macos-packaging.test.js`
+  - RED for symlink preservation: failed because packaging did not use `verbatimSymlinks: true`.
+- `npm test -- --test-reporter=spec test/macos-packaging.test.js test/runtime-parity-audit.test.js`
+  - GREEN after symlink fix: 48/48 targeted tests passed.
+- `npm run electron:package:mac`
+  - Result: packaged `apps/electron/out/Wikiwise.app`.
+- `readlink apps/electron/out/Wikiwise.app/Contents/Frameworks/Electron\ Framework.framework/Resources`
+  - Result: `Versions/Current/Resources`, proving the packaged framework symlink is bundle-relative.
+- `npm run electron:audit:packaged`
+  - Result: packaged runtime audit passed and wrote `apps/electron/out/packaged-runtime-audit/report.json`.
+  - Report evidence: `status` is `passed`, `app.isPackaged` is `true`, renderer loaded, preload bridge observed, welcome text observed, packaged main/renderer/preload/core/node-pty/native icon files exist, and both Darwin `spawn-helper` files are executable.
+- `openspec validate --all --strict`
+  - Result: 34/34 items passed before archive.
+- `npm test`
+  - Result: Electron 277/277 tests passed; core 42/42 tests passed.
+- `swift build`
+  - Result: build completed successfully.
+- `npm run electron:audit:runtime`
+  - Result: 7/7 detailed runtime audit scenarios passed.
+- `npm run electron:release:readiness`
+  - Result: expected exit 1 with only credential blockers: missing Developer ID signing identity `Developer ID Application: Readwise, Inc (QV36BMA4LN)` and missing/unusable Apple notarization keychain profile `notarytool`.

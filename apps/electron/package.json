@@ -8,6 +8,7 @@
     "dev": "electron .",
     "package:mac": "node ../../scripts/package-electron-macos.mjs",
     "audit:runtime": "electron . --audit-runtime",
+    "audit:packaged": "node ../../scripts/audit-electron-packaged-runtime.mjs",
     "test": "node --test"
   },
   "dependencies": {
