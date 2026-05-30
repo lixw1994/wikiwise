@@ -5,7 +5,7 @@ Define Electron compiler-preview behavior for opening wiki projects, compiling s
 ## Requirements
 ### Requirement: Node Compiler Wrapper
 
-The Electron migration SHALL provide a Node-backed compiler wrapper that can execute the existing Wikiwise bundled compiler resources against a wiki folder.
+The Electron app SHALL provide a Node-backed compiler wrapper that can execute the existing Wikiwise bundled compiler resources against a wiki folder.
 
 #### Scenario: Wiki is scanned
 
@@ -83,7 +83,7 @@ Opening or creating a wiki folder SHALL warm up compiled previews beyond the sel
 
 ### Requirement: Selected Preview Existing Scan Parity
 
-Electron selected Markdown preview compilation SHALL match native SwiftUI by using existing compiler scan state instead of scanning the whole wiki from the selected preview compile path.
+Electron selected Markdown preview compilation SHALL match Electron macOS by using existing compiler scan state instead of scanning the whole wiki from the selected preview compile path.
 
 #### Scenario: Folder open prepares scan state
 - **WHEN** Electron opens a wiki folder with a compiler-backed project
@@ -132,7 +132,7 @@ The Electron renderer SHALL allow WIKI detail mode to remain selected when the s
 - **AND** the detail area displays the editor because non-Markdown files cannot render compiled wiki previews
 
 ### Requirement: Markdown Detail Mode Selection Persistence
-The Electron renderer SHALL preserve the current FILE/WIKI detail mode when a user selects another Markdown file after the initial project or standalone-file selection, matching native SwiftUI navigation behavior.
+The Electron renderer SHALL preserve the current FILE/WIKI detail mode when a user selects another Markdown file after the initial project or standalone-file selection, matching Electron macOS navigation behavior.
 
 #### Scenario: Markdown file is selected while FILE mode is active
 - **WHEN** a project is open with a Markdown file selected in FILE mode

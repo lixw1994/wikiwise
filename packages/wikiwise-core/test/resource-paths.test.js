@@ -19,11 +19,11 @@ test("lists the bundled wiki resources Electron should reuse", () => {
   ]);
 });
 
-test("resolves existing Swift resource files from the repository root", () => {
+test("resolves existing Electron resource files from the repository root", () => {
   const resourcePath = resolveRepositoryResourcePath(
     new URL("../../../", import.meta.url),
     "build.js"
   );
 
-  assert.match(resourcePath, /Sources\/Wikiwise\/Resources\/build\.js$/);
+  assert.match(resourcePath, /apps\/electron\/resources\/build\.js$/);
 });

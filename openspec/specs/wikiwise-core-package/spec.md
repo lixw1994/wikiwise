@@ -1,11 +1,11 @@
 # wikiwise-core-package Specification
 
 ## Purpose
-Define the shared JavaScript core package that mirrors native wiki compilation, file-tree, scaffold, watcher, publishing, and resource-path behavior for Electron reuse.
+Define the shared JavaScript core package that owns wiki compilation, file-tree, scaffold, watcher, publishing, and resource-path behavior for Electron reuse.
 ## Requirements
 ### Requirement: Workspace Core Package
 
-The repository SHALL include a private `@wikiwise/core` npm workspace package at `packages/wikiwise-core` that can be used by future JavaScript and Electron code without depending on the Swift app runtime.
+The repository SHALL include a private `@wikiwise/core` npm workspace package at `packages/wikiwise-core` that can be used by future JavaScript and Electron code without depending on an app runtime.
 
 #### Scenario: Core package is discoverable
 
@@ -15,7 +15,7 @@ The repository SHALL include a private `@wikiwise/core` npm workspace package at
 
 ### Requirement: Bundled Resource Metadata
 
-The core package SHALL expose a stable list of existing Wikiwise bundled resource names that Electron can reuse from `Sources/Wikiwise/Resources`.
+The core package SHALL expose a stable list of existing Wikiwise bundled resource names that Electron can reuse from `apps/electron/resources`.
 
 #### Scenario: Resource names are requested
 
@@ -30,7 +30,7 @@ The core package SHALL resolve existing bundled resource file paths from a repos
 #### Scenario: Existing resource is resolved
 
 - **WHEN** JavaScript calls `resolveRepositoryResourcePath` with the repository root and `build.js`
-- **THEN** the returned path points to `Sources/Wikiwise/Resources/build.js`
+- **THEN** the returned path points to `apps/electron/resources/build.js`
 - **AND** the file exists on disk
 
 #### Scenario: Unknown resource is rejected
@@ -38,9 +38,9 @@ The core package SHALL resolve existing bundled resource file paths from a repos
 - **WHEN** JavaScript calls `resolveRepositoryResourcePath` with a resource name not owned by Wikiwise
 - **THEN** the function throws an error that identifies the unknown resource
 
-### Requirement: Native-Compatible File Tree Scan
+### Requirement: Compatible File Tree Scan
 
-The core package SHALL expose a file tree scan helper that matches the native app's one-level scan behavior for visible Wikiwise files.
+The core package SHALL expose a file tree scan helper for visible Wikiwise files.
 
 #### Scenario: Directory is scanned
 
@@ -50,7 +50,7 @@ The core package SHALL expose a file tree scan helper that matches the native ap
 - **AND** `.min.js` files are excluded
 - **AND** directory nodes include empty `children` arrays so the renderer can treat them as expandable
 
-#### Scenario: Native ordering is applied
+#### Scenario: Wikiwise ordering is applied
 
 - **WHEN** the scan helper returns nodes
 - **THEN** folders appear before files
@@ -82,9 +82,9 @@ The core package SHALL expose a compiler lifecycle API for scanning, compiling i
 - **WHEN** JavaScript calls the compiler to compile a markdown file
 - **THEN** the returned result identifies the source path, slug, output path, and whether compilation succeeded
 
-### Requirement: Slug Parity
+### Requirement: Slug Behavior
 
-The core package SHALL expose slug helpers matching native page slug behavior.
+The core package SHALL expose slug helpers for page paths.
 
 #### Scenario: File slug is requested
 
@@ -103,7 +103,7 @@ The core package SHALL expose a UTF-8 text file write helper for main-process sa
 
 ### Requirement: Active File Tracking
 
-The core package SHALL expose an active-file tracking helper compatible with the native `.claude/active-file` behavior.
+The core package SHALL expose an active-file tracking helper compatible with the `.claude/active-file` behavior.
 
 #### Scenario: Active file is tracked for a scaffolded project
 - **WHEN** JavaScript records an active file for a project root that already contains `.claude`
@@ -118,7 +118,7 @@ The core package SHALL expose an active-file tracking helper compatible with the
 
 ### Requirement: Watch Event Classification
 
-The core package SHALL expose helpers that classify and coalesce watched filesystem events according to native FileWatcher rules.
+The core package SHALL expose helpers that classify and coalesce watched filesystem events for Electron watcher behavior.
 
 #### Scenario: Watched events are summarized
 

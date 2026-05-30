@@ -1,7 +1,7 @@
 # electron-background-compilation-parity Specification
 
 ## Purpose
-Define the Electron background compilation contract for matching the native SwiftUI compiler lifecycle that scans project metadata, serves the selected page, and progressively compiles remaining wiki pages after project open or rebuild events.
+Define the Electron background compilation contract for matching the Electron macOS compiler lifecycle that scans project metadata, serves the selected page, and progressively compiles remaining wiki pages after project open or rebuild events.
 ## Requirements
 ### Requirement: Native Progressive Compilation
 The Electron app SHALL progressively compile remaining wiki pages in the background after a directory-backed project is opened.
@@ -31,7 +31,7 @@ The Electron main process SHALL own background compilation jobs without renderer
 - **AND** no orphan interval remains for that project root
 
 ### Requirement: Window-Owned Background Compilation Lifecycle
-The Electron app SHALL bind background compilation jobs to the webContents that opened the directory-backed project, mirroring native SwiftUI timer cleanup when a view disappears or opens a different project.
+The Electron app SHALL bind background compilation jobs to the webContents that opened the directory-backed project, mirroring Electron macOS timer cleanup when a view disappears or opens a different project.
 
 #### Scenario: Window opens a different project
 - **WHEN** an Electron webContents opens a different directory-backed project or opens a standalone file after a directory-backed project

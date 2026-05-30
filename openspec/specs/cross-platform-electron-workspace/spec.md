@@ -1,11 +1,11 @@
 # cross-platform-electron-workspace Specification
 
 ## Purpose
-Define the npm workspace, package boundaries, and dependency-light verification contract for the Electron migration alongside the existing SwiftUI macOS app.
+Define the npm workspace, package boundaries, and dependency-light verification contract for the Electron-only application.
 ## Requirements
-### Requirement: Parallel Electron Workspace
+### Requirement: Electron App Workspace
 
-The repository SHALL include a private Electron app workspace at `apps/electron` that can evolve independently from the SwiftUI macOS app.
+The repository SHALL include a private Electron app workspace at `apps/electron` as the product application entrypoint.
 
 #### Scenario: Electron app is discoverable
 

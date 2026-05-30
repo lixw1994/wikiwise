@@ -1,10 +1,10 @@
 # electron-left-sidebar-width-parity Specification
 
 ## Purpose
-Define Electron left file sidebar width constraints and resizing behavior that match the native SwiftUI split-view sidebar.
+Define Electron left file sidebar width constraints and resizing behavior that match the Electron macOS split-view sidebar.
 ## Requirements
 ### Requirement: Native Left Sidebar Width Constraints
-The Electron file sidebar SHALL match native SwiftUI left-sidebar width constraints.
+The Electron file sidebar SHALL match Electron macOS left-sidebar width constraints.
 
 #### Scenario: Project opens with native ideal sidebar width
 - **WHEN** a project is open and the left sidebar is visible

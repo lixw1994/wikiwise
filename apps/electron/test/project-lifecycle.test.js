@@ -38,9 +38,6 @@ test("main process exposes project lifecycle IPC channels", () => {
 
 test("main process mirrors native selected-file read fallback", () => {
   const mainSource = read("src/main/main.js");
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
-  const nativeLoadFileSource =
-    nativeSource.match(/private func loadFile\(_ url: URL\) \{[\s\S]*?\n    \}/)?.[0] ?? "";
   const compileWikiHomeSource =
     mainSource.match(/function compileWikiHomeIfPresent\(projectRoot\) \{[\s\S]*?\n\}/)?.[0] ?? "";
   const createProjectResultSource =
@@ -48,8 +45,6 @@ test("main process mirrors native selected-file read fallback", () => {
   const readFileHandlerSource =
     mainSource.match(/ipcMain\.handle\("wikiwise:readFile"[\s\S]*?\n\}\);/)?.[0] ?? "";
 
-  assert.notEqual(nativeLoadFileSource, "");
-  assert.match(nativeLoadFileSource, /\(try\? String\(contentsOf:\s*url,\s*encoding:\s*\.utf8\)\)\s*\?\?\s*"Could not read file\."/);
   assert.match(mainSource, /readDisplayTextFile/);
   assert.match(compileWikiHomeSource, /content:\s*readDisplayTextFile\(homePath\)/);
   assert.match(createProjectResultSource, /content:\s*readDisplayTextFile\(targetPath\)/);
@@ -62,19 +57,12 @@ test("main process mirrors native selected-file read fallback", () => {
 
 test("open existing picker mirrors native folder and plain text contract", () => {
   const mainSource = read("src/main/main.js");
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const openExistingStart = mainSource.indexOf("async function openExistingProject");
   const openExistingEnd = mainSource.indexOf("function createMainWindow", openExistingStart);
   const openExistingSource = mainSource.slice(openExistingStart, openExistingEnd);
 
   assert.notEqual(openExistingStart, -1);
   assert.notEqual(openExistingEnd, -1);
-  assert.match(nativeSource, /panel\.canChooseDirectories = true/);
-  assert.match(nativeSource, /panel\.canChooseFiles = true/);
-  assert.match(nativeSource, /panel\.allowedContentTypes = \[\.folder, \.plainText\]/);
-  assert.match(nativeSource, /panel\.allowsMultipleSelection = false/);
-  assert.match(nativeSource, /panel\.message = "Choose a markdown file or a folder"/);
-  assert.doesNotMatch(nativeSource, /panel\.title/);
   assert.match(openExistingSource, /message:\s*"Choose a markdown file or a folder"/);
   assert.doesNotMatch(openExistingSource, /\btitle:\s*"Choose a markdown file or a folder"/);
   assert.match(openExistingSource, /properties:\s*\["openFile", "openDirectory"\]/);
@@ -113,12 +101,7 @@ test("renderer contains project lifecycle state and welcome entry points", () =>
 
 test("main process mirrors native standalone file open state", () => {
   const mainSource = read("src/main/main.js");
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
 
-  assert.match(
-    nativeSource,
-    /else\s*\{\s*rootURL = url\.deletingLastPathComponent\(\)\s*tree = \[\]\s*selectedFileURL = url\s*loadFile\(url\)/
-  );
   assert.match(mainSource, /const projectKind = isDirectory \? "folder" : "file";/);
   assert.match(mainSource, /const tree = isDirectory \? scanOneLevel\(projectRoot\) : \[\];/);
   assert.match(mainSource, /projectKind,/);
@@ -127,22 +110,8 @@ test("main process mirrors native standalone file open state", () => {
 });
 
 test("renderer mirrors native standalone file initial WIKI mode with editor fallback", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
 
-  assert.match(nativeSource, /@State private var detailMode:\s*DetailMode = \.compiled/);
-  assert.match(
-    nativeSource,
-    /else\s*\{\s*rootURL = url\.deletingLastPathComponent\(\)\s*tree = \[\]\s*selectedFileURL = url\s*loadFile\(url\)\s*\}/
-  );
-  assert.match(
-    nativeSource,
-    /else if let url = selectedFileURL,\s*url\.pathExtension\.lowercased\(\) != "md" \{[\s\S]*EditorWebView\(fileURL:\s*url,[\s\S]*\}\s*else\s*\{[\s\S]*switch detailMode/
-  );
-  assert.match(
-    nativeSource,
-    /case \.compiled:[\s\S]*if let url = compiledFileURL[\s\S]*else if let url = selectedFileURL[\s\S]*EditorWebView/
-  );
   assert.match(rendererSource, /detailMode:\s*"wiki"/);
   assert.match(
     rendererSource,
@@ -159,26 +128,10 @@ test("renderer mirrors native standalone file initial WIKI mode with editor fall
 
 test("main process updates window project root ownership at project result boundaries", () => {
   const mainSource = read("src/main/main.js");
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
-  const nativeOpenURLSource =
-    nativeSource.match(/private func openURL\(_ url: URL\) \{[\s\S]*?\n    \}/)?.[0] ?? "";
-  const nativeFolderBranch =
-    nativeOpenURLSource.match(/if isDir\.boolValue \{[\s\S]*?\} else \{/)?.[0] ?? "";
-  const nativeStandaloneBranch =
-    nativeOpenURLSource.match(/\} else \{[\s\S]*?loadFile\(url\)\n        \}/)?.[0] ?? "";
   const createProjectResultSource =
     mainSource.match(/function createProjectResult\(targetPath,\s*webContents = null\) \{[\s\S]*?\n\}/)?.[0] ?? "";
 
   assert.match(mainSource, /function createProjectResult\(targetPath,\s*webContents = null\)/);
-  assert.match(nativeFolderBranch, /backgroundTimer\?\.invalidate\(\)/);
-  assert.match(nativeFolderBranch, /fileWatcher\?\.stop\(\)/);
-  assert.match(nativeFolderBranch, /compiler = c/);
-  assert.match(nativeFolderBranch, /startBackgroundCompilation\(c\)/);
-  assert.match(nativeFolderBranch, /startFileWatcher\(directory:\s*url,\s*compiler:\s*c\)/);
-  assert.notEqual(nativeStandaloneBranch, "");
-  assert.doesNotMatch(nativeStandaloneBranch, /backgroundTimer/);
-  assert.doesNotMatch(nativeStandaloneBranch, /fileWatcher/);
-  assert.doesNotMatch(nativeStandaloneBranch, /compiler/);
   assert.doesNotMatch(createProjectResultSource, /setWebContentsProjectRoot\(webContents,\s*isDirectory \? projectRoot : null\)/);
   assert.match(
     createProjectResultSource,
@@ -211,29 +164,13 @@ test("main process updates window project root ownership at project result bound
 });
 
 test("renderer preserves native standalone file history while folder opens reset it", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
-  const nativeOpenURLSource = sourceBetween(
-    nativeSource,
-    "private func openURL(_ url: URL)",
-    "private func createNewWiki()"
-  );
-  const nativeFolderBranch =
-    nativeOpenURLSource.match(/if isDir\.boolValue \{[\s\S]*?\n        \} else \{/)?.[0] ?? "";
-  const nativeStandaloneBranch =
-    nativeOpenURLSource.match(/\} else \{[\s\S]*?loadFile\(url\)\n        \}/)?.[0] ?? "";
   const applyProjectResultSource = sourceBetween(
     rendererSource,
     "async function applyProjectResult(projectResult, options = {})",
     "async function openNewWikiDialog()"
   );
 
-  assert.notEqual(nativeFolderBranch, "");
-  assert.match(nativeFolderBranch, /backHistory = \[\]/);
-  assert.match(nativeFolderBranch, /forwardHistory = \[\]/);
-  assert.notEqual(nativeStandaloneBranch, "");
-  assert.doesNotMatch(nativeStandaloneBranch, /backHistory/);
-  assert.doesNotMatch(nativeStandaloneBranch, /forwardHistory/);
 
   assert.notEqual(applyProjectResultSource, "");
   assert.doesNotMatch(
@@ -247,12 +184,7 @@ test("renderer preserves native standalone file history while folder opens reset
 });
 
 test("renderer treats standalone file opens as non-project services without stopping native terminal state", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
-  const nativeOpenURLSource =
-    nativeSource.match(/private func openURL\(_ url: URL\) \{[\s\S]*?\n    \}/)?.[0] ?? "";
-  const nativeStandaloneBranch =
-    nativeOpenURLSource.match(/\} else \{[\s\S]*?loadFile\(url\)\n        \}/)?.[0] ?? "";
   const rendererStartTerminalStart = rendererSource.indexOf("async function startTerminal()");
   const disposeTerminalStart = rendererSource.indexOf("function disposeTerminalView", rendererStartTerminalStart);
   const rendererStartTerminalSource = rendererSource.slice(rendererStartTerminalStart, disposeTerminalStart);
@@ -270,15 +202,6 @@ test("renderer treats standalone file opens as non-project services without stop
 
   assert.match(rendererSource, /function isProjectFolder\(\)/);
   assert.match(rendererSource, /projectKind:\s*projectResult\.projectKind \?\? "folder"/);
-  assert.match(nativeOpenURLSource, /terminalSession\.startIfNeeded\(workingDirectory:\s*url\)/);
-  assert.notEqual(nativeStandaloneBranch, "");
-  assert.match(nativeStandaloneBranch, /rootURL = url\.deletingLastPathComponent\(\)/);
-  assert.match(nativeStandaloneBranch, /tree = \[\]/);
-  assert.match(nativeStandaloneBranch, /selectedFileURL = url/);
-  assert.match(nativeStandaloneBranch, /loadFile\(url\)/);
-  assert.doesNotMatch(nativeStandaloneBranch, /fileWatcher/);
-  assert.doesNotMatch(nativeStandaloneBranch, /backgroundTimer/);
-  assert.doesNotMatch(nativeStandaloneBranch, /terminalSession/);
   assert.notEqual(rendererStartWatcherStart, -1);
   assert.notEqual(rendererStartTerminalStartForWatcher, -1);
   assert.ok(watcherBoundaryIndex >= 0, "renderer startProjectWatcher should branch for standalone files");
@@ -307,29 +230,18 @@ test("renderer treats standalone file opens as non-project services without stop
 });
 
 test("standalone active-file tracking preserves native no-directory side effect", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const coreSource = readRepository("packages/wikiwise-core/src/index.js");
   const mainSource = read("src/main/main.js");
   const rendererSource = read("src/renderer/renderer.js");
-  const nativeWriteActiveSource =
-    nativeSource.match(/private func writeActiveFile\(_ url: URL\) \{[\s\S]*?\n    \}/)?.[0] ?? "";
   const writeActiveFileSource =
     coreSource.match(/export function writeActiveFile\(projectRoot, filePath\) \{[\s\S]*?\n\}/)?.[0] ?? "";
 
-  assert.notEqual(nativeWriteActiveSource, "");
-  assert.match(nativeWriteActiveSource, /root\.appendingPathComponent\("\.claude\/active-file"\)/);
-  assert.match(nativeWriteActiveSource, /try\? relativePath\.write\(to:\s*activeFile/);
-  assert.doesNotMatch(nativeWriteActiveSource, /createDirectory/);
 
   assert.notEqual(writeActiveFileSource, "");
   assert.match(writeActiveFileSource, /const activeFileDirectory = path\.join\(projectRoot,\s*"\.claude"\)/);
   assert.match(writeActiveFileSource, /if \(!fs\.existsSync\(activeFileDirectory\)\) \{/);
   assert.match(writeActiveFileSource, /written:\s*false/);
 
-  assert.match(
-    nativeSource,
-    /else\s*\{\s*rootURL = url\.deletingLastPathComponent\(\)\s*tree = \[\]\s*selectedFileURL = url\s*loadFile\(url\)/
-  );
   assert.match(mainSource, /const projectKind = isDirectory \? "folder" : "file";/);
   assert.match(mainSource, /const projectRoot = isDirectory \? targetPath : path\.dirname\(targetPath\);/);
   assert.match(mainSource, /projectRoot,\s*projectKind,\s*projectName:\s*path\.basename\(projectRoot\)/);
@@ -338,19 +250,14 @@ test("standalone active-file tracking preserves native no-directory side effect"
 });
 
 test("renderer active-file selection failures stay silent like native try-optional writes", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const mainSource = read("src/main/main.js");
   const rendererSource = read("src/renderer/renderer.js");
-  const nativeWriteActiveSource =
-    nativeSource.match(/private func writeActiveFile\(_ url: URL\) \{[\s\S]*?\n    \}/)?.[0] ?? "";
   const rendererStart = rendererSource.indexOf("async function setActiveSelectedFile");
   const rendererEnd = rendererSource.indexOf("function setDetailMode", rendererStart);
   const setActiveSelectedFileSource = rendererSource.slice(rendererStart, rendererEnd);
   const setActiveFileSource =
     mainSource.match(/function setActiveFile\(payload\) \{[\s\S]*?\n\}/)?.[0] ?? "";
 
-  assert.notEqual(nativeWriteActiveSource, "");
-  assert.match(nativeWriteActiveSource, /try\? relativePath\.write\(to:\s*activeFile/);
   assert.notEqual(rendererStart, -1);
   assert.notEqual(rendererEnd, -1);
   assert.match(setActiveSelectedFileSource, /window\.wikiwise\.setActiveFile/);

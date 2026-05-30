@@ -23,7 +23,7 @@ The Electron app SHALL present product-facing shell branding without exposing El
 
 ### Requirement: Native Welcome Content
 
-The Electron no-folder state SHALL match the native SwiftUI welcome content.
+The Electron no-folder state SHALL match the Electron macOS welcome content.
 
 #### Scenario: Welcome content is inspected
 
@@ -68,7 +68,7 @@ The Electron welcome and project states SHALL occupy the app window directly ins
 - **AND** the project shell does not depend on an outer card border radius for its primary app layout
 
 ### Requirement: Welcome Action Symbol Parity
-The Electron no-folder welcome actions SHALL expose the same native action symbol semantics as the SwiftUI welcome buttons.
+The Electron no-folder welcome actions SHALL expose the same native action symbol semantics as the Electron macOS welcome buttons.
 
 #### Scenario: Welcome actions are inspected
 - **WHEN** the Electron welcome view is rendered
@@ -78,7 +78,7 @@ The Electron no-folder welcome actions SHALL expose the same native action symbo
 - **AND** the create/open action IDs and behaviors remain available for the existing welcome flows
 
 ### Requirement: Welcome Toolbar Brand Parity
-The Electron no-folder state SHALL include the native SwiftUI welcome toolbar brand chrome.
+The Electron no-folder state SHALL include the Electron macOS welcome toolbar brand chrome.
 
 #### Scenario: Welcome toolbar is inspected
 - **WHEN** the Electron welcome view is rendered
@@ -89,10 +89,10 @@ The Electron no-folder state SHALL include the native SwiftUI welcome toolbar br
 - **AND** the existing Create a New Wiki and Open Existing Folder actions remain available
 
 ### Requirement: Runtime App Icon Parity
-The Electron app SHALL use the same bundled Wikiwise app icon for its running macOS application identity as the native SwiftUI app.
+The Electron app SHALL use the same bundled Wikiwise app icon for its running macOS application identity as the Electron macOS app.
 
 #### Scenario: Runtime app icon setup is inspected
-- **WHEN** the native Swift app source and Electron main process source are inspected
+- **WHEN** the Electron app sources are inspected
 - **THEN** the native app sets its application icon from bundled `Wikiwise.icns`
 - **AND** the Electron main process resolves the same `Wikiwise.icns` native resource
 - **AND** the Electron main process derives a native Electron image from that icon resource for runtime loading
@@ -100,10 +100,10 @@ The Electron app SHALL use the same bundled Wikiwise app icon for its running ma
 - **AND** the Electron main window receives the derived icon where Electron supports a window icon option
 
 ### Requirement: Runtime App Activation Parity
-The Electron app SHALL mirror the native SwiftUI app's macOS startup activation behavior.
+The Electron app SHALL mirror the Electron macOS app's macOS startup activation behavior.
 
 #### Scenario: Runtime activation setup is inspected
-- **WHEN** the native Swift app source and Electron main process source are inspected
+- **WHEN** the Electron app sources are inspected
 - **THEN** the native app sets its activation policy to regular
 - **AND** the native app activates itself while ignoring other apps
 - **AND** the Electron main process applies a regular activation policy when Electron exposes the macOS API
@@ -111,10 +111,10 @@ The Electron app SHALL mirror the native SwiftUI app's macOS startup activation 
 - **AND** the Electron activation setup runs before normal windows or runtime audit work begin
 
 ### Requirement: Native Titlebar Chrome Parity
-The Electron app SHALL mirror the native SwiftUI app's visible macOS titlebar chrome for welcome and project windows.
+The Electron app SHALL mirror the Electron macOS app's visible macOS titlebar chrome for welcome and project windows.
 
 #### Scenario: Native titlebar chrome is inspected
-- **WHEN** the native Swift app source and Electron shell sources are inspected
+- **WHEN** the Electron shell sources are inspected
 - **THEN** the native app clears the visible window title
 - **AND** the native app removes the titlebar separator
 - **AND** the Electron main window uses macOS hidden-inset titlebar chrome while retaining product-facing `Wikiwise` identity
@@ -122,40 +122,40 @@ The Electron app SHALL mirror the native SwiftUI app's visible macOS titlebar ch
 - **AND** the Electron welcome and project toolbars expose draggable titlebar regions without making toolbar controls draggable
 
 ### Requirement: Welcome Copy Line Spacing Parity
-The Electron no-folder welcome screen SHALL match the native SwiftUI line-spacing rhythm for the main welcome summary and helper hint text.
+The Electron no-folder welcome screen SHALL match the Electron macOS line-spacing rhythm for the main welcome summary and helper hint text.
 
 #### Scenario: Welcome copy typography is inspected
 - **WHEN** the Electron welcome view is rendered
-- **THEN** the main welcome summary uses 15px text with a 19px line height, matching SwiftUI 15px text with `.lineSpacing(4)`
-- **AND** the helper hint uses 12px text with a 15px line height, matching SwiftUI 12px text with `.lineSpacing(3)`
+- **THEN** the main welcome summary uses 15px text with a 19px line height, matching Electron macOS 15px text with `.lineSpacing(4)`
+- **AND** the helper hint uses 12px text with a 15px line height, matching Electron macOS 12px text with `.lineSpacing(3)`
 - **AND** welcome copy, intentional line breaks, action buttons, action symbols, toolbar brand styling, colors, and overall welcome layout are unchanged
 
 ### Requirement: Welcome Secondary Action Foreground Parity
 
-The Electron no-folder welcome secondary action SHALL use the same foreground color role as the native SwiftUI "Open Existing Folder" button.
+The Electron no-folder welcome secondary action SHALL use the same foreground color role as the Electron macOS "Open Existing Folder" button.
 
 #### Scenario: Welcome secondary action is inspected
 - **WHEN** the Electron welcome view is rendered before a project is open
-- **THEN** the Open Existing Folder action uses `--color-sidebar-selected-text` for its label and native-symbol foreground, matching SwiftUI `Color.sidebarSelectedText`
+- **THEN** the Open Existing Folder action uses `--color-sidebar-selected-text` for its label and native-symbol foreground, matching Electron macOS `Color.sidebarSelectedText`
 - **AND** the shared non-welcome `.secondary-action` color remains `--color-control-text`
 - **AND** welcome action labels, native-symbol metadata, width, padding, border, background, and click behavior remain unchanged
 
 ### Requirement: Welcome Mark Foreground Parity
 
-The Electron no-folder welcome mark SHALL use the same foreground color role as the native SwiftUI centered `W` mark.
+The Electron no-folder welcome mark SHALL use the same foreground color role as the Electron macOS centered `W` mark.
 
 #### Scenario: Welcome mark is inspected
 - **WHEN** the Electron welcome view is rendered before a project is open
-- **THEN** the centered `W` mark uses `--color-sidebar-selected-text`, matching SwiftUI `Color.sidebarSelectedText`
+- **THEN** the centered `W` mark uses `--color-sidebar-selected-text`, matching Electron macOS `Color.sidebarSelectedText`
 - **AND** the mark preserves native-like 48px light italic serif typography
 - **AND** toolbar brand styling, welcome copy, action buttons, and overall welcome layout remain unchanged
 
 ### Requirement: Welcome Intro Spacing Parity
 
-The Electron no-folder welcome intro SHALL mirror the native SwiftUI nested spacing between the centered `W` mark and welcome summary.
+The Electron no-folder welcome intro SHALL mirror the Electron macOS nested spacing between the centered `W` mark and welcome summary.
 
 #### Scenario: Welcome intro is inspected
 - **WHEN** the Electron welcome view is rendered before a project is open
-- **THEN** the centered `W` mark and welcome summary are grouped together with a 12px internal gap, matching SwiftUI `VStack(spacing: 12)`
+- **THEN** the centered `W` mark and welcome summary are grouped together with a 12px internal gap, matching Electron macOS `VStack(spacing: 12)`
 - **AND** the outer welcome content keeps a 32px gap between the intro group, action group, and helper hint
 - **AND** welcome mark styling, summary text, summary line spacing, action grouping, toolbar brand styling, and welcome behavior remain unchanged

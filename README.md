@@ -19,24 +19,26 @@ The agent does the grunt work: summarizing, cross-referencing, filing, and bookk
 
 ## Building
 
-Requires macOS 14+ and Swift 5.10+.
+Requires macOS 14+ and Node.js/npm.
 
 ```
 git clone https://github.com/TristanH/wikiwise.git
 cd wikiwise
-swift build
-.build/arm64-apple-macosx/debug/Wikiwise
+npm install
+npm test
+npm run electron:dev
 ```
 
-## Cross-platform workspace
+## Electron workspace
 
-The SwiftUI macOS app remains the current production app. Cross-platform desktop
-work is developed in parallel under `apps/electron/` and driven by OpenSpec
-changes in `openspec/changes/`.
+The product direction is Electron-only. The app lives under `apps/electron/`,
+shared wiki behavior lives under `packages/wikiwise-core/`, and bundled app/wiki
+resources live under `apps/electron/resources/`.
 
 ```
 npm test
 npm run electron:dev
+npm run electron:package:mac
 ```
 
 `npm test` runs dependency-light workspace checks. `npm run electron:dev`
@@ -44,11 +46,11 @@ requires `npm install` first so Electron can be downloaded.
 
 ## Architecture
 
-- **SwiftUI** macOS app built with SwiftPM (no Xcode project)
-- **JavaScriptCore** compiler turns markdown into styled HTML pages
-- **SwiftTerm** embedded terminal for running coding agents
-- **FSEvents** file watcher for live recompilation
-- **Electron workspace** under `apps/electron/` for cross-platform exploration
+- **Electron** desktop app with main, preload, and renderer layers
+- **JavaScript compiler resources** turn markdown into styled HTML pages
+- **node-pty + xterm.js** embedded terminal for running coding agents
+- **Filesystem watcher** for live recompilation and tree refreshes
+- **Electron resources** under `apps/electron/resources/` for compiler, editor, graph/map pages, KaTeX assets, icon, and scaffold templates
 - **Shared JavaScript core** under `packages/wikiwise-core/` for reusable wiki helpers
 - Wiki scaffold includes Claude Code skills for ingest, lint, and Readwise import
 
@@ -73,7 +75,7 @@ my-wiki/
   llm-wiki.md     # Karpathy's pattern (reference)
 ```
 
-See [`Sources/Wikiwise/Resources/scaffold/`](Sources/Wikiwise/Resources/scaffold/) for the full template — this is what gets copied when you create a new wiki, including the schema (`CLAUDE.md`), agent skills, and seed pages.
+See [`apps/electron/resources/scaffold/`](apps/electron/resources/scaffold/) for the full template — this is what gets copied when you create a new wiki, including the schema (`CLAUDE.md`), agent skills, and seed pages.
 
 ## License
 

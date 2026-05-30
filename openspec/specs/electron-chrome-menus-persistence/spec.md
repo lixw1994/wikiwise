@@ -35,14 +35,14 @@ The Electron app SHALL restore the previous wiki folder when possible.
 - **AND** no project restore error is shown
 
 ### Requirement: App Menu Commands
-The Electron app SHALL expose native-compatible app menu commands in the same File command group placement as the SwiftUI app.
+The Electron app SHALL expose native-compatible app menu commands in the same File command group placement as the Electron macOS app.
 
 #### Scenario: File command group contains navigation actions
 
 - **WHEN** the Electron application menu is created
 - **THEN** the File menu contains New Window, Go Back, Go Forward, and Refresh Page in that order
 - **AND** New Window uses the native new-window accelerator
-- **AND** Open Existing Folder is not exposed as a File-menu command because the current SwiftUI command group does not add it
+- **AND** Open Existing Folder is not exposed as a File-menu command because the current Electron macOS command group does not add it
 - **AND** no separate top-level Navigate menu is exposed for those commands
 
 #### Scenario: New window command is selected
@@ -144,7 +144,7 @@ The Electron opened-project toolbar SHALL render the File/Wiki mode switch with 
 - **AND** publish and icon toolbar controls are not changed for this requirement
 
 ### Requirement: Toolbar Group Spacing Parity
-The Electron opened-project toolbar SHALL match native SwiftUI horizontal spacing for the left navigation and right primary action groups.
+The Electron opened-project toolbar SHALL match Electron macOS horizontal spacing for the left navigation and right primary action groups.
 
 #### Scenario: Project toolbar groups use native spacing
 - **WHEN** a project toolbar is rendered
@@ -153,7 +153,7 @@ The Electron opened-project toolbar SHALL match native SwiftUI horizontal spacin
 - **AND** toolbar controls, symbols, labels, disabled state, sidebar toggle state, project title offset behavior, menu command routing, and project layout are not changed for this requirement
 
 ### Requirement: Toolbar Navigation Arrow Style Parity
-The Electron opened-project Back and Forward toolbar arrows SHALL match the native SwiftUI text-arrow typography and disabled color behavior.
+The Electron opened-project Back and Forward toolbar arrows SHALL match the Electron macOS text-arrow typography and disabled color behavior.
 
 #### Scenario: Back and Forward arrows use native text styling
 - **WHEN** a project toolbar is rendered
@@ -163,7 +163,7 @@ The Electron opened-project Back and Forward toolbar arrows SHALL match the nati
 - **AND** navigation history behavior, disabled attributes, titles, aria labels, menu command routing, toolbar group spacing, project title offset behavior, and project layout are not changed for this requirement
 
 ### Requirement: Toolbar Mode Switch Enabled Parity
-The Electron opened-project FILE/WIKI toolbar mode controls SHALL remain enabled like the native SwiftUI toolbar buttons.
+The Electron opened-project FILE/WIKI toolbar mode controls SHALL remain enabled like the Electron macOS toolbar buttons.
 
 #### Scenario: FILE/WIKI toolbar controls remain enabled
 - **WHEN** a project toolbar is rendered
@@ -175,7 +175,7 @@ The Electron opened-project FILE/WIKI toolbar mode controls SHALL remain enabled
 - **AND** mode labels, segmented styling, click handlers, project toolbar controls, navigation disabled states, and generated page navigation behavior are not changed for this requirement
 
 ### Requirement: Startup Restore Window Scope
-The Electron app SHALL mirror the native SwiftUI app by limiting automatic startup restore to the first app window in a process.
+The Electron app SHALL mirror the Electron macOS app by limiting automatic startup restore to the first app window in a process.
 
 #### Scenario: First window restores the last project
 - **WHEN** the first Electron main window asks to restore the last project and a persisted last folder path exists
@@ -185,7 +185,7 @@ The Electron app SHALL mirror the native SwiftUI app by limiting automatic start
 - **WHEN** a later Electron main window asks to restore the last project
 - **THEN** the main process returns no restored project
 - **AND** the renderer leaves the welcome screen visible without showing a restore error
-- **AND** this matches the native `ContentView` guard that restores only the first instance
+- **AND** this matches the Electron renderer guard that restores only the first instance
 
 ### Requirement: Standard macOS Menu Role Parity
 The Electron app SHALL preserve standard macOS menu role coverage while adding Wikiwise-specific File commands.

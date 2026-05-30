@@ -39,8 +39,8 @@ const projectWatcherDebounceMs = 200;
 const backgroundCompilationBatchSize = 3;
 const backgroundCompilationIntervalMs = 100;
 const wikiHomeRelativePath = "wiki/home.md";
-const nativeResourcesRoot = path.join(repositoryRoot, "Sources", "Wikiwise", "Resources");
-const nativeAppIconPath = path.join(nativeResourcesRoot, "Wikiwise.icns");
+const electronResourcesRoot = path.join(packageRoot, "resources");
+const electronAppIconPath = path.join(electronResourcesRoot, "Wikiwise.icns");
 const nativeWindowDefaultSize = Object.freeze({ width: 1500, height: 1000 });
 const nativeWindowMinimumSize = Object.freeze({ width: 800, height: 500 });
 const nativeBroadcastAppCommands = new Set(["goBack", "goForward", "refreshWiki"]);
@@ -61,7 +61,8 @@ function getCompiler(projectRoot) {
 
   const compiler = new WikiCompiler({
     projectRoot: resolvedRoot,
-    repositoryRoot
+    repositoryRoot,
+    resourceRoot: electronResourcesRoot
   });
   compilersByProjectRoot.set(resolvedRoot, compiler);
   return compiler;
@@ -237,7 +238,7 @@ function applyNativeActivationPolicy() {
 }
 
 function resolveNativeAppIconPath() {
-  return fs.existsSync(nativeAppIconPath) ? nativeAppIconPath : null;
+  return fs.existsSync(electronAppIconPath) ? electronAppIconPath : null;
 }
 
 function extractLargestPngFromIcns(iconBuffer) {
@@ -383,8 +384,8 @@ function getTerminalResource() {
 }
 
 function getEditorResource() {
-  const editorPath = path.join(nativeResourcesRoot, "editor.html");
-  const codeMirrorBundlePath = path.join(nativeResourcesRoot, "codemirror-bundle.js");
+  const editorPath = path.join(electronResourcesRoot, "editor.html");
+  const codeMirrorBundlePath = path.join(electronResourcesRoot, "codemirror-bundle.js");
 
   if (!fs.existsSync(editorPath) || !fs.existsSync(codeMirrorBundlePath)) {
     throw new Error("Missing bundled CodeMirror editor resources.");
@@ -962,7 +963,7 @@ function packagedRuntimeAuditFileEvidence() {
   const preloadPath = path.join(packageRoot, "src", "preload", "preload.cjs");
   const corePackagePath = path.join(packageRoot, "node_modules", "@wikiwise", "core", "package.json");
   const nodePtyPackagePath = path.join(packageRoot, "node_modules", "node-pty", "package.json");
-  const nativeIconPath = path.join(nativeResourcesRoot, "Wikiwise.icns");
+  const electronIconPath = path.join(electronResourcesRoot, "Wikiwise.icns");
   const helperPaths = resolveNodePtySpawnHelperPaths();
 
   return {
@@ -972,14 +973,14 @@ function packagedRuntimeAuditFileEvidence() {
     preloadPath,
     corePackagePath,
     nodePtyPackagePath,
-    nativeIconPath,
+    nativeIconPath: electronIconPath,
     files: {
       mainExists: fs.existsSync(currentFile),
       rendererHtmlExists: fs.existsSync(rendererHtmlPath),
       preloadExists: fs.existsSync(preloadPath),
       corePackageExists: fs.existsSync(corePackagePath),
       nodePtyPackageExists: fs.existsSync(nodePtyPackagePath),
-      nativeIconExists: fs.existsSync(nativeIconPath)
+      nativeIconExists: fs.existsSync(electronIconPath)
     },
     nodePtySpawnHelpers: helperPaths.map((helperPath) => {
       const stat = fs.statSync(helperPath);
@@ -1348,6 +1349,7 @@ function createNewWiki(payload, webContents = null) {
 
   const scaffold = createWikiScaffold({
     repositoryRoot,
+    resourceRoot: electronResourcesRoot,
     parentDir: payload.parentDir,
     name: payload.name
   });

@@ -1,10 +1,10 @@
 # electron-toolbar-title-offset-parity Specification
 
 ## Purpose
-Define opened-project Electron toolbar title offset behavior that mirrors the native SwiftUI left-sidebar compensation.
+Define opened-project Electron toolbar title offset behavior that mirrors the Electron macOS left-sidebar compensation.
 ## Requirements
 ### Requirement: Native Toolbar Title Offset
-The Electron opened-project toolbar SHALL offset the project title to match the native SwiftUI left-sidebar compensation.
+The Electron opened-project toolbar SHALL offset the project title to match the Electron macOS left-sidebar compensation.
 
 #### Scenario: Left sidebar is visible
 - **WHEN** a project is open and the left sidebar is visible

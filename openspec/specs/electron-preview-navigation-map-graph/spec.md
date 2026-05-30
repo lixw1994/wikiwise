@@ -30,7 +30,7 @@ The Electron renderer SHALL route generated map and graph links through generate
 
 ### Requirement: Generated Page Existing Output Parity
 
-Electron generated-page navigation SHALL match native SwiftUI by opening generated map/graph HTML only when it already exists in the compiler output directory, without triggering a whole-site compile from the navigation action.
+Electron generated-page navigation SHALL match Electron macOS by opening generated map/graph HTML only when it already exists in the compiler output directory, without triggering a whole-site compile from the navigation action.
 
 #### Scenario: Toolbar map opens existing output
 - **WHEN** the user invokes the toolbar 3D map control after project-open scanning has produced `map-3d.html`
@@ -59,7 +59,7 @@ The Electron app SHALL open external preview links outside the app.
 
 ### Requirement: Generated Page Refresh
 
-The Electron renderer SHALL match native generated-page reload behavior: active generated pages are not directly refreshed by watcher changes or by the manual Refresh Page command, while opening a generated page still loads the current compiler output.
+The Electron renderer SHALL match Electron generated-page reload behavior: active generated pages are not directly refreshed by watcher changes or by the manual Refresh Page command, while opening a generated page still loads the current compiler output.
 
 #### Scenario: Active generated page receives watcher output changes
 
@@ -97,7 +97,7 @@ Electron preview navigation parity SHALL be covered by runtime audit evidence in
 - **AND** the audit report records that app Back restores the previous markdown preview state
 
 ### Requirement: Generated Link History Parity
-The Electron renderer SHALL match native SwiftUI generated-page link history semantics by adding app back-history only when the generated page is opened from a selected source file.
+The Electron renderer SHALL match Electron macOS generated-page link history semantics by adding app back-history only when the generated page is opened from a selected source file.
 
 #### Scenario: Markdown preview opens a generated page
 - **WHEN** a selected Markdown-backed preview link resolves to a generated page
@@ -115,7 +115,7 @@ The Electron renderer SHALL match native SwiftUI generated-page link history sem
 - **THEN** Electron preserves existing toolbar-driven generated-page history behavior
 
 ### Requirement: Raw Generated Link Routing Parity
-Electron preview navigation SHALL match native Swift behavior for raw generated HTML links by treating raw namespaced HTML output as generated output rather than markdown-backed file selection.
+Electron preview navigation SHALL match Electron behavior for raw generated HTML links by treating raw namespaced HTML output as generated output rather than markdown-backed file selection.
 
 #### Scenario: Raw generated page link is selected
 - **WHEN** the user selects a local compiled-preview link whose target is a raw generated page such as `raw-source.html`
@@ -128,7 +128,7 @@ Electron preview navigation SHALL match native Swift behavior for raw generated 
 - **AND** the selected raw file can still render the corresponding `raw-source.html` preview output
 
 ### Requirement: Preview Target Slug Normalization Parity
-Electron preview navigation SHALL derive local HTML target slugs with the same filename normalization as native Swift preview navigation.
+Electron preview navigation SHALL derive local HTML target slugs with the same filename normalization as Electron preview navigation.
 
 #### Scenario: Local HTML target filename contains spaces
 - **WHEN** the user selects a local compiled-preview link whose HTML target filename contains spaces, such as `My Page.html`
@@ -140,7 +140,7 @@ Electron preview navigation SHALL derive local HTML target slugs with the same f
 - **THEN** Electron checks generated output using the native-normalized slug filename
 
 ### Requirement: Preview Markdown Extension Case Parity
-Electron preview navigation SHALL match native Swift markdown-source candidate filtering when resolving local HTML links back to markdown files.
+Electron preview navigation SHALL match Electron markdown-source candidate filtering when resolving local HTML links back to markdown files.
 
 #### Scenario: Candidate source uses uppercase markdown extension
 - **WHEN** a local compiled-preview link maps by slug to a source file whose extension is uppercase, such as `Target.MD`

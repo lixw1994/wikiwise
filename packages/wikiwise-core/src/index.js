@@ -21,20 +21,14 @@ export function getBundledResourceNames() {
   return [...RESOURCE_NAMES];
 }
 
-export function resolveRepositoryResourcePath(repositoryRootUrl, resourceName) {
+export function resolveRepositoryResourcePath(repositoryRootUrl, resourceName, options = {}) {
   if (!RESOURCE_NAMES.includes(resourceName)) {
     throw new Error(`Unknown Wikiwise resource: ${resourceName}`);
   }
 
   const repositoryRoot =
     repositoryRootUrl instanceof URL ? fileURLToPath(repositoryRootUrl) : repositoryRootUrl;
-  const resourcePath = path.join(
-    repositoryRoot,
-    "Sources",
-    "Wikiwise",
-    "Resources",
-    resourceName
-  );
+  const resourcePath = path.join(resolveResourceRoot(repositoryRoot, options.resourceRoot), resourceName);
 
   if (!fs.existsSync(resourcePath)) {
     throw new Error(`Missing Wikiwise resource: ${resourcePath}`);
@@ -279,11 +273,12 @@ export function createWikiScaffold(options = {}) {
   }
 
   const repositoryRoot = path.resolve(options.repositoryRoot ?? defaultRepositoryRoot());
+  const resourceRoot = resolveResourceRoot(repositoryRoot, options.resourceRoot);
   const parentDir = path.resolve(options.parentDir);
   const slug = slugForWikiName(name);
 
   const wikiPath = path.join(parentDir, slug);
-  const scaffoldDir = path.join(repositoryRoot, "Sources", "Wikiwise", "Resources", "scaffold");
+  const scaffoldDir = path.join(resourceRoot, "scaffold");
   if (!fs.existsSync(scaffoldDir)) {
     throw new Error(`Missing Wikiwise scaffold resources: ${scaffoldDir}`);
   }
@@ -339,8 +334,14 @@ export function createWikiScaffold(options = {}) {
   }
 
   writeTextFile(path.join(wikiPath, ".claude", "settings.json"), scaffoldSettingsJson());
-  fs.copyFileSync(resolveRepositoryResourcePath(repositoryRoot, "build.js"), path.join(wikiPath, "site", "build.js"));
-  fs.copyFileSync(resolveRepositoryResourcePath(repositoryRoot, "style.css"), path.join(wikiPath, "site", "style.css"));
+  fs.copyFileSync(
+    resolveRepositoryResourcePath(repositoryRoot, "build.js", { resourceRoot }),
+    path.join(wikiPath, "site", "build.js")
+  );
+  fs.copyFileSync(
+    resolveRepositoryResourcePath(repositoryRoot, "style.css", { resourceRoot }),
+    path.join(wikiPath, "site", "style.css")
+  );
 
   for (const resourceName of [
     "markdown-it.min.js",
@@ -350,7 +351,7 @@ export function createWikiScaffold(options = {}) {
     "map-3d.html"
   ]) {
     fs.copyFileSync(
-      resolveRepositoryResourcePath(repositoryRoot, resourceName),
+      resolveRepositoryResourcePath(repositoryRoot, resourceName, { resourceRoot }),
       path.join(wikiPath, "site", resourceName)
     );
   }
@@ -441,6 +442,7 @@ export class WikiCompiler {
     this.sourceDir = path.resolve(sourceDir);
     this.projectRoot = this.sourceDir;
     this.repositoryRoot = path.resolve(options.repositoryRoot ?? defaultRepositoryRoot());
+    this.resourceRoot = resolveResourceRoot(this.repositoryRoot, options.resourceRoot);
     this.outputDir = fs.existsSync(path.join(this.sourceDir, "site", "build.js"))
       ? path.join(this.sourceDir, "site", "out")
       : path.join(this.sourceDir, "wiki-site");
@@ -583,7 +585,7 @@ export class WikiCompiler {
     this.setBundledString("bundledKatexCSS", this.readRepositoryResource("katex.min.css"));
     this.setBundledString(
       "bundledKatexFontsDir",
-      path.join(this.repositoryRoot, "Sources", "Wikiwise", "Resources", "katex-fonts"),
+      path.join(this.resourceRoot, "katex-fonts"),
       { asPath: true }
     );
     this.setBundledString("bundledCSS", this.readProjectOrRepositoryResource("style.css"));
@@ -626,7 +628,9 @@ export class WikiCompiler {
   }
 
   repositoryResourcePath(resourceName) {
-    return resolveRepositoryResourcePath(this.repositoryRoot, resourceName);
+    return resolveRepositoryResourcePath(this.repositoryRoot, resourceName, {
+      resourceRoot: this.resourceRoot
+    });
   }
 
   readProjectOrRepositoryResource(resourceName) {
@@ -692,6 +696,10 @@ export function expandTreeDirectory(projectRoot, directoryPath) {
 
 function defaultRepositoryRoot() {
   return path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
+}
+
+function resolveResourceRoot(repositoryRoot, explicitResourceRoot) {
+  return path.resolve(explicitResourceRoot ?? path.join(repositoryRoot, "apps", "electron", "resources"));
 }
 
 function createWatchSummary(kind, cssChanged, changedMarkdownPaths, structureChanged) {

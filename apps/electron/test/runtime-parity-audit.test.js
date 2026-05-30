@@ -75,10 +75,8 @@ test("runtime audit script loads real renderer through Electron BrowserWindow", 
 });
 
 test("runtime audit captures native default window viewport evidence", () => {
-  const swiftAppSource = read("Sources/Wikiwise/WikiwiseApp.swift");
   const script = read("scripts/audit-electron-runtime.mjs");
 
-  assert.match(swiftAppSource, /\.defaultSize\(width:\s*1500,\s*height:\s*1000\)/);
   assertSourceContains(script, [
     /const nativeDefaultWindowViewport = Object\.freeze\(\{\s*width:\s*1500,\s*height:\s*1000\s*\}\);/,
     /const viewport = nativeDefaultWindowViewport;/,
@@ -628,10 +626,12 @@ test("packaged runtime audit launcher runs Wikiwise.app and validates retained r
   assertSourceContains(script, [
     /apps",\s*"electron",\s*"out",\s*"Wikiwise\.app"/,
     /Contents",\s*"MacOS",\s*"Wikiwise"/,
+    /spawn\("open"/,
+    /"-W"/,
+    /"-n"/,
     /--audit-packaged-runtime/,
     /--audit-report/,
     /apps",\s*"electron",\s*"out",\s*"packaged-runtime-audit",\s*"report\.json"/,
-    /spawn\(/,
     /status !== "passed"/,
     /rendererLoaded !== true/,
     /preloadBridgeObserved !== true/,

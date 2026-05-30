@@ -11,10 +11,6 @@ function read(relativePath) {
   return fs.readFileSync(path.join(packageRoot, relativePath), "utf8");
 }
 
-function readRepository(relativePath) {
-  return fs.readFileSync(path.join(repositoryRoot, relativePath), "utf8");
-}
-
 function cssBlock(source, selector) {
   const pattern = new RegExp(`${selector.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\s*\\{([^}]+)\\}`);
   return source.match(pattern)?.[1] ?? "";
@@ -26,15 +22,6 @@ function functionSource(source, name, nextName) {
   assert.notEqual(start, -1);
   assert.notEqual(end, -1);
   return source.slice(start, end);
-}
-
-function swiftFunctionSource(source, name, nextName) {
-  const startMatch = source.match(new RegExp(`(?:private\\s+)?func ${name}\\(`));
-  assert.ok(startMatch);
-  const start = startMatch.index;
-  const nextMatch = source.slice(start).match(new RegExp(`(?:private\\s+)?func ${nextName}\\(`));
-  assert.ok(nextMatch);
-  return source.slice(start, start + nextMatch.index);
 }
 
 test("main process owns app settings, appearance, restore, generated pages, and menu commands", () => {
@@ -63,11 +50,7 @@ test("main process owns app settings, appearance, restore, generated pages, and 
 
 test("startup restore is limited to the native first window scope", () => {
   const mainSource = read("src/main/main.js");
-  const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
 
-  assert.match(swiftSource, /private static var instanceCount = 0/);
-  assert.match(swiftSource, /isFirstInstance = ContentView\.instanceCount == 1/);
-  assert.match(swiftSource, /guard isFirstInstance else \{ return \}/);
   assert.match(mainSource, /let mainWindowCreationCount = 0/);
   assert.match(mainSource, /const startupRestoreByWebContentsId = new Map\(\)/);
   assert.match(mainSource, /const shouldRestoreLastProject = mainWindowCreationCount === 0/);
@@ -94,17 +77,12 @@ test("startup restore is limited to the native first window scope", () => {
 
 test("file menu exposes native New Window command before Wikiwise commands", () => {
   const mainSource = read("src/main/main.js");
-  const swiftSource = readRepository("Sources/Wikiwise/WikiwiseApp.swift");
   const menuStart = mainSource.indexOf("function createApplicationMenu()");
   const menuEnd = mainSource.indexOf("function startProjectWatcher", menuStart);
   const menuSource = mainSource.slice(menuStart, menuEnd);
 
   assert.notEqual(menuStart, -1);
   assert.notEqual(menuEnd, -1);
-  assert.match(swiftSource, /WindowGroup\s*\{/);
-  assert.match(swiftSource, /CommandGroup\(after:\s*\.newItem\)/);
-  assert.doesNotMatch(swiftSource, /CommandGroup\(replacing:\s*\.newItem\)/);
-  assert.doesNotMatch(swiftSource, /Button\("Open Existing Folder"\)/);
   assert.match(
     menuSource,
     /label:\s*"File"[\s\S]*label:\s*"New Window"[\s\S]*accelerator:\s*"CommandOrControl\+N"[\s\S]*click:\s*\(\) => createMainWindow\(\)[\s\S]*label:\s*"Go Back"[\s\S]*label:\s*"Go Forward"[\s\S]*label:\s*"Refresh Page"/
@@ -116,12 +94,7 @@ test("file menu exposes native New Window command before Wikiwise commands", () 
 
 test("app menu navigation commands match the native File command group", () => {
   const mainSource = read("src/main/main.js");
-  const swiftSource = readRepository("Sources/Wikiwise/WikiwiseApp.swift");
 
-  assert.match(
-    swiftSource,
-    /CommandGroup\(after:\s*\.newItem\)\s*\{[\s\S]*Button\("Go Back"\)[\s\S]*Button\("Go Forward"\)[\s\S]*Button\("Refresh Page"\)/
-  );
   assert.match(
     mainSource,
     /label:\s*"File"[\s\S]*submenu:\s*\[[\s\S]*label:\s*"New Window"[\s\S]*label:\s*"Go Back"[\s\S]*accelerator:\s*"CommandOrControl\+\["[\s\S]*label:\s*"Go Forward"[\s\S]*accelerator:\s*"CommandOrControl\+\]"[\s\S]*label:\s*"Refresh Page"[\s\S]*accelerator:\s*"CommandOrControl\+R"/
@@ -132,20 +105,10 @@ test("app menu navigation commands match the native File command group", () => {
 
 test("app menu navigation and refresh commands broadcast like native global notifications", () => {
   const mainSource = read("src/main/main.js");
-  const swiftAppSource = readRepository("Sources/Wikiwise/WikiwiseApp.swift");
-  const swiftContentSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const sendAppCommandSource = functionSource(mainSource, "sendAppCommand", "createApplicationMenu");
   const nativeBroadcastDeclaration =
     mainSource.match(/const nativeBroadcastAppCommands = new Set\(\[[\s\S]*?\]\);/)?.[0] ?? "";
 
-  assert.match(
-    swiftAppSource,
-    /NotificationCenter\.default\.post\(name:\s*\.goBack,\s*object:\s*nil\)[\s\S]*NotificationCenter\.default\.post\(name:\s*\.goForward,\s*object:\s*nil\)[\s\S]*NotificationCenter\.default\.post\(name:\s*\.refreshWiki,\s*object:\s*nil\)/
-  );
-  assert.match(
-    swiftContentSource,
-    /\.onReceive\(NotificationCenter\.default\.publisher\(for:\s*\.goBack\)\)[\s\S]*\.onReceive\(NotificationCenter\.default\.publisher\(for:\s*\.goForward\)\)[\s\S]*\.onReceive\(NotificationCenter\.default\.publisher\(for:\s*\.refreshWiki\)\)/
-  );
   assert.match(nativeBroadcastDeclaration, /"goBack"/);
   assert.match(nativeBroadcastDeclaration, /"goForward"/);
   assert.match(nativeBroadcastDeclaration, /"refreshWiki"/);
@@ -158,11 +121,7 @@ test("app menu navigation and refresh commands broadcast like native global noti
 
 test("application menu preserves standard macOS app edit and window roles", () => {
   const mainSource = read("src/main/main.js");
-  const swiftSource = readRepository("Sources/Wikiwise/WikiwiseApp.swift");
 
-  assert.match(swiftSource, /\.commands\s*\{[\s\S]*CommandGroup\(after:\s*\.newItem\)/);
-  assert.doesNotMatch(swiftSource, /CommandMenu\(/);
-  assert.doesNotMatch(swiftSource, /CommandGroup\(replacing:/);
   assert.match(
     mainSource,
     /label:\s*app\.name[\s\S]*role:\s*"about"[\s\S]*role:\s*"services"[\s\S]*role:\s*"hide"[\s\S]*role:\s*"hideOthers"[\s\S]*role:\s*"unhide"[\s\S]*role:\s*"quit"/
@@ -234,18 +193,8 @@ test("renderer contains startup restore, appearance, toolbar, history, map, refr
 
 test("renderer preserves native history when the active file is reselected", () => {
   const rendererSource = read("src/renderer/renderer.js");
-  const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
-  const swiftNavigateSource = swiftFunctionSource(swiftSource, "navigateTo", "goBack");
   const selectFileSource = functionSource(rendererSource, "selectFile", "setSelectedFile");
 
-  assert.match(
-    swiftNavigateSource,
-    /if let current = selectedFileURL,\s*current != url \{[\s\S]*backHistory\.append\(current\)[\s\S]*forwardHistory = \[\]/
-  );
-  assert.match(
-    swiftNavigateSource,
-    /else if selectedFileURL == nil,\s*let compiled = compiledFileURL \{[\s\S]*backHistory\.append\(compiled\)[\s\S]*forwardHistory = \[\]/
-  );
   assert.match(selectFileSource, /const isActiveFileReselect = state\.selectedFile\?\.path === node\.path/);
   assert.match(
     selectFileSource,
@@ -302,19 +251,11 @@ test("renderer markup and styles include native-like project toolbar controls", 
   assert.match(cssSource, /\[data-appearance="Dark"\]/);
 });
 
-test("project toolbar icon controls mirror native SwiftUI symbol semantics", () => {
-  const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
+test("project toolbar icon controls mirror Electron macOS symbol semantics", () => {
   const htmlSource = read("src/renderer/index.html");
   const rendererSource = read("src/renderer/renderer.js");
   const cssSource = read("src/renderer/styles.css");
 
-  assert.match(
-    swiftSource,
-    /Image\(systemName:\s*currentMode == \.dark \? "moon\.fill" : currentMode == \.light \? "sun\.max\.fill" : "circle\.lefthalf\.filled"\)/
-  );
-  assert.match(swiftSource, /Image\(systemName:\s*"map"\)/);
-  assert.match(swiftSource, /Image\(systemName:\s*"sidebar\.left"\)/);
-  assert.match(swiftSource, /Image\(systemName:\s*"sidebar\.right"\)/);
 
   assert.doesNotMatch(htmlSource, /id="appearance-mode"[\s\S]*?>\s*(Auto|Light|Dark)\s*<\/button>/);
   assert.doesNotMatch(htmlSource, /id="open-map"[\s\S]*?>\s*Map\s*<\/button>/);
@@ -338,29 +279,12 @@ test("project toolbar icon controls mirror native SwiftUI symbol semantics", () 
 });
 
 test("project toolbar icon controls mirror native symbol font sizes", () => {
-  const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const cssSource = read("src/renderer/styles.css");
   const appearanceBlock = cssBlock(cssSource, "#appearance-mode");
   const mapBlock = cssBlock(cssSource, "#open-map");
   const leftSidebarBlock = cssBlock(cssSource, "#toggle-left-sidebar");
   const rightSidebarBlock = cssBlock(cssSource, "#toggle-right-sidebar");
 
-  assert.match(
-    swiftSource,
-    /Image\(systemName:\s*currentMode == \.dark \? "moon\.fill" : currentMode == \.light \? "sun\.max\.fill" : "circle\.lefthalf\.filled"\)[\s\S]*?\.font\(\.system\(size:\s*13\)\)/
-  );
-  assert.match(
-    swiftSource,
-    /Image\(systemName:\s*"map"\)[\s\S]*?\.font\(\.system\(size:\s*12\)\)/
-  );
-  assert.match(
-    swiftSource,
-    /Image\(systemName:\s*"sidebar\.left"\)[\s\S]*?\.font\(\.system\(size:\s*14\)\)/
-  );
-  assert.match(
-    swiftSource,
-    /Image\(systemName:\s*"sidebar\.right"\)[\s\S]*?\.font\(\.system\(size:\s*16\)\)/
-  );
 
   assert.match(appearanceBlock, /font-size:\s*13px/);
   assert.match(mapBlock, /font-size:\s*12px/);
@@ -369,36 +293,11 @@ test("project toolbar icon controls mirror native symbol font sizes", () => {
 });
 
 test("project toolbar icon controls mirror native plain button chrome", () => {
-  const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const cssSource = read("src/renderer/styles.css");
   const toolbarIconBlock = cssBlock(cssSource, ".toolbar-icon-button");
   const modeButtonBlock = cssBlock(cssSource, ".mode-button");
   const publishButtonBlock = cssBlock(cssSource, ".publish-button");
 
-  assert.match(
-    swiftSource,
-    /Button\s*\{[\s\S]*?Image\(systemName:\s*"sidebar\.left"\)[\s\S]*?\.buttonStyle\(\.plain\)/
-  );
-  assert.match(
-    swiftSource,
-    /Button\s*\{[\s\S]*?Text\("\\u\{2190\}"\)[\s\S]*?\.buttonStyle\(\.plain\)/
-  );
-  assert.match(
-    swiftSource,
-    /Button\s*\{[\s\S]*?Text\("\\u\{2192\}"\)[\s\S]*?\.buttonStyle\(\.plain\)/
-  );
-  assert.match(
-    swiftSource,
-    /Image\(systemName:\s*currentMode == \.dark \? "moon\.fill" : currentMode == \.light \? "sun\.max\.fill" : "circle\.lefthalf\.filled"\)[\s\S]*?\.buttonStyle\(\.plain\)/
-  );
-  assert.match(
-    swiftSource,
-    /Image\(systemName:\s*"map"\)[\s\S]*?\.buttonStyle\(\.plain\)/
-  );
-  assert.match(
-    swiftSource,
-    /Image\(systemName:\s*"sidebar\.right"\)[\s\S]*?\.buttonStyle\(\.plain\)/
-  );
 
   assert.match(toolbarIconBlock, /border:\s*0/);
   assert.match(toolbarIconBlock, /border-radius:\s*0/);
@@ -410,31 +309,10 @@ test("project toolbar icon controls mirror native plain button chrome", () => {
 });
 
 test("project toolbar icon controls mirror native intrinsic plain sizing", () => {
-  const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const cssSource = read("src/renderer/styles.css");
   const toolbarIconBlock = cssBlock(cssSource, ".toolbar-icon-button");
   const modeButtonBlock = cssBlock(cssSource, ".mode-button");
   const publishButtonBlock = cssBlock(cssSource, ".publish-button");
-  const nativeProjectToolbar = swiftSource.match(
-    /private var navSplitContent[\s\S]*?\.toolbarBackground\(Color\.sidebarBg,\s*for:\s*\.windowToolbar\)/
-  )?.[0] ?? "";
-  const nativePlainIconBlocks = [
-    /Image\(systemName:\s*"sidebar\.left"\)[\s\S]*?\.buttonStyle\(\.plain\)/,
-    /Text\("\\u\{2190\}"\)[\s\S]*?\.buttonStyle\(\.plain\)/,
-    /Text\("\\u\{2192\}"\)[\s\S]*?\.buttonStyle\(\.plain\)/,
-    /Image\(systemName:\s*currentMode == \.dark \? "moon\.fill" : currentMode == \.light \? "sun\.max\.fill" : "circle\.lefthalf\.filled"\)[\s\S]*?\.buttonStyle\(\.plain\)/,
-    /Image\(systemName:\s*"map"\)[\s\S]*?\.buttonStyle\(\.plain\)/,
-    /Image\(systemName:\s*"sidebar\.right"\)[\s\S]*?\.buttonStyle\(\.plain\)/
-  ].map((pattern) => nativeProjectToolbar.match(pattern)?.[0] ?? "");
-
-  assert.notEqual(nativeProjectToolbar, "");
-  for (const nativeBlock of nativePlainIconBlocks) {
-    assert.notEqual(nativeBlock, "");
-    assert.doesNotMatch(nativeBlock, /\.frame\(/);
-    assert.doesNotMatch(nativeBlock, /\.padding\(/);
-  }
-  assert.match(swiftSource, /HStack\(spacing:\s*14\)/);
-  assert.match(swiftSource, /HStack\(spacing:\s*10\)/);
 
   assert.match(toolbarIconBlock, /min-width:\s*0/);
   assert.match(toolbarIconBlock, /inline-size:\s*auto/);
@@ -449,7 +327,6 @@ test("project toolbar icon controls mirror native intrinsic plain sizing", () =>
 });
 
 test("project toolbar mode switch mirrors native segmented styling", () => {
-  const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const cssSource = read("src/renderer/styles.css");
   const modeSwitchBlock = cssBlock(cssSource, ".mode-switch");
   const modeButtonBlock = cssBlock(cssSource, ".mode-button");
@@ -458,12 +335,6 @@ test("project toolbar mode switch mirrors native segmented styling", () => {
   const lastModeButtonBlock = cssBlock(cssSource, ".mode-button:last-child");
   const publishButtonBlock = cssBlock(cssSource, ".publish-button");
 
-  assert.match(swiftSource, /let fileShape = UnevenRoundedRectangle\([\s\S]*topLeadingRadius:\s*3[\s\S]*bottomLeadingRadius:\s*3/);
-  assert.match(swiftSource, /let wikiShape = UnevenRoundedRectangle\([\s\S]*bottomTrailingRadius:\s*3[\s\S]*topTrailingRadius:\s*3/);
-  assert.match(
-    swiftSource,
-    /Text\("FILE"\)[\s\S]*\.font\(\.system\(size:\s*10,\s*weight:\s*\.regular,\s*design:\s*\.monospaced\)\)[\s\S]*\.tracking\(0\.8\)[\s\S]*\.foregroundStyle\(detailMode == \.raw \? Color\.sidebarSelectedText : Color\.sidebarTextMuted\)[\s\S]*\.padding\(\.horizontal,\s*10\)[\s\S]*\.padding\(\.vertical,\s*4\)[\s\S]*\.background\(fileShape\.fill\(detailMode == \.raw \? Color\.sidebarSelectedBg : Color\.clear\)\)[\s\S]*\.overlay\(fileShape\.strokeBorder\(Color\.sidebarRule,\s*lineWidth:\s*1\)\)/
-  );
   assert.match(modeSwitchBlock, /border:\s*0/);
   assert.match(modeSwitchBlock, /border-radius:\s*0/);
   assert.match(modeSwitchBlock, /background:\s*transparent/);
@@ -481,21 +352,9 @@ test("project toolbar mode switch mirrors native segmented styling", () => {
 });
 
 test("project toolbar mode switch mirrors native enabled behavior", () => {
-  const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const htmlSource = read("src/renderer/index.html");
   const rendererSource = read("src/renderer/renderer.js");
-  const nativeModeSwitch = swiftSource.match(
-    /HStack\(spacing:\s*0\)\s*\{[\s\S]*?\.fixedSize\(\)/
-  )?.[0] ?? "";
 
-  assert.notEqual(nativeModeSwitch, "");
-  assert.match(nativeModeSwitch, /Button\s*\{\s*captureScrollAndSwitch\(to:\s*\.raw\)/);
-  assert.match(nativeModeSwitch, /Button\s*\{\s*captureScrollAndSwitch\(to:\s*\.compiled\)/);
-  assert.doesNotMatch(nativeModeSwitch, /\.disabled\(/);
-  assert.match(
-    swiftSource,
-    /case \.compiled:[\s\S]*if let url = compiledFileURL[\s\S]*else if let url = selectedFileURL[\s\S]*EditorWebView/
-  );
 
   assert.doesNotMatch(htmlSource, /id="mode-file"[^>]*\sdisabled\b/);
   assert.doesNotMatch(htmlSource, /id="mode-wiki"[^>]*\sdisabled\b/);
@@ -514,10 +373,8 @@ test("project toolbar mode switch mirrors native enabled behavior", () => {
 });
 
 test("left sidebar toolbar control mirrors native restore help text", () => {
-  const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
 
-  assert.match(swiftSource, /Image\(systemName:\s*"sidebar\.left"\)[\s\S]*\.help\("Show Sidebar"\)/);
   assert.match(rendererSource, /function leftSidebarButtonHelpText\(\)/);
   assert.match(rendererSource, /state\.isLeftSidebarVisible\s*\?\s*"Hide Sidebar"\s*:\s*"Show Sidebar"/);
   assert.match(rendererSource, /const leftSidebarHelpText = leftSidebarButtonHelpText\(\)/);
@@ -530,11 +387,8 @@ test("left sidebar toolbar control mirrors native restore help text", () => {
 });
 
 test("left sidebar toolbar control exposes native split-view affordance states", () => {
-  const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
 
-  assert.match(swiftSource, /if sidebarVisibility != \.all[\s\S]*Image\(systemName:\s*"sidebar\.left"\)/);
-  assert.match(swiftSource, /\.help\("Show Sidebar"\)/);
 
   assert.match(rendererSource, /function leftSidebarNativeAffordance\(\)/);
   assert.match(
@@ -554,20 +408,11 @@ test("left sidebar toolbar control exposes native split-view affordance states",
 });
 
 test("sidebar toolbar toggles mirror native plain icon color states", () => {
-  const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const cssSource = read("src/renderer/styles.css");
   const selectedToolbarIconBlock = cssBlock(cssSource, ".toolbar-icon-button.selected");
   const hiddenLeftToggleBlock = cssBlock(cssSource, "#toggle-left-sidebar:not(.selected)");
   const hiddenRightToggleBlock = cssBlock(cssSource, "#toggle-right-sidebar:not(.selected)");
 
-  assert.match(
-    swiftSource,
-    /Image\(systemName:\s*"sidebar\.left"\)[\s\S]*\.font\(\.system\(size:\s*14\)\)[\s\S]*\.foregroundStyle\(Color\.toolbarDisabled\)[\s\S]*\.buttonStyle\(\.plain\)[\s\S]*\.help\("Show Sidebar"\)/
-  );
-  assert.match(
-    swiftSource,
-    /Image\(systemName:\s*"sidebar\.right"\)[\s\S]*\.font\(\.system\(size:\s*16\)\)[\s\S]*\.foregroundStyle\(showRightSidebar \? Color\.toolbarText : Color\.toolbarDisabled\)[\s\S]*\.buttonStyle\(\.plain\)/
-  );
   assert.match(selectedToolbarIconBlock, /background:\s*transparent/);
   assert.match(selectedToolbarIconBlock, /color:\s*var\(--color-toolbar-text\)/);
   assert.doesNotMatch(selectedToolbarIconBlock, /var\(--color-sidebar-selected-bg\)/);
@@ -577,7 +422,6 @@ test("sidebar toolbar toggles mirror native plain icon color states", () => {
 });
 
 test("left sidebar toolbar visibility toggle mirrors native layout animation", () => {
-  const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const cssSource = read("src/renderer/styles.css");
   const projectShellBlock = cssBlock(cssSource, ".project-shell");
   const hiddenLeftSidebarBlock = cssBlock(cssSource, ".project-shell.left-sidebar-hidden");
@@ -591,10 +435,6 @@ test("left sidebar toolbar visibility toggle mirrors native layout animation", (
     ".project-shell.left-sidebar-hidden .right-sidebar"
   );
 
-  assert.match(
-    swiftSource,
-    /withAnimation\(\.easeInOut\(duration:\s*0\.2\)\)\s*\{[\s\S]*sidebarVisibility = \.all/
-  );
   assert.match(projectShellBlock, /transition:\s*grid-template-columns 200ms ease-in-out/);
   assert.match(
     hiddenLeftSidebarBlock,
@@ -609,7 +449,6 @@ test("left sidebar toolbar visibility toggle mirrors native layout animation", (
 });
 
 test("right sidebar toolbar visibility toggle mirrors native layout animation", () => {
-  const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const cssSource = read("src/renderer/styles.css");
   const projectShellBlock = cssBlock(cssSource, ".project-shell");
   const hiddenRightSidebarBlock = cssBlock(cssSource, ".project-shell.right-sidebar-hidden");
@@ -618,10 +457,6 @@ test("right sidebar toolbar visibility toggle mirrors native layout animation", 
     ".project-shell.left-sidebar-hidden.right-sidebar-hidden"
   );
 
-  assert.match(
-    swiftSource,
-    /withAnimation\(\.easeInOut\(duration:\s*0\.2\)\)\s*\{[\s\S]*showRightSidebar\.toggle\(\)/
-  );
   assert.match(projectShellBlock, /transition:\s*grid-template-columns 200ms ease-in-out/);
   assert.match(
     hiddenRightSidebarBlock,
@@ -646,39 +481,21 @@ test("active sidebar resize bypasses visibility animation", () => {
 });
 
 test("project toolbar groups mirror native horizontal spacing", () => {
-  const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const cssSource = read("src/renderer/styles.css");
   const toolbarGroupBlock = cssBlock(cssSource, ".toolbar-group");
   const toolbarGroupEndBlock = cssBlock(cssSource, ".toolbar-group-end");
 
-  assert.match(
-    swiftSource,
-    /ToolbarItem\(placement:\s*\.navigation\)[\s\S]*HStack\(spacing:\s*14\)/
-  );
-  assert.match(
-    swiftSource,
-    /ToolbarItem\(placement:\s*\.primaryAction\)[\s\S]*HStack\(spacing:\s*10\)/
-  );
   assert.match(toolbarGroupBlock, /gap:\s*14px/);
   assert.match(toolbarGroupEndBlock, /gap:\s*10px/);
   assert.doesNotMatch(toolbarGroupBlock, /gap:\s*8px/);
 });
 
 test("project toolbar navigation arrows mirror native typography and disabled color", () => {
-  const swiftSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const cssSource = read("src/renderer/styles.css");
   const backBlock = cssBlock(cssSource, "#go-back");
   const forwardBlock = cssBlock(cssSource, "#go-forward");
   const disabledNavigationBlock = cssBlock(cssSource, "#go-back:disabled, #go-forward:disabled");
 
-  assert.match(
-    swiftSource,
-    /Text\("\\u\{2190\}"\)[\s\S]*\.font\(\.system\(size:\s*16,\s*weight:\s*\.regular,\s*design:\s*\.monospaced\)\)[\s\S]*\.foregroundStyle\(backHistory\.isEmpty \? Color\.toolbarDisabled : Color\.toolbarText\)/
-  );
-  assert.match(
-    swiftSource,
-    /Text\("\\u\{2192\}"\)[\s\S]*\.font\(\.system\(size:\s*16,\s*weight:\s*\.regular,\s*design:\s*\.monospaced\)\)[\s\S]*\.foregroundStyle\(forwardHistory\.isEmpty \? Color\.toolbarDisabled : Color\.toolbarText\)/
-  );
   for (const block of [backBlock, forwardBlock]) {
     assert.match(block, /font-family:\s*ui-monospace,\s*"SFMono-Regular",\s*Menlo,\s*monospace/);
     assert.match(block, /font-size:\s*16px/);
@@ -722,11 +539,9 @@ test("renderer styles wire native adaptive palette tokens into visible shell sur
 });
 
 test("auto appearance preserves stored mode while resolving system palette state", () => {
-  const swiftSource = readRepository("Sources/Wikiwise/WikiwiseApp.swift");
   const rendererSource = read("src/renderer/renderer.js");
   const cssSource = read("src/renderer/styles.css");
 
-  assert.match(swiftSource, /case \.auto:\s+return nil\s+\/\/ follow system/);
   assert.match(rendererSource, /const systemDarkAppearanceQuery = window\.matchMedia\("\(prefers-color-scheme: dark\)"\)/);
   assert.match(
     rendererSource,
@@ -762,20 +577,11 @@ test("auto appearance reacts to system changes without changing explicit modes",
 });
 
 test("appearance changes reload active preview frames like native WebView reload tokens", () => {
-  const nativeContentSource = readRepository("Sources/Wikiwise/ContentView.swift");
-  const nativeWebViewSource = readRepository("Sources/Wikiwise/WebView.swift");
   const rendererSource = read("src/renderer/renderer.js");
   const cycleAppearanceSource = functionSource(rendererSource, "cycleAppearanceMode", "currentHistoryEntry");
   const reloadPreviewSource =
     rendererSource.match(/function refreshVisiblePreviewForAppearanceChange\(\) \{[\s\S]*?\n\}/)?.[0] ?? "";
 
-  assert.match(
-    nativeContentSource,
-    /\.onChange\(of: appearanceMode\) \{[\s\S]*DispatchQueue\.main\.asyncAfter[\s\S]*webViewReloadToken \+= 1[\s\S]*terminalSession\.updateAppearance\(\)/
-  );
-  assert.match(nativeWebViewSource, /wv\.appearance = NSApp\.effectiveAppearance/);
-  assert.match(nativeWebViewSource, /lastReloadToken != reloadToken/);
-  assert.match(nativeWebViewSource, /wv\.loadFileURL\(fileURL,\s*allowingReadAccessTo:\s*allowingReadAccessTo\)/);
 
   assert.notEqual(reloadPreviewSource, "");
   assert.match(reloadPreviewSource, /if \(!previewFrame\.hidden[\s\S]*renderPreview\(\)/);

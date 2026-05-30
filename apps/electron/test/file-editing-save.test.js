@@ -27,18 +27,12 @@ test("main process exposes path-safe save IPC with markdown recompilation", () =
 });
 
 test("save active-file tracking preserves native no-directory side effect", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const coreSource = readRepository("packages/wikiwise-core/src/index.js");
   const mainSource = read("src/main/main.js");
-  const nativeWriteActiveSource =
-    nativeSource.match(/private func writeActiveFile\(_ url: URL\) \{[\s\S]*?\n    \}/)?.[0] ?? "";
   const saveFileSource = mainSource.match(/function saveFile\(payload\) \{[\s\S]*?\n\}/)?.[0] ?? "";
   const writeActiveFileSource =
     coreSource.match(/export function writeActiveFile\(projectRoot, filePath\) \{[\s\S]*?\n\}/)?.[0] ?? "";
 
-  assert.notEqual(nativeWriteActiveSource, "");
-  assert.match(nativeWriteActiveSource, /try\? relativePath\.write\(to:\s*activeFile/);
-  assert.doesNotMatch(nativeWriteActiveSource, /createDirectory/);
 
   assert.notEqual(saveFileSource, "");
   assert.match(saveFileSource, /const activeFile = writeActiveFile\(projectRoot,\s*filePath\)/);
@@ -102,28 +96,13 @@ test("renderer uses shared CodeMirror iframe for source editing, save, and scrol
 });
 
 test("renderer mirrors native editor save timing after shared bridge debounce", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/EditorWebView.swift");
-  const editorBundleSource = readRepository("Sources/Wikiwise/Resources/codemirror-bundle.js");
+  const editorBundleSource = readRepository("apps/electron/resources/codemirror-bundle.js");
   const rendererSource = read("src/renderer/renderer.js");
   const handleEditorContentChangedSource =
     rendererSource.match(/function handleEditorContentChanged\(content\) \{[\s\S]*?\n\}/)?.[0] ?? "";
   const saveSelectedFileSource =
     rendererSource.match(/async function saveSelectedFile\(\) \{[\s\S]*?\n\}\n\nfunction hasCompiledPreview/)?.[0] ?? "";
-  const nativeContentChangedSource =
-    nativeSource.match(/case "contentChanged":[\s\S]*?default:/)?.[0] ?? "";
 
-  assert.match(
-    nativeSource,
-    /guard let content = message\.body as\? String,\s*!content\.isEmpty,\s*let fileURL = currentFileURL else \{ return \}/
-  );
-  assert.match(nativeSource, /never save empty content/);
-  assert.notEqual(nativeContentChangedSource, "");
-  assert.match(nativeContentChangedSource, /try\? content\.write\(to:\s*fileURL/);
-  assert.ok(
-    nativeContentChangedSource.indexOf("try? content.write") <
-      nativeContentChangedSource.indexOf("DispatchQueue.main.async"),
-    "native writes the editor payload before dispatching UI state updates"
-  );
   assert.match(editorBundleSource, /setTimeout\(function\(\)\{window\.webkit[\s\S]*contentChanged[\s\S]*\},500\)/);
 
   assert.notEqual(handleEditorContentChangedSource, "");
@@ -148,9 +127,9 @@ test("renderer refreshes compiled preview state after saving markdown", () => {
   assert.match(rendererSource, /isMarkdownFile/);
 });
 
-test("shared native editor resource keeps WebKit bridge and adds Electron parent bridge", () => {
+test("shared Electron editor resource keeps WebKit bridge and adds Electron parent bridge", () => {
   const editorHtml = fs.readFileSync(
-    path.join(packageRoot, "..", "..", "Sources", "Wikiwise", "Resources", "editor.html"),
+    path.join(packageRoot, "resources", "editor.html"),
     "utf8"
   );
 

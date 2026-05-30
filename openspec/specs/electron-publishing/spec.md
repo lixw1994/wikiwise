@@ -309,7 +309,7 @@ The Electron publish toolbar action SHALL render a native-equivalent busy indica
 
 ### Requirement: Publish Dialog Runtime Evidence
 
-The Electron publishing implementation SHALL have live runtime evidence for first-publish dialog behavior in addition to static native parity tests.
+The Electron publishing implementation SHALL have live runtime evidence for first-publish dialog behavior in addition to static product contract tests.
 
 #### Scenario: Runtime evidence covers first-publish dialog surface
 
@@ -327,7 +327,7 @@ The Electron publishing implementation SHALL have live runtime evidence for firs
 
 ### Requirement: Publish Feedback Runtime Evidence
 
-The Electron publishing implementation SHALL have live runtime evidence for publish success, publish error, external open, and unpublish confirmation flows in addition to static native parity tests.
+The Electron publishing implementation SHALL have live runtime evidence for publish success, publish error, external open, and unpublish confirmation flows in addition to static product contract tests.
 
 #### Scenario: Runtime evidence covers publish success feedback
 
@@ -401,4 +401,3 @@ Electron publishing state refresh SHALL mirror native `ContentView.loadPublishCo
 - **WHEN** Electron publishes or unpublishes a project whose `publish.json` is malformed
 - **THEN** the existing native corrupt-config publish error is still surfaced
 - **AND** the refresh fallback does not hide user-action failures
-

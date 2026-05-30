@@ -69,20 +69,10 @@ test("renderer renders expandable nested file tree rows", () => {
 });
 
 test("renderer mirrors native folder expansion without loading row chrome", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
-  const nativeFileTreeRowSource = nativeSource.slice(
-    nativeSource.indexOf("private func fileTreeRow"),
-    nativeSource.indexOf("// MARK: - Detail")
-  );
   const renderNodeSource =
     rendererSource.match(/function renderNode\(node, depth\) \{[\s\S]*?\n\}\n\nfunction normalizeTreeNodes/)?.[0] ?? "";
 
-  assert.notEqual(nativeFileTreeRowSource, "");
-  assert.match(nativeFileTreeRowSource, /Text\(isExpanded \? "▾" : "▸"\)/);
-  assert.match(nativeFileTreeRowSource, /expandNode\(node\)/);
-  assert.doesNotMatch(nativeFileTreeRowSource, /\.\.\./);
-  assert.doesNotMatch(nativeFileTreeRowSource, /\.disabled/);
 
   assert.notEqual(renderNodeSource, "");
   assert.match(renderNodeSource, /disclosure\.textContent = isExpanded \? "▾" : "▸";/);
@@ -92,18 +82,11 @@ test("renderer mirrors native folder expansion without loading row chrome", () =
 });
 
 test("renderer includes native file tree visual affordances", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
   const styleSource = read("src/renderer/styles.css");
-  const nativeFileTreeRowSource = nativeSource.slice(
-    nativeSource.indexOf("private func fileTreeRow"),
-    nativeSource.indexOf("// MARK: - Detail")
-  );
   const specialFileRule = cssBlock(styleSource, ".tree-file-button.special-file");
 
   assert.match(rendererSource, /special-folder/);
-  assert.match(nativeFileTreeRowSource, /let specialFiles:\s*Set<String> = \["home\.md", "index\.md", "log\.md"\]/);
-  assert.match(nativeFileTreeRowSource, /weight:\s*isSpecialFile \? \.medium : \.regular/);
   assert.match(rendererSource, /\["home\.md", "index\.md", "log\.md"\]\.includes\(node\.name\)/);
   assert.match(rendererSource, /button\.classList\.add\("special-file"\)/);
   assert.match(rendererSource, /tree-folder-icon/);
@@ -121,24 +104,11 @@ test("renderer includes native file tree visual affordances", () => {
 });
 
 test("renderer mirrors native file tree row typography", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const styleSource = read("src/renderer/styles.css");
-  const nativeFileTreeRowSource = nativeSource.slice(
-    nativeSource.indexOf("private func fileTreeRow"),
-    nativeSource.indexOf("// MARK: - Detail")
-  );
   const folderButtonRule = cssBlock(styleSource, ".tree-folder-button");
   const fileButtonRule = cssBlock(styleSource, ".tree-file-button");
   const specialFileRule = cssBlock(styleSource, ".tree-file-button.special-file");
 
-  assert.match(
-    nativeFileTreeRowSource,
-    /Text\(node\.name\)[\s\S]*\.font\(\.system\(size:\s*13,\s*weight:\s*\.regular,\s*design:\s*\.serif\)\)/
-  );
-  assert.match(
-    nativeFileTreeRowSource,
-    /Text\(node\.name\)[\s\S]*\.font\(\.system\(size:\s*13,\s*weight:\s*isSpecialFile \? \.medium : \.regular,\s*design:\s*\.serif\)\)/
-  );
 
   assert.match(folderButtonRule, /font-family:\s*Georgia,\s*serif/);
   assert.match(folderButtonRule, /font-size:\s*13px/);
@@ -152,29 +122,12 @@ test("renderer mirrors native file tree row typography", () => {
 });
 
 test("renderer mirrors native folder and file row trailing padding", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const styleSource = read("src/renderer/styles.css");
-  const nativeFileTreeRowSource = nativeSource.slice(
-    nativeSource.indexOf("private func fileTreeRow"),
-    nativeSource.indexOf("// MARK: - Detail")
-  );
-  const nativeFolderRowSource =
-    nativeFileTreeRowSource.match(/if node\.isDirectory \{[\s\S]*?\.help\(folderTooltip\(node\.name\)\)/)?.[0] ?? "";
-  const nativeFileRowSource =
-    nativeFileTreeRowSource.match(/Button \{\s*navigateTo\(node\.url\)[\s\S]*?\.buttonStyle\(\.plain\)/)?.[0] ?? "";
   const treeRowRule = cssBlock(styleSource, ".tree-row");
   const folderButtonRule = cssBlock(styleSource, ".tree-folder-button");
   const fileButtonRule = cssBlock(styleSource, ".tree-file-button");
 
-  assert.notEqual(nativeFolderRowSource, "");
-  assert.match(nativeFolderRowSource, /\.padding\(\.leading,\s*indent\)/);
-  assert.match(nativeFolderRowSource, /\.padding\(\.vertical,\s*5\)/);
-  assert.doesNotMatch(nativeFolderRowSource, /\.padding\(\.trailing,\s*8\)/);
 
-  assert.notEqual(nativeFileRowSource, "");
-  assert.match(nativeFileRowSource, /\.padding\(\.leading,\s*indent \+ 15\)/);
-  assert.match(nativeFileRowSource, /\.padding\(\.vertical,\s*5\)/);
-  assert.match(nativeFileRowSource, /\.padding\(\.trailing,\s*8\)/);
 
   assert.match(treeRowRule, /padding:\s*5px 0 5px calc\(18px \+ \(var\(--tree-depth,\s*0\) \* 16px\)\)/);
   assert.doesNotMatch(treeRowRule, /padding:\s*5px 8px 5px/);
@@ -183,24 +136,9 @@ test("renderer mirrors native folder and file row trailing padding", () => {
 });
 
 test("renderer mirrors native selected file accent height", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const styleSource = read("src/renderer/styles.css");
-  const nativeFileTreeRowSource = nativeSource.slice(
-    nativeSource.indexOf("private func fileTreeRow"),
-    nativeSource.indexOf("// MARK: - Detail")
-  );
-  const nativeSelectedAccentSource =
-    nativeFileTreeRowSource.match(
-      /Color\.sidebarSelectedBg[\s\S]*?\.padding\(\.leading,\s*indent \+ 4\)/
-    )?.[0] ?? "";
   const selectedAccentRule = cssBlock(styleSource, ".tree-selected-accent");
 
-  assert.notEqual(nativeSelectedAccentSource, "");
-  assert.match(
-    nativeSelectedAccentSource,
-    /Color\.sidebarSelectedBg[\s\S]*\.overlay\(alignment:\s*\.leading\)[\s\S]*Rectangle\(\)[\s\S]*\.frame\(width:\s*2\)[\s\S]*\.padding\(\.leading,\s*indent \+ 4\)/
-  );
-  assert.doesNotMatch(nativeSelectedAccentSource, /\.padding\(\.vertical/);
 
   assert.match(selectedAccentRule, /top:\s*0/);
   assert.match(selectedAccentRule, /bottom:\s*0/);
@@ -211,25 +149,11 @@ test("renderer mirrors native selected file accent height", () => {
 });
 
 test("renderer mirrors native folder icon scaled geometry", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
   const styleSource = read("src/renderer/styles.css");
-  const nativeFolderIconSource =
-    nativeSource.match(/struct FolderIcon:[\s\S]*?\/\/ Paper design palette/)?.[0] ?? "";
-  const nativeFileTreeRowSource = nativeSource.slice(
-    nativeSource.indexOf("private func fileTreeRow"),
-    nativeSource.indexOf("// MARK: - Detail")
-  );
   const folderIconRule = cssBlock(styleSource, ".tree-folder-icon");
   const folderSvgRule = cssBlock(styleSource, ".tree-folder-svg");
 
-  assert.match(
-    nativeFileTreeRowSource,
-    /FolderIcon\(size:\s*13,\s*isSpecial:\s*node\.name == "raw" \|\| node\.name == "site"\)/
-  );
-  assert.match(nativeFolderIconSource, /\.frame\(width:\s*size,\s*height:\s*size \* \(12\.0 \/ 14\.0\)\)/);
-  assert.match(nativeFolderIconSource, /x:\s*\(7\.0 - 1\.5\) \* s,\s*y:\s*\(7\.0 - 1\.5\) \* s/);
-  assert.match(nativeFolderIconSource, /width:\s*3\.0 \* s,\s*height:\s*3\.0 \* s/);
 
   assert.match(folderIconRule, /width:\s*13px/);
   assert.match(folderIconRule, /height:\s*11\.14px/);
@@ -245,23 +169,10 @@ test("renderer mirrors native folder icon scaled geometry", () => {
 });
 
 test("renderer mirrors native folder icon scaled stroke weight", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const styleSource = read("src/renderer/styles.css");
-  const nativeFolderIconSource =
-    nativeSource.match(/struct FolderIcon:[\s\S]*?\/\/ Paper design palette/)?.[0] ?? "";
-  const nativeFileTreeRowSource = nativeSource.slice(
-    nativeSource.indexOf("private func fileTreeRow"),
-    nativeSource.indexOf("// MARK: - Detail")
-  );
   const folderIconRule = cssBlock(styleSource, ".tree-folder-icon");
   const folderShapeRule = cssBlock(styleSource, ".tree-folder-shape");
 
-  assert.match(
-    nativeFileTreeRowSource,
-    /FolderIcon\(size:\s*13,\s*isSpecial:\s*node\.name == "raw" \|\| node\.name == "site"\)/
-  );
-  assert.match(nativeFolderIconSource, /let s = canvasSize\.width \/ 14\.0/);
-  assert.match(nativeFolderIconSource, /context\.stroke\(path,\s*with:\s*\.color\(strokeColor\),\s*lineWidth:\s*0\.8 \* s\)/);
 
   assert.match(folderShapeRule, /stroke:\s*var\(--color-folder-stroke\)/);
   assert.match(folderShapeRule, /stroke-width:\s*0\.8/);
@@ -270,11 +181,8 @@ test("renderer mirrors native folder icon scaled stroke weight", () => {
 });
 
 test("renderer mirrors native folder icon path drawing", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
   const styleSource = read("src/renderer/styles.css");
-  const nativeFolderIconSource =
-    nativeSource.match(/struct FolderIcon:[\s\S]*?\/\/ Paper design palette/)?.[0] ?? "";
   const renderNodeSource =
     rendererSource.match(/function renderNode\(node, depth\) \{[\s\S]*?\n\}\n\nfunction normalizeTreeNodes/)?.[0] ?? "";
   const folderIconRule = cssBlock(styleSource, ".tree-folder-icon");
@@ -285,11 +193,6 @@ test("renderer mirrors native folder icon path drawing", () => {
   const nativePathData =
     "M0.5 2.5 C0.5 1.4 1.4 0.5 2.5 0.5 L5 0.5 L6.5 2.5 L11.5 2.5 C12.6 2.5 13.5 3.4 13.5 4.5 L13.5 9.5 C13.5 10.6 12.6 11.5 11.5 11.5 L2.5 11.5 C1.4 11.5 0.5 10.6 0.5 9.5 Z";
 
-  assert.match(nativeFolderIconSource, /path\.move\(to:\s*CGPoint\(x:\s*0\.5 \* s,\s*y:\s*2\.5 \* s\)\)/);
-  assert.match(nativeFolderIconSource, /path\.addCurve\([\s\S]*to:\s*CGPoint\(x:\s*2\.5 \* s,\s*y:\s*0\.5 \* s\)/);
-  assert.match(nativeFolderIconSource, /path\.addLine\(to:\s*CGPoint\(x:\s*6\.5 \* s,\s*y:\s*2\.5 \* s\)\)/);
-  assert.match(nativeFolderIconSource, /path\.addCurve\([\s\S]*to:\s*CGPoint\(x:\s*13\.5 \* s,\s*y:\s*4\.5 \* s\)/);
-  assert.match(nativeFolderIconSource, /path\.closeSubpath\(\)/);
 
   assert.notEqual(renderNodeSource, "");
   assert.match(renderNodeSource, /document\.createElementNS\("http:\/\/www\.w3\.org\/2000\/svg",\s*"svg"\)/);
@@ -313,13 +216,8 @@ test("renderer mirrors native folder icon path drawing", () => {
 });
 
 test("renderer mirrors native file tree folder tooltip copy", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
 
-  assert.match(nativeSource, /case "wiki": return "Wiki pages — your editable knowledge base"/);
-  assert.match(nativeSource, /case "sources": return "Source summaries — one page per ingested source"/);
-  assert.match(nativeSource, /case "raw": return "Raw source documents — read-only originals"/);
-  assert.match(nativeSource, /case "site": return "Build tooling and compiled HTML output"/);
 
   assert.match(rendererSource, /case "wiki":[\s\S]*return "Wiki pages — your editable knowledge base"/);
   assert.match(rendererSource, /case "sources":[\s\S]*return "Source summaries — one page per ingested source"/);
@@ -342,21 +240,10 @@ test("renderer auto-expands native default folders and preserves expansion on re
 });
 
 test("renderer mirrors native refresh tree top-level expansion retention", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
-  const nativeRefreshSource =
-    nativeSource.match(/private func refreshTree\(\) \{[\s\S]*?let snapshot = tree; tree = \[\]; tree = snapshot\n    \}/)?.[0] ??
-    "";
   const restoreExpandedSource =
     rendererSource.match(/async function restoreExpandedTree\(previousExpandedPaths\) \{[\s\S]*?\n\}/)?.[0] ?? "";
 
-  assert.notEqual(nativeRefreshSource, "");
-  assert.match(nativeRefreshSource, /tree = scanOneLevel\(at: root\)/);
-  assert.match(
-    nativeRefreshSource,
-    /let newFolderURLs = Set\(tree\.filter \{ \$0\.isDirectory \}\.map \{ \$0\.url \}\)/
-  );
-  assert.match(nativeRefreshSource, /expandedFolders = previousExpanded\.intersection\(newFolderURLs\)/);
 
   assert.notEqual(restoreExpandedSource, "");
   assert.match(restoreExpandedSource, /const topLevelExpandedPaths = new Set\(/);
@@ -384,12 +271,10 @@ test("renderer preserves file tree state across left sidebar visibility changes"
 });
 
 test("renderer matches native left sidebar width constraints and resize affordance", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
   const htmlSource = read("src/renderer/index.html");
   const styleSource = read("src/renderer/styles.css");
 
-  assert.match(nativeSource, /\.navigationSplitViewColumnWidth\(min:\s*110,\s*ideal:\s*200,\s*max:\s*360\)/);
   assert.match(htmlSource, /id="left-sidebar-resize-handle"/);
   assert.match(styleSource, /--left-sidebar-width:\s*200px/);
   assert.match(styleSource, /grid-template-columns:\s*var\(--left-sidebar-width\)\s+minmax\(0,\s*1fr\)\s+var\(--right-sidebar-width\)/);
@@ -411,7 +296,6 @@ test("renderer matches native left sidebar width constraints and resize affordan
 });
 
 test("renderer left sidebar resize handle mirrors native quiet divider", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const styleSource = read("src/renderer/styles.css");
   const sidebarBlock = cssBlock(styleSource, ".sidebar");
   const handleBlock = cssBlock(styleSource, ".left-sidebar-resize-handle");
@@ -419,10 +303,6 @@ test("renderer left sidebar resize handle mirrors native quiet divider", () => {
     /\.left-sidebar-resize-handle:hover,\s*\.left-sidebar-resize-handle:focus-visible\s*\{([^}]+)\}/
   );
 
-  assert.match(
-    nativeSource,
-    /\.navigationSplitViewColumnWidth\(min:\s*110,\s*ideal:\s*200,\s*max:\s*360\)[\s\S]*\.overlay\(alignment:\s*\.trailing\)[\s\S]*Rectangle\(\)\.fill\(Color\.dividerGray\)\.frame\(width:\s*1\)/
-  );
   assert.match(sidebarBlock, /border-right:\s*1px solid var\(--color-sidebar-rule\)/);
   assert.match(handleBlock, /right:\s*0/);
   assert.match(handleBlock, /width:\s*5px/);

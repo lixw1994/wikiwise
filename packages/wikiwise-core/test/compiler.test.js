@@ -9,7 +9,7 @@ const repositoryRoot = path.resolve(new URL("../../../", import.meta.url).pathna
 
 function copyResource(name, destination) {
   fs.copyFileSync(
-    path.join(repositoryRoot, "Sources", "Wikiwise", "Resources", name),
+    path.join(repositoryRoot, "apps", "electron", "resources", name),
     path.join(destination, name)
   );
 }

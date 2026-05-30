@@ -54,7 +54,6 @@ test("main process owns terminal lifecycle and sends output events", () => {
 });
 
 test("main process starts right sidebar terminal as native login shell without changing lifecycle", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/TerminalEmbed.swift");
   const mainSource = read("src/main/main.js");
   const startTerminalStart = mainSource.indexOf("function startTerminal");
   const normalizeStart = mainSource.indexOf("function normalizeTerminalSize", startTerminalStart);
@@ -67,14 +66,6 @@ test("main process starts right sidebar terminal as native login shell without c
   assert.notEqual(normalizeStart, -1);
   assert.notEqual(resizeStart, -1);
   assert.notEqual(closeStart, -1);
-  assert.match(nativeSource, /let shell = ProcessInfo\.processInfo\.environment\["SHELL"\] \?\? "\/bin\/zsh"/);
-  assert.match(nativeSource, /executable:\s*shell/);
-  assert.match(nativeSource, /args:\s*\[\]/);
-  assert.ok(
-    nativeSource.includes('execName: "-\\((shell as NSString).lastPathComponent)"'),
-    "Native SwiftTerm should request login-shell semantics with a leading-dash execName"
-  );
-  assert.match(nativeSource, /currentDirectory:\s*cwd/);
 
   assert.match(
     mainSource,
@@ -136,12 +127,8 @@ test("main process repairs node-pty spawn helper permissions before PTY startup"
 });
 
 test("terminal startup reuses an existing window session like native startIfNeeded", () => {
-  const nativeTerminalSource = readRepository("Sources/Wikiwise/TerminalEmbed.swift");
-  const nativeContentSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const mainSource = read("src/main/main.js");
   const rendererSource = read("src/renderer/renderer.js");
-  const nativeStartSource =
-    nativeTerminalSource.match(/func startIfNeeded\(workingDirectory: URL\?\) \{[\s\S]*?tv\.startProcess\([\s\S]*?\n        \)\n    \}/)?.[0] ?? "";
   const startTerminalStart = mainSource.indexOf("function startTerminal");
   const normalizeStart = mainSource.indexOf("function normalizeTerminalSize", startTerminalStart);
   const startTerminalSource = mainSource.slice(startTerminalStart, normalizeStart);
@@ -156,11 +143,6 @@ test("terminal startup reuses an existing window session like native startIfNeed
   const sendTerminalInputStart = rendererSource.indexOf("async function sendTerminalInput", handleTerminalOutputStart);
   const handleTerminalOutputSource = rendererSource.slice(handleTerminalOutputStart, sendTerminalInputStart);
 
-  assert.notEqual(nativeStartSource, "");
-  assert.match(nativeContentSource, /terminalSession\.startIfNeeded\(workingDirectory:\s*url\)/);
-  assert.match(nativeStartSource, /guard !isStarted else \{ return \}/);
-  assert.match(nativeStartSource, /isStarted = true/);
-  assert.match(nativeStartSource, /currentDirectory:\s*cwd/);
 
   assert.notEqual(startTerminalStart, -1);
   assert.notEqual(normalizeStart, -1);
@@ -346,12 +328,9 @@ test("renderer markup and styles include native right sidebar tabs and terminal 
 });
 
 test("renderer hides empty optional info sections like native RightSidebar", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
   const htmlSource = read("src/renderer/index.html");
   const rendererSource = read("src/renderer/renderer.js");
 
-  assert.match(nativeSource, /if let file = selectedFileURL,\s*let directions = parseDirections\(from: file\)/);
-  assert.match(nativeSource, /if let file = selectedFileURL,\s*!wikilinkTargets\(in: file\)\.isEmpty/);
   assert.match(htmlSource, /id="info-directions-section"[^>]*hidden/);
   assert.match(htmlSource, /id="info-links-section"[^>]*hidden/);
   assert.match(rendererSource, /const hasDirections = Boolean\(info\?\.directions\)/);
@@ -362,23 +341,16 @@ test("renderer hides empty optional info sections like native RightSidebar", () 
 });
 
 test("renderer linked info rows use native north-east marker", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
   const rendererSource = read("src/renderer/renderer.js");
 
-  assert.match(nativeSource, /Text\("\\u\{2197\} \\\(link\)"\)/);
   assert.match(rendererSource, /item\.textContent = `↗ \$\{target\}`/);
   assert.doesNotMatch(rendererSource, /item\.textContent = `-> \$\{target\}`/);
 });
 
 test("renderer linked info rows mirror native typography and spacing", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
   const cssSource = read("src/renderer/styles.css");
   const infoLinksBlock = cssBlock(cssSource, ".info-links");
 
-  assert.match(
-    nativeSource,
-    /VStack\(alignment:\s*\.leading,\s*spacing:\s*4\)[\s\S]*Text\("\\u\{2197\} \\\(link\)"\)[\s\S]*\.font\(\.custom\("Fraunces",\s*size:\s*13\)\)[\s\S]*\.foregroundStyle\(Color\.linkedText\)/
-  );
 
   assert.match(infoLinksBlock, /display:\s*grid/);
   assert.match(infoLinksBlock, /gap:\s*4px/);
@@ -394,21 +366,12 @@ test("renderer linked info rows mirror native typography and spacing", () => {
 });
 
 test("renderer optional info sections mirror native divider spacing", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
   const htmlSource = read("src/renderer/index.html");
   const cssSource = read("src/renderer/styles.css");
   const infoSectionBlock = cssBlock(cssSource, ".info-section");
   const infoOptionalSectionBlock = cssBlock(cssSource, ".info-optional-section");
   const infoListBlock = cssBlock(cssSource, ".info-list");
 
-  assert.match(
-    nativeSource,
-    /if let file = selectedFileURL,\s*let directions = parseDirections\(from: file\)[\s\S]*\.padding\(\.top,\s*18\)[\s\S]*Rectangle\(\)\.fill\(Color\.sidebarRule\)\.frame\(height:\s*1\)/
-  );
-  assert.match(
-    nativeSource,
-    /if let file = selectedFileURL,\s*!wikilinkTargets\(in: file\)\.isEmpty[\s\S]*\.padding\(\.top,\s*18\)[\s\S]*Rectangle\(\)\.fill\(Color\.sidebarRule\)\.frame\(height:\s*1\)/
-  );
 
   assert.match(htmlSource, /id="info-directions-section" class="info-section info-optional-section" hidden/);
   assert.match(htmlSource, /id="info-links-section" class="info-section info-optional-section" hidden/);
@@ -422,31 +385,21 @@ test("renderer optional info sections mirror native divider spacing", () => {
 });
 
 test("renderer info panel uses native content inset", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
   const htmlSource = read("src/renderer/index.html");
   const cssSource = read("src/renderer/styles.css");
   const infoPanelBlock = cssBlock(cssSource, ".info-panel");
 
-  assert.match(
-    nativeSource,
-    /private var infoTab:[\s\S]*ScrollView[\s\S]*VStack\(alignment:\s*\.leading,\s*spacing:\s*0\)[\s\S]*\.padding\(14\)[\s\S]*\.frame\(maxWidth:\s*\.infinity,\s*alignment:\s*\.leading\)/
-  );
   assert.match(htmlSource, /id="info-panel" class="right-panel info-panel" hidden/);
   assert.match(infoPanelBlock, /padding:\s*14px/);
   assert.doesNotMatch(infoPanelBlock, /padding:\s*18px/);
 });
 
 test("renderer terminal panel mirrors native top and leading inset", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
   const htmlSource = read("src/renderer/index.html");
   const cssSource = read("src/renderer/styles.css");
   const terminalPanelBlock = cssBlock(cssSource, ".terminal-panel");
   const xtermBlock = cssBlock(cssSource, ".terminal-surface .xterm");
 
-  assert.match(
-    nativeSource,
-    /private var terminalTab:[\s\S]*TerminalEmbed\(session:\s*terminalSession\)[\s\S]*\.padding\(\.leading,\s*8\)[\s\S]*\.padding\(\.top,\s*4\)[\s\S]*\.frame\(maxWidth:\s*\.infinity,\s*maxHeight:\s*\.infinity\)/
-  );
   assert.match(htmlSource, /id="terminal-panel" class="right-panel terminal-panel"/);
   assert.match(terminalPanelBlock, /padding:\s*4px 0 0 8px/);
   assert.match(terminalPanelBlock, /overflow:\s*hidden/);
@@ -456,17 +409,12 @@ test("renderer terminal panel mirrors native top and leading inset", () => {
 });
 
 test("renderer right sidebar resize handle mirrors native transparent overlay", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
   const cssSource = read("src/renderer/styles.css");
   const handleBlock = cssBlock(cssSource, ".right-sidebar-resize-handle");
   const hoverFocusMatch = cssSource.match(
     /\.right-sidebar-resize-handle:hover,\s*\.right-sidebar-resize-handle:focus-visible\s*\{([^}]+)\}/
   );
 
-  assert.match(
-    nativeSource,
-    /\.overlay\(alignment:\s*\.leading\)[\s\S]*Rectangle\(\)[\s\S]*\.fill\(Color\.clear\)[\s\S]*\.frame\(width:\s*5\)[\s\S]*\.contentShape\(Rectangle\(\)\)[\s\S]*NSCursor\.resizeLeftRight/
-  );
   assert.match(handleBlock, /width:\s*5px/);
   assert.match(handleBlock, /background:\s*transparent/);
   assert.match(handleBlock, /cursor:\s*col-resize/);
@@ -476,8 +424,7 @@ test("renderer right sidebar resize handle mirrors native transparent overlay", 
   assert.doesNotMatch(hoverFocusMatch[1], /var\(--color-resize-hover\)/);
 });
 
-test("renderer terminal CSS fallback mirrors native SwiftTerm palette", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/TerminalEmbed.swift");
+test("renderer terminal CSS fallback mirrors Electron terminal palette", () => {
   const rendererSource = read("src/renderer/renderer.js");
   const cssSource = read("src/renderer/styles.css");
   const rootBlock = rootCssBlock(cssSource, ":root");
@@ -485,14 +432,6 @@ test("renderer terminal CSS fallback mirrors native SwiftTerm palette", () => {
   const terminalPanelBlock = cssBlock(cssSource, ".terminal-panel");
   const terminalSurfaceBlock = cssBlock(cssSource, ".terminal-surface");
 
-  assert.match(
-    nativeSource,
-    /nativeBackgroundColor = isDark[\s\S]*0x0E\/255[\s\S]*0x0C\/255[\s\S]*0x08\/255[\s\S]*0xF3\/255[\s\S]*0xED\/255[\s\S]*0xDE\/255/
-  );
-  assert.match(
-    nativeSource,
-    /nativeForegroundColor = isDark[\s\S]*0xCF\/255[\s\S]*0xC3\/255[\s\S]*0xA3\/255[\s\S]*0x5B\/255[\s\S]*0x52\/255[\s\S]*0x40\/255/
-  );
   assert.match(rendererSource, /background:\s*"#0E0C08"[\s\S]*foreground:\s*"#CFC3A3"/);
   assert.match(rendererSource, /background:\s*"#F3EDDE"[\s\S]*foreground:\s*"#5B5240"/);
   assert.match(rendererSource, /drawBoldTextInBrightColors:\s*true/);
@@ -519,7 +458,6 @@ test("renderer terminal CSS fallback mirrors native SwiftTerm palette", () => {
 });
 
 test("renderer terminal cursor mirrors native visible focused and inactive styles", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/TerminalEmbed.swift");
   const rendererSource = read("src/renderer/renderer.js");
   const cssSource = read("src/renderer/styles.css");
   const setRightSidebarTabStart = rendererSource.indexOf("function setRightSidebarTab");
@@ -545,8 +483,6 @@ test("renderer terminal cursor mirrors native visible focused and inactive style
   const unfocusedCursorOverlayBlock = cssBlock(cssSource, ".terminal-surface:not(.terminal-focused) .terminal-cursor-overlay");
   const cursorOverlayHiddenBlock = cssBlock(cssSource, ".terminal-cursor-overlay[hidden]");
 
-  assert.match(nativeSource, /LocalProcessTerminalView/);
-  assert.match(nativeSource, /tv\.nativeForegroundColor/);
   assert.notEqual(setRightSidebarTabStart, -1);
   assert.notEqual(renderRightSidebarStart, -1);
   assert.notEqual(terminalConstructorSource, "");
@@ -585,17 +521,12 @@ test("renderer terminal cursor mirrors native visible focused and inactive style
 });
 
 test("renderer directions info uses native gold callout styling", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
   const htmlSource = read("src/renderer/index.html");
   const cssSource = read("src/renderer/styles.css");
   const directionsBlock = cssBlock(cssSource, ".info-directions-callout");
   const directionsAccentBlock = cssBlock(cssSource, ".info-directions-callout::before");
   const infoLinksBlock = cssBlock(cssSource, ".info-links");
 
-  assert.match(
-    nativeSource,
-    /Text\(directions\)[\s\S]*\.font\(\.custom\("Fraunces",\s*size:\s*12\)\)[\s\S]*\.italic\(\)[\s\S]*\.foregroundStyle\(Color\.infoValue\)[\s\S]*\.lineSpacing\(3\)[\s\S]*\.padding\(\.vertical,\s*10\)[\s\S]*\.padding\(\.horizontal,\s*12\)[\s\S]*\.background\(Color\.accentGold\.opacity\(0\.12\)\)[\s\S]*Rectangle\(\)[\s\S]*\.fill\(Color\.accentGold\)[\s\S]*\.frame\(width:\s*2\)/
-  );
   assert.match(htmlSource, /<p id="info-directions" class="info-directions-callout">Select a markdown file<\/p>/);
   assert.match(directionsBlock, /position:\s*relative/);
   assert.match(directionsBlock, /margin:\s*0/);
@@ -615,7 +546,6 @@ test("renderer directions info uses native gold callout styling", () => {
 });
 
 test("renderer info metadata mirrors native about document section", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
   const htmlSource = read("src/renderer/index.html");
   const rendererSource = read("src/renderer/renderer.js");
   const cssSource = read("src/renderer/styles.css");
@@ -626,25 +556,6 @@ test("renderer info metadata mirrors native about document section", () => {
   const infoValueBlock = cssBlock(cssSource, ".info-value");
   const infoSectionHeadingBlock = cssBlock(cssSource, ".info-section h3");
 
-  assert.match(nativeSource, /if let file = selectedFileURL \{\s*infoSection\("ABOUT THIS DOCUMENT"\)/);
-  assert.match(
-    nativeSource,
-    /infoSection\("ABOUT THIS DOCUMENT"\)[\s\S]*VStack\(alignment:\s*\.leading,\s*spacing:\s*6\)[\s\S]*infoRow\("PATH"[\s\S]*infoRow\("EDITED"[\s\S]*infoRow\("WORDS"/
-  );
-  assert.match(
-    nativeSource,
-    /private func infoSection[\s\S]*VStack\(alignment:\s*\.leading,\s*spacing:\s*8\)[\s\S]*sectionHeader\(title\)/
-  );
-  assert.match(
-    nativeSource,
-    /private func sectionHeader[\s\S]*\.font\(\.custom\("JetBrains Mono",\s*size:\s*9\)\)[\s\S]*\.tracking\(1\.6\)[\s\S]*\.textCase\(\.uppercase\)[\s\S]*\.foregroundStyle\(Color\.sidebarHeader\)/
-  );
-  assert.match(
-    nativeSource,
-    /private func infoRow[\s\S]*HStack \{[\s\S]*\.font\(\.custom\("JetBrains Mono",\s*size:\s*10\)\)[\s\S]*Spacer\(\)[\s\S]*\.font\(\.custom\("Fraunces",\s*size:\s*12\)\)/
-  );
-  assert.match(nativeSource, /private func formattedModDate[\s\S]*else \{ return "\\u\{2014\}" \}/);
-  assert.match(nativeSource, /private func formattedWordCount[\s\S]*else \{ return "\\u\{2014\}" \}/);
 
   assert.match(htmlSource, /id="info-about-section" class="info-section info-about-section" hidden/);
   assert.match(htmlSource, /<h3>ABOUT THIS DOCUMENT<\/h3>[\s\S]*<dl class="info-list">/);
@@ -680,14 +591,12 @@ test("renderer info metadata mirrors native about document section", () => {
 });
 
 test("renderer directions callout serif font beats generic info paragraph style", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
   const cssSource = read("src/renderer/styles.css");
   const genericInfoParagraphBlock = cssBlock(cssSource, ".info-section p");
   const specificDirectionsBlock = cssBlock(cssSource, ".info-section .info-directions-callout");
   const genericRuleIndex = cssSource.indexOf(".info-section p");
   const specificRuleIndex = cssSource.indexOf(".info-section .info-directions-callout");
 
-  assert.match(nativeSource, /Text\(directions\)[\s\S]*\.font\(\.custom\("Fraunces",\s*size:\s*12\)\)/);
   assert.match(genericInfoParagraphBlock, /font-family:\s*ui-monospace/);
   assert.notEqual(specificDirectionsBlock, "");
   assert.match(specificDirectionsBlock, nativeSerifStackPattern);
@@ -696,17 +605,9 @@ test("renderer directions callout serif font beats generic info paragraph style"
 });
 
 test("renderer mirrors native decimal word-count formatting", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
   const rendererSource = read("src/renderer/renderer.js");
   const coreSource = readRepository("packages/wikiwise-core/src/index.js");
-  const nativeFormatterSource =
-    nativeSource.match(/private func formattedWordCount[\s\S]*?\n    \}/)?.[0] ?? "";
 
-  assert.notEqual(nativeFormatterSource, "");
-  assert.match(
-    nativeFormatterSource,
-    /let formatter = NumberFormatter\(\)[\s\S]*formatter\.numberStyle = \.decimal[\s\S]*formatter\.string\(from:\s*NSNumber\(value:\s*words\.count\)\)/
-  );
   assert.match(coreSource, /wordCount:\s*countWords\(content\)/);
   assert.match(rendererSource, /function formatWordCount\(wordCount\)/);
   assert.match(rendererSource, /new Intl\.NumberFormat\(\)\.format\(numericWordCount\)/);
@@ -733,13 +634,9 @@ test("renderer handles document info refresh failures like native metadata fallb
 });
 
 test("renderer requests info metadata for non-markdown selected files like native", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
   const rendererSource = read("src/renderer/renderer.js");
   const mainSource = read("src/main/main.js");
   const coreSource = readRepository("packages/wikiwise-core/src/index.js");
-  const nativeInfoStart = nativeSource.indexOf("private var infoTab:");
-  const nativeInfoEnd = nativeSource.indexOf("    // MARK: - Section helpers", nativeInfoStart);
-  const nativeInfoSource = nativeSource.slice(nativeInfoStart, nativeInfoEnd);
   const refreshStart = rendererSource.indexOf("async function refreshDocumentInfo()");
   const refreshEnd = rendererSource.indexOf("async function handleProjectChanged");
   const refreshSource = rendererSource.slice(refreshStart, refreshEnd);
@@ -750,14 +647,9 @@ test("renderer requests info metadata for non-markdown selected files like nativ
   const manualRefreshEnd = rendererSource.indexOf("function attachPreviewNavigation", manualRefreshStart);
   const manualRefreshSource = rendererSource.slice(manualRefreshStart, manualRefreshEnd);
 
-  assert.notEqual(nativeInfoSource, "");
   assert.notEqual(refreshSource, "");
   assert.notEqual(saveSource, "");
   assert.notEqual(manualRefreshSource, "");
-  assert.match(nativeInfoSource, /if let file = selectedFileURL \{[\s\S]*formattedModDate\(file\)[\s\S]*formattedWordCount\(file\)/);
-  assert.match(nativeInfoSource, /if let file = selectedFileURL,\s*let directions = parseDirections\(from: file\)/);
-  assert.match(nativeInfoSource, /if let file = selectedFileURL,\s*!wikilinkTargets\(in: file\)\.isEmpty/);
-  assert.doesNotMatch(nativeInfoSource, /pathExtension/);
   assert.match(mainSource, /function getDocumentInfo\(payload\)[\s\S]*assertProjectPath\(projectRoot,\s*payload\.filePath\)[\s\S]*summarizeDocumentInfo\(filePath\)/);
   assert.match(coreSource, /export function summarizeDocumentInfo\(filePath\)[\s\S]*const content = readTextFile\(resolvedPath\)[\s\S]*wordCount: countWords\(content\)/);
   assert.match(refreshSource, /if \(!state\.currentProject \|\| !file\?\.path\) \{/);
@@ -770,52 +662,31 @@ test("renderer requests info metadata for non-markdown selected files like nativ
 });
 
 test("shared document info mirrors native CRLF directions parsing", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
   const coreSource = readRepository("packages/wikiwise-core/src/index.js");
-  const nativeDirectionsSource =
-    nativeSource.match(/private func parseDirections\(from url: URL\) -> String\? \{[\s\S]*?\n    \}/)?.[0] ?? "";
   const coreDirectionsSource =
     coreSource.match(/function extractDirections\(content\) \{[\s\S]*?\n\}/)?.[0] ?? "";
 
-  assert.notEqual(nativeDirectionsSource, "");
   assert.notEqual(coreDirectionsSource, "");
-  assert.match(nativeDirectionsSource, /text\.split\(separator:\s*"\\n",\s*omittingEmptySubsequences:\s*false\)/);
-  assert.match(nativeDirectionsSource, /if line == "---"/);
   assert.match(coreDirectionsSource, /text\.split\("\\n"\)/);
   assert.doesNotMatch(coreDirectionsSource, /split\(\/\\r\?\\n\/\)/);
 });
 
 test("shared document info mirrors native wikilink scanner bracket targets", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
   const coreSource = readRepository("packages/wikiwise-core/src/index.js");
-  const nativeWikilinkSource =
-    nativeSource.match(/private func wikilinkTargets\(in url: URL\) -> \[String\] \{[\s\S]*?\n    \}/)?.[0] ?? "";
   const coreWikilinkSource =
     coreSource.match(/function extractWikilinks\(content\) \{[\s\S]*?\n\}/)?.[0] ?? "";
 
-  assert.notEqual(nativeWikilinkSource, "");
   assert.notEqual(coreWikilinkSource, "");
-  assert.match(nativeWikilinkSource, /scanner\.range\(of: "\[\["\)/);
-  assert.match(nativeWikilinkSource, /scanner\.range\(of: "\]\]"\)/);
-  assert.match(nativeWikilinkSource, /String\(scanner\[..<close\.lowerBound\]\)/);
   assert.ok(coreWikilinkSource.includes("const pattern = /\\[\\[([\\s\\S]*?)\\]\\]/g;"));
   assert.doesNotMatch(coreWikilinkSource, /\[\^\\\]\]\+/);
 });
 
 test("renderer mirrors native numeric relative edited-time formatting", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
   const rendererSource = read("src/renderer/renderer.js");
-  const nativeFormatterSource =
-    nativeSource.match(/private func formattedModDate[\s\S]*?\n    \}/)?.[0] ?? "";
   const rendererFormatterSource =
     rendererSource.match(/function formatEditedTime\(modifiedAt\) \{[\s\S]*?\n\}/)?.[0] ?? "";
 
-  assert.notEqual(nativeFormatterSource, "");
   assert.notEqual(rendererFormatterSource, "");
-  assert.match(
-    nativeFormatterSource,
-    /let formatter = RelativeDateTimeFormatter\(\)[\s\S]*formatter\.unitsStyle = \.full[\s\S]*formatter\.localizedString\(for:\s*date,\s*relativeTo:\s*Date\(\)\)/
-  );
   assert.match(
     rendererFormatterSource,
     /new Intl\.RelativeTimeFormat\(undefined,\s*\{\s*numeric:\s*"always",\s*style:\s*"long"\s*\}\)/
@@ -831,7 +702,6 @@ test("renderer mirrors native numeric relative edited-time formatting", () => {
 });
 
 test("renderer right sidebar tabs mirror native compact pill switcher", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/RightSidebar.swift");
   const htmlSource = read("src/renderer/index.html");
   const cssSource = read("src/renderer/styles.css");
   const rightTabsBlock = cssBlock(cssSource, ".right-tabs");
@@ -839,27 +709,6 @@ test("renderer right sidebar tabs mirror native compact pill switcher", () => {
   const rightTabBlock = cssBlock(cssSource, ".right-tab");
   const selectedRightTabBlock = cssBlock(cssSource, ".right-tab.selected");
 
-  assert.match(nativeSource, /private var tabBar:[\s\S]*HStack\(spacing:\s*0\)/);
-  assert.match(
-    nativeSource,
-    /VStack\(spacing:\s*0\) \{[\s\S]*Rectangle\(\)\.fill\(Color\.sidebarRule\)\.frame\(height:\s*1\)[\s\S]*tabBar[\s\S]*Rectangle\(\)\.fill\(Color\.sidebarRule\)\.frame\(height:\s*1\)/
-  );
-  assert.match(
-    nativeSource,
-    /Text\(tab\.rawValue\)[\s\S]*\.font\(\.system\(size:\s*10,\s*weight:\s*\.regular,\s*design:\s*\.monospaced\)\)[\s\S]*\.tracking\(0\.8\)[\s\S]*\.foregroundStyle\(activeTab == tab \? Color\.tabActive : Color\.tabInactive\)[\s\S]*\.padding\(\.horizontal,\s*14\)[\s\S]*\.padding\(\.vertical,\s*3\)/
-  );
-  assert.match(
-    nativeSource,
-    /RoundedRectangle\(cornerRadius:\s*4\)[\s\S]*\.fill\(Color\.tabActiveBg\)[\s\S]*\.shadow\(color:\s*\.black\.opacity\(0\.1\),\s*radius:\s*0\.5,\s*y:\s*0\.5\)/
-  );
-  assert.match(
-    nativeSource,
-    /\.padding\(2\)[\s\S]*RoundedRectangle\(cornerRadius:\s*5\)[\s\S]*\.fill\(Color\.tabBarBg\)[\s\S]*\.padding\(\.horizontal,\s*12\)[\s\S]*\.padding\(\.vertical,\s*8\)/
-  );
-  assert.match(
-    nativeSource,
-    /Button \{[\s\S]*withAnimation\(\.easeInOut\(duration:\s*0\.15\)\)\s*\{[\s\S]*activeTab = tab/
-  );
 
   assert.match(
     htmlSource,

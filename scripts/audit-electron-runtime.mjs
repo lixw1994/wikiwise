@@ -18,6 +18,7 @@ import {
 const scriptDir = path.dirname(fileURLToPath(import.meta.url));
 const repositoryRoot = path.resolve(scriptDir, "..");
 const electronPackageRoot = path.join(repositoryRoot, "apps", "electron");
+const electronResourcesRoot = path.join(electronPackageRoot, "resources");
 const runtimeAuditRoot = path.join(repositoryRoot, "apps", "electron", "out", "runtime-audit");
 const screenshotRoot = path.join(runtimeAuditRoot, "screenshots");
 const sampleProjectParent = path.join(runtimeAuditRoot, "sample-projects");
@@ -121,12 +122,13 @@ function createAuditProject() {
     name: "Runtime Audit Wiki",
     parentDir: sampleProjectParent,
     repositoryRoot,
+    resourceRoot: electronResourcesRoot,
     createdDate: "2026-05-25"
   });
   const projectRoot = scaffold.path;
   const selectedPath = path.join(projectRoot, "wiki", "home.md");
   const populatedInfoPath = path.join(projectRoot, "wiki", populatedInfoFixtureName);
-  const compiler = new WikiCompiler({ projectRoot, repositoryRoot });
+  const compiler = new WikiCompiler({ projectRoot, repositoryRoot, resourceRoot: electronResourcesRoot });
 
   fs.writeFileSync(
     populatedInfoPath,
@@ -195,7 +197,7 @@ function createAuditStandaloneFileProject() {
 
 function createAuditProjectResult(projectRoot) {
   const selectedPath = path.join(projectRoot, "wiki", "home.md");
-  const compiler = new WikiCompiler({ projectRoot, repositoryRoot });
+  const compiler = new WikiCompiler({ projectRoot, repositoryRoot, resourceRoot: electronResourcesRoot });
   compiler.scanPages();
   const compiled = compiler.compileMarkdownFile(selectedPath);
 
@@ -341,7 +343,7 @@ function resolveAuditPreviewNavigation(payload) {
     };
   }
 
-  const compiler = new WikiCompiler({ projectRoot, repositoryRoot });
+  const compiler = new WikiCompiler({ projectRoot, repositoryRoot, resourceRoot: electronResourcesRoot });
   compiler.compileAll();
   const generatedPath = path.join(compiler.outputDir, `${pageSlug}.html`);
   if (!fs.existsSync(generatedPath)) return null;
@@ -460,7 +462,11 @@ function registerAuditIpcHandlers() {
         reloadCSS: Boolean(payload?.reloadCSS)
       });
     }
-    const compiler = new WikiCompiler({ projectRoot: payload.projectRoot, repositoryRoot });
+    const compiler = new WikiCompiler({
+      projectRoot: payload.projectRoot,
+      repositoryRoot,
+      resourceRoot: electronResourcesRoot
+    });
     compiler.scanPages();
     const compiled = compiler.compileMarkdownFile(payload.filePath);
     const auditSelectedPath = auditProject?.selectedFile?.path
@@ -480,18 +486,18 @@ function registerAuditIpcHandlers() {
     };
   });
   ipcMain.handle("wikiwise:getEditorResource", () => {
-    const editorPath = path.join(repositoryRoot, "Sources", "Wikiwise", "Resources", "editor.html");
+    const editorPath = path.join(repositoryRoot, "apps", "electron", "resources", "editor.html");
     return {
       path: editorPath,
       fileUrl: pathToFileURL(editorPath).href,
-      bundlePath: path.join(repositoryRoot, "Sources", "Wikiwise", "Resources", "codemirror-bundle.js")
+      bundlePath: path.join(repositoryRoot, "apps", "electron", "resources", "codemirror-bundle.js")
     };
   });
   ipcMain.handle("wikiwise:getTerminalResource", () => getAuditTerminalResource());
   ipcMain.handle("wikiwise:openGeneratedPage", (_event, payload) => {
     generatedPageOpenObserved = true;
     const projectRoot = path.resolve(payload.projectRoot);
-    const compiler = new WikiCompiler({ projectRoot, repositoryRoot });
+    const compiler = new WikiCompiler({ projectRoot, repositoryRoot, resourceRoot: electronResourcesRoot });
     compiler.compileAll();
     const pagePath = path.join(compiler.outputDir, payload.pageName);
     if (!fs.existsSync(pagePath)) return null;
@@ -530,6 +536,7 @@ function registerAuditIpcHandlers() {
       name: payload.name,
       parentDir,
       repositoryRoot,
+      resourceRoot: electronResourcesRoot,
       createdDate: "2026-05-25"
     });
     const project = createAuditProjectResult(scaffold.path);

@@ -1,5 +1,5 @@
 // Minimal CodeMirror 6 editor bundle for Wikiwise.
-// Gets bundled into a single IIFE via esbuild, loaded in a WKWebView.
+// Gets bundled into a single IIFE via esbuild, loaded in the Electron editor iframe.
 
 import { EditorView, keymap, lineNumbers, highlightActiveLine, highlightActiveLineGutter, drawSelection } from '@codemirror/view'
 import { EditorState } from '@codemirror/state'
@@ -11,7 +11,7 @@ import { tags } from '@lezer/highlight'
 let view = null
 let saveTimeout = null
 
-// Called from Swift to set the editor content
+// Called by the host frame to set the editor content.
 window.setContent = function(text) {
   if (view) {
     view.dispatch({
@@ -20,7 +20,7 @@ window.setContent = function(text) {
   }
 }
 
-// Called from Swift to get the current content
+// Called by the host frame to get the current content.
 window.getContent = function() {
   return view ? view.state.doc.toString() : ''
 }

@@ -18,7 +18,11 @@ function fail(message) {
 
 function runPackagedAppAudit() {
   return new Promise((resolve, reject) => {
-    const child = spawn(packagedExecutablePath, [
+    const child = spawn("open", [
+      "-W",
+      "-n",
+      packagedAppPath,
+      "--args",
       "--audit-packaged-runtime",
       "--audit-report",
       reportPath

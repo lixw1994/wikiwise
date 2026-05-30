@@ -73,21 +73,12 @@ test("main process exposes new-wiki scaffold IPC through main-owned filesystem w
 
 test("main process mirrors native new-wiki location picker message-only chrome", () => {
   const mainSource = read("src/main/main.js");
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const chooseLocationStart = mainSource.indexOf("async function chooseNewWikiLocation");
   const chooseLocationEnd = mainSource.indexOf("function createProjectResult", chooseLocationStart);
   const chooseLocationSource = mainSource.slice(chooseLocationStart, chooseLocationEnd);
-  const nativeChooseLocationSource =
-    nativeSource.match(/Button\("Choose…"\) \{[\s\S]*?if panel\.runModal\(\) == \.OK,[\s\S]*?\n\s*\}/)?.[0] ?? "";
 
   assert.notEqual(chooseLocationStart, -1);
   assert.notEqual(chooseLocationEnd, -1);
-  assert.notEqual(nativeChooseLocationSource, "");
-  assert.match(nativeChooseLocationSource, /panel\.canChooseDirectories = true/);
-  assert.match(nativeChooseLocationSource, /panel\.canChooseFiles = false/);
-  assert.match(nativeChooseLocationSource, /panel\.canCreateDirectories = true/);
-  assert.match(nativeChooseLocationSource, /panel\.message = "Choose where to create your wiki"/);
-  assert.doesNotMatch(nativeChooseLocationSource, /panel\.title/);
   assert.match(chooseLocationSource, /message:\s*"Choose where to create your wiki"/);
   assert.doesNotMatch(chooseLocationSource, /\btitle:\s*"Choose where to create your wiki"/);
   assert.match(chooseLocationSource, /defaultPath:\s*getDefaultWikiLocation\(\)/);
@@ -138,24 +129,12 @@ test("renderer contains new-wiki dialog state, create flow, and post-create guid
 });
 
 test("renderer mirrors native scaffold failure dismissal behavior", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
-  const nativeStart = nativeSource.indexOf("private func createNewWiki()");
-  const nativeEnd = nativeSource.indexOf("/// Tracks how many ContentViews", nativeStart);
   const rendererStart = rendererSource.indexOf("async function createNewWiki()");
   const rendererEnd = rendererSource.indexOf("function renderPostCreateGuide", rendererStart);
-  const nativeCreateSource = nativeSource.slice(nativeStart, nativeEnd);
-  const nativeCatchSource = nativeCreateSource.slice(nativeCreateSource.indexOf("} catch {"));
   const createNewWikiSource = rendererSource.slice(rendererStart, rendererEnd);
 
-  assert.notEqual(nativeCreateSource, "");
   assert.notEqual(createNewWikiSource, "");
-  assert.match(
-    nativeCatchSource,
-    /print\("\[scaffold\] Error creating wiki: \\\(error\)"\)[\s\S]*showNewWikiSheet = false/
-  );
-  assert.doesNotMatch(nativeCatchSource, /showPostCreateGuide = true/);
-  assert.doesNotMatch(nativeCatchSource, /openURL\(wikiURL\)/);
 
   assert.match(
     createNewWikiSource,
@@ -166,25 +145,10 @@ test("renderer mirrors native scaffold failure dismissal behavior", () => {
 });
 
 test("shared scaffold helper mirrors native empty slug behavior", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const coreSource = readRepository("packages/wikiwise-core/src/index.js");
-  const nativeStart = nativeSource.indexOf("private func createNewWiki()");
-  const nativeEnd = nativeSource.indexOf("/// Tracks how many ContentViews", nativeStart);
-  const nativeCreateSource = nativeSource.slice(nativeStart, nativeEnd);
-  const nativeSlugStart = nativeCreateSource.indexOf("let slug = name.lowercased()");
-  const nativeWikiURLStart = nativeCreateSource.indexOf("let wikiURL = location.appendingPathComponent(slug)");
-  const nativeBetweenSlugAndURL = nativeCreateSource.slice(nativeSlugStart, nativeWikiURLStart);
   const coreScaffoldSource =
     coreSource.match(/export function createWikiScaffold\(options = \{\}\) \{[\s\S]*?\n\}/)?.[0] ?? "";
 
-  assert.notEqual(nativeStart, -1);
-  assert.notEqual(nativeEnd, -1);
-  assert.notEqual(nativeSlugStart, -1);
-  assert.notEqual(nativeWikiURLStart, -1);
-  assert.match(nativeCreateSource, /guard !name\.isEmpty else \{ return \}/);
-  assert.match(nativeBetweenSlugAndURL, /\.filter \{ \$0\.isLetter \|\| \$0\.isNumber \|\| \$0 == "-" \}/);
-  assert.doesNotMatch(nativeBetweenSlugAndURL, /slug\.isEmpty|guard !slug\.isEmpty/);
-  assert.match(nativeCreateSource, /location\.appendingPathComponent\(slug\)/);
   assert.notEqual(coreScaffoldSource, "");
   assert.match(coreScaffoldSource, /const slug = slugForWikiName\(name\)/);
   assert.match(coreScaffoldSource, /const wikiPath = path\.join\(parentDir,\s*slug\)/);
@@ -193,7 +157,6 @@ test("shared scaffold helper mirrors native empty slug behavior", () => {
 });
 
 test("renderer mirrors native new-wiki sheet layout and typography", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const htmlSource = read("src/renderer/index.html");
   const styleSource = read("src/renderer/styles.css");
   const panelBlock = cssBlock(styleSource, ".new-wiki-panel");
@@ -201,11 +164,6 @@ test("renderer mirrors native new-wiki sheet layout and typography", () => {
   const fieldBlock = cssBlock(styleSource, ".new-wiki-form-field");
   const fieldLabelBlock = cssBlock(styleSource, ".new-wiki-panel .field-label");
 
-  assert.match(nativeSource, /private var newWikiSheet: some View/);
-  assert.match(nativeSource, /VStack\(spacing:\s*20\)/);
-  assert.match(nativeSource, /Text\("Create a New Wiki"\)\s*\.font\(\.system\(size:\s*16,\s*weight:\s*\.semibold\)\)/);
-  assert.match(nativeSource, /Text\("Name"\)\s*\.font\(\.system\(size:\s*12,\s*weight:\s*\.medium\)\)/);
-  assert.match(nativeSource, /\.padding\(24\)\s*\.frame\(width:\s*400\)/);
 
   assert.match(htmlSource, /<div class="modal-panel new-wiki-panel"[^>]*>/);
   assert.match(panelBlock, /width:\s*min\(400px,\s*100%\)/);
@@ -225,18 +183,10 @@ test("renderer mirrors native new-wiki sheet layout and typography", () => {
 });
 
 test("renderer mirrors native new-wiki field label color", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const styleSource = read("src/renderer/styles.css");
-  const newWikiSheetSource =
-    nativeSource.match(/private var newWikiSheet: some View[\s\S]*?\.frame\(width:\s*400\)/)?.[0] ?? "";
   const globalFieldLabelBlock = styleSource.match(/\n\.field-label\s*\{([^}]+)\}/)?.[1] ?? "";
   const newWikiFieldLabelBlock = cssBlock(styleSource, ".new-wiki-panel .field-label");
 
-  assert.notEqual(newWikiSheetSource, "");
-  assert.match(
-    newWikiSheetSource,
-    /Text\("Name"\)[\s\S]*\.font\(\.system\(size:\s*12,\s*weight:\s*\.medium\)\)[\s\S]*\.foregroundStyle\(Color\.sidebarText\)[\s\S]*Text\("Location"\)[\s\S]*\.font\(\.system\(size:\s*12,\s*weight:\s*\.medium\)\)[\s\S]*\.foregroundStyle\(Color\.sidebarText\)/
-  );
   assert.match(globalFieldLabelBlock, /color:\s*var\(--color-toolbar-text\)/);
   assert.match(newWikiFieldLabelBlock, /color:\s*var\(--color-sidebar-text\)/);
   assert.match(newWikiFieldLabelBlock, /font-size:\s*12px/);
@@ -244,15 +194,10 @@ test("renderer mirrors native new-wiki field label color", () => {
 });
 
 test("renderer mirrors native new-wiki location middle truncation", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
   const styleSource = read("src/renderer/styles.css");
   const locationPathBlock = cssBlock(styleSource, ".location-path");
 
-  assert.match(
-    nativeSource,
-    /Text\(newWikiLocation\?\.path \?\? "~\/wikis"\)[\s\S]*\.lineLimit\(1\)[\s\S]*\.truncationMode\(\.middle\)/
-  );
 
   assert.match(rendererSource, /const newWikiLocationDisplayLimit = \d+/);
   assert.match(rendererSource, /function middleTruncatePath\(pathValue/);
@@ -280,18 +225,10 @@ test("renderer middle-truncates Unicode new-wiki locations without splitting cha
 });
 
 test("renderer mirrors native new-wiki location path font", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
   const styleSource = read("src/renderer/styles.css");
-  const newWikiSheetSource =
-    nativeSource.match(/private var newWikiSheet: some View[\s\S]*?\.frame\(width:\s*400\)/)?.[0] ?? "";
   const locationPathBlock = cssBlock(styleSource, ".location-path");
 
-  assert.notEqual(newWikiSheetSource, "");
-  assert.match(
-    newWikiSheetSource,
-    /Text\(newWikiLocation\?\.path \?\? "~\/wikis"\)[\s\S]*\.font\(\.system\(size:\s*12\)\)/
-  );
   assert.match(locationPathBlock, /font-size:\s*12px/);
   assert.doesNotMatch(locationPathBlock, /ui-monospace|SFMono-Regular|Menlo|monospace/);
   assert.match(rendererSource, /newWikiLocationLabel\.title = fullLocationPath/);
@@ -300,18 +237,10 @@ test("renderer mirrors native new-wiki location path font", () => {
 });
 
 test("renderer mirrors native new-wiki location label spacing", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
   const styleSource = read("src/renderer/styles.css");
-  const newWikiSheetSource =
-    nativeSource.match(/private var newWikiSheet: some View[\s\S]*?\.frame\(width:\s*400\)/)?.[0] ?? "";
   const locationPathBlock = cssBlock(styleSource, ".location-path");
 
-  assert.notEqual(newWikiSheetSource, "");
-  assert.match(
-    newWikiSheetSource,
-    /VStack\(alignment:\s*\.leading,\s*spacing:\s*6\)\s*\{[\s\S]*Text\("Location"\)[\s\S]*HStack\s*\{/
-  );
   assert.match(locationPathBlock, /margin:\s*6px 0 0/);
   assert.match(locationPathBlock, /color:\s*var\(--color-sidebar-text-muted\)/);
   assert.match(locationPathBlock, /white-space:\s*nowrap/);
@@ -320,18 +249,10 @@ test("renderer mirrors native new-wiki location label spacing", () => {
 });
 
 test("renderer mirrors native new-wiki location path color", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const styleSource = read("src/renderer/styles.css");
-  const newWikiSheetSource =
-    nativeSource.match(/private var newWikiSheet: some View[\s\S]*?\.frame\(width:\s*400\)/)?.[0] ?? "";
   const locationPathBlock = cssBlock(styleSource, ".location-path");
   const publishUrlAffixBlock = cssBlock(styleSource, ".publish-url-affix");
 
-  assert.notEqual(newWikiSheetSource, "");
-  assert.match(
-    newWikiSheetSource,
-    /Text\(newWikiLocation\?\.path \?\? "~\/wikis"\)[\s\S]*\.foregroundStyle\(Color\.sidebarTextMuted\)/
-  );
   assert.match(locationPathBlock, /color:\s*var\(--color-sidebar-text-muted\)/);
   assert.match(locationPathBlock, /font-size:\s*12px/);
   assert.match(locationPathBlock, /margin:\s*6px 0 0/);
@@ -340,23 +261,11 @@ test("renderer mirrors native new-wiki location path color", () => {
 });
 
 test("renderer mirrors native new-wiki action row spacing", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const htmlSource = read("src/renderer/index.html");
   const styleSource = read("src/renderer/styles.css");
-  const newWikiSheetSource =
-    nativeSource.match(/private var newWikiSheet: some View[\s\S]*?\.frame\(width:\s*400\)/)?.[0] ?? "";
   const modalActionsBlock = cssBlock(styleSource, ".modal-actions");
   const newWikiActionsBlock = cssBlock(styleSource, ".new-wiki-actions");
 
-  assert.notEqual(newWikiSheetSource, "");
-  assert.match(
-    newWikiSheetSource,
-    /VStack\(spacing:\s*20\)[\s\S]*HStack\s*\{[\s\S]*Button\("Cancel"\)[\s\S]*Spacer\(\)[\s\S]*Button\("Create"\)/
-  );
-  assert.doesNotMatch(
-    newWikiSheetSource,
-    /HStack\s*\{[\s\S]*Button\("Cancel"\)[\s\S]*Button\("Create"\)[\s\S]*\.padding\(\.top/
-  );
 
   assert.match(
     htmlSource,
@@ -367,26 +276,11 @@ test("renderer mirrors native new-wiki action row spacing", () => {
 });
 
 test("renderer mirrors native new-wiki action button chrome", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const htmlSource = read("src/renderer/index.html");
   const styleSource = read("src/renderer/styles.css");
-  const newWikiSheetSource =
-    nativeSource.match(/private var newWikiSheet: some View[\s\S]*?\.frame\(width:\s*400\)/)?.[0] ?? "";
-  const nativeActionRowSource =
-    newWikiSheetSource.match(
-      /HStack\s*\{\s*Button\("Cancel"\)[\s\S]*?Spacer\(\)[\s\S]*?Button\("Create"\)[\s\S]*?\.disabled\(newWikiName\.trimmingCharacters\(in:\s*\.whitespaces\)\.isEmpty\)[\s\S]*?\n\s*\}/
-    )?.[0] ?? "";
   const newWikiButtonBlock = cssBlock(styleSource, ".new-wiki-button");
   const newWikiDefaultButtonBlock = cssBlock(styleSource, ".new-wiki-default-button");
 
-  assert.notEqual(newWikiSheetSource, "");
-  assert.notEqual(nativeActionRowSource, "");
-  assert.match(nativeActionRowSource, /Button\("Cancel"\)[\s\S]*\.keyboardShortcut\(\.cancelAction\)/);
-  assert.match(
-    nativeActionRowSource,
-    /Button\("Create"\)[\s\S]*\.keyboardShortcut\(\.defaultAction\)[\s\S]*\.disabled\(newWikiName\.trimmingCharacters\(in:\s*\.whitespaces\)\.isEmpty\)/
-  );
-  assert.doesNotMatch(nativeActionRowSource, /\.buttonStyle|\.foregroundStyle|\.background|\.clipShape/);
 
   assert.match(htmlSource, /id="cancel-create-new" class="new-wiki-button"[^>]*>Cancel<\/button>/);
   assert.match(
@@ -402,20 +296,10 @@ test("renderer mirrors native new-wiki action button chrome", () => {
 });
 
 test("renderer mirrors native new-wiki disabled state and fallback location", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
-  const newWikiSheetSource =
-    nativeSource.match(/private var newWikiSheet: some View[\s\S]*?\.frame\(width:\s*400\)/)?.[0] ?? "";
   const renderDialogSource =
     rendererSource.match(/function renderNewWikiDialog\(\) \{[\s\S]*?\n\}/)?.[0] ?? "";
 
-  assert.notEqual(newWikiSheetSource, "");
-  assert.match(newWikiSheetSource, /Text\(newWikiLocation\?\.path \?\? "~\/wikis"\)/);
-  assert.match(
-    newWikiSheetSource,
-    /Button\("Create"\)[\s\S]*\.disabled\(newWikiName\.trimmingCharacters\(in:\s*\.whitespaces\)\.isEmpty\)/
-  );
-  assert.doesNotMatch(newWikiSheetSource, /isCreatingWiki/);
 
   assert.notEqual(renderDialogSource, "");
   assert.match(renderDialogSource, /const fullLocationPath = state\.newWikiLocation \|\| "~\/wikis";/);
@@ -428,20 +312,12 @@ test("renderer mirrors native new-wiki disabled state and fallback location", ()
 });
 
 test("renderer mirrors native new-wiki location chooser button chrome", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
   const htmlSource = read("src/renderer/index.html");
   const styleSource = read("src/renderer/styles.css");
-  const newWikiSheetSource =
-    nativeSource.match(/private var newWikiSheet: some View[\s\S]*?\.frame\(width:\s*400\)/)?.[0] ?? "";
-  const nativeChooseButtonSource = newWikiSheetSource.match(/Button\("Choose…"\)[\s\S]*?^\s*\}/m)?.[0] ?? "";
   const newWikiButtonBlock = cssBlock(styleSource, ".new-wiki-button");
   const newWikiChooseButtonBlock = cssBlock(styleSource, ".new-wiki-choose-button");
 
-  assert.notEqual(newWikiSheetSource, "");
-  assert.notEqual(nativeChooseButtonSource, "");
-  assert.match(nativeChooseButtonSource, /Button\("Choose…"\)/);
-  assert.doesNotMatch(nativeChooseButtonSource, /\.buttonStyle|\.foregroundStyle|\.background|\.clipShape/);
 
   assert.match(
     htmlSource,
@@ -456,20 +332,12 @@ test("renderer mirrors native new-wiki location chooser button chrome", () => {
 });
 
 test("renderer mirrors native new-wiki name field rounded border", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
   const htmlSource = read("src/renderer/index.html");
   const styleSource = read("src/renderer/styles.css");
-  const newWikiSheetSource =
-    nativeSource.match(/private var newWikiSheet: some View[\s\S]*?\.frame\(width:\s*400\)/)?.[0] ?? "";
   const textInputBlock = cssBlock(styleSource, ".text-input");
   const newWikiNameInputBlock = cssBlock(styleSource, ".new-wiki-name-input");
 
-  assert.notEqual(newWikiSheetSource, "");
-  assert.match(
-    newWikiSheetSource,
-    /TextField\("My Wiki",\s*text:\s*\$newWikiName\)\s*\.textFieldStyle\(\.roundedBorder\)/
-  );
 
   assert.match(
     htmlSource,
@@ -484,48 +352,29 @@ test("renderer mirrors native new-wiki name field rounded border", () => {
 });
 
 test("renderer mirrors native new-wiki and post-create guide copy", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
   const htmlSource = read("src/renderer/index.html");
   const normalizedHtml = normalized(htmlSource);
 
-  assert.match(nativeSource, /Button\("Create"\)\s*\{[\s\S]*createNewWiki\(\)/);
   assert.match(htmlSource, /id="confirm-create-new"[\s\S]*?>\s*Create\s*<\/button>/);
   assert.match(rendererSource, /confirmCreateNewButton\.textContent = "Create"/);
   assert.doesNotMatch(rendererSource, /confirmCreateNewButton\.textContent = state\.isCreatingWiki \? "Creating" : "Create"/);
   assert.doesNotMatch(rendererSource, /"Creating"/);
 
-  assert.match(
-    nativeSource,
-    /Button\("Cancel"\)\s*\{[\s\S]*showNewWikiSheet = false[\s\S]*\.keyboardShortcut\(\.cancelAction\)/
-  );
-  assert.match(
-    nativeSource,
-    /Button\("Create"\)\s*\{[\s\S]*createNewWiki\(\)[\s\S]*\.keyboardShortcut\(\.defaultAction\)/
-  );
   assert.match(rendererSource, /function handleNewWikiDialogKeydown\(event\)/);
   assert.match(rendererSource, /event\.key === "Escape"[\s\S]*closeNewWikiDialog\(\)/);
   assert.match(rendererSource, /event\.key === "Enter"[\s\S]*confirmCreateNewButton\.disabled[\s\S]*createNewWiki\(\)/);
   assert.match(rendererSource, /newWikiDialog\.addEventListener\("keydown", handleNewWikiDialogKeydown\)/);
 
-  assert.match(nativeSource, /Button\("Choose…"\)/);
   assert.match(htmlSource, /id="choose-new-wiki-location"[\s\S]*?>\s*Choose…\s*<\/button>/);
   assert.doesNotMatch(htmlSource, />\s*Choose\s*<\/button>/);
 
-  assert.match(
-    nativeSource,
-    /Text\("WikiWise created the folder structure, build tools, and agent skills\. Now seed it with sources\."\)/
-  );
   assert.match(
     normalizedHtml,
     /WikiWise created the folder structure, build tools, and agent skills\. Now seed it with sources\./
   );
   assert.doesNotMatch(normalizedHtml, /Wikiwise created the folder structure/);
 
-  assert.match(
-    nativeSource,
-    /Text\("Use the built-in terminal in the right sidebar, or open your own terminal:"\)/
-  );
   assert.match(
     normalizedHtml,
     /Use the built-in terminal in the right sidebar, or open your own terminal:/
@@ -535,14 +384,11 @@ test("renderer mirrors native new-wiki and post-create guide copy", () => {
     /Use the built-in terminal, or open your own terminal:/
   );
 
-  assert.match(nativeSource, /Text\("OPEN YOUR AGENT"\)/);
-  assert.match(nativeSource, /Text\("SEED YOUR WIKI"\)/);
   assert.match(normalizedHtml, /OPEN YOUR AGENT/);
   assert.match(normalizedHtml, /SEED YOUR WIKI/);
   assert.doesNotMatch(normalizedHtml, /Open your agent/);
   assert.doesNotMatch(normalizedHtml, /Seed your wiki/);
 
-  assert.match(nativeSource, /Text\("Once your agent is running, try:"\)/);
   assert.match(normalizedHtml, /Once your agent is running, try:/);
   assert.match(
     normalizedHtml,
@@ -550,34 +396,20 @@ test("renderer mirrors native new-wiki and post-create guide copy", () => {
   );
 
   assert.match(
-    nativeSource,
-    /Text\("This is your project\. You can change anything about it with your agent — the styles, the structure of your wiki pages, the build pipeline\. Make it your own\."\)/
-  );
-  assert.match(
     normalizedHtml,
     /This is your project\. You can change anything about it with your agent — the styles, the structure of your wiki pages, the build pipeline\. Make it your own\./
   );
   assert.doesNotMatch(normalizedHtml, /You can change the styles, page structure, and build pipeline with your agent\./);
 
-  assert.match(nativeSource, /Button\("Got it — start reading"\)/);
   assert.match(normalizedHtml, /Got it — start reading/);
   assert.doesNotMatch(normalizedHtml, /Got it - start reading/);
 });
 
 test("renderer mirrors native post-create guide container layout", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const htmlSource = read("src/renderer/index.html");
   const styleSource = read("src/renderer/styles.css");
-  const postCreateGuideSource =
-    nativeSource.match(/private func postCreateGuide\(wikiURL: URL\) -> some View[\s\S]*?private func agentCommand/)?.[0] ??
-    "";
   const guideBlock = cssBlock(styleSource, ".post-create-guide");
 
-  assert.notEqual(postCreateGuideSource, "");
-  assert.match(
-    postCreateGuideSource,
-    /\.padding\(40\)[\s\S]*\.frame\(maxWidth:\s*560,\s*alignment:\s*\.leading\)[\s\S]*\.background\(Color\.contentBg\)/
-  );
   assert.match(htmlSource, /id="post-create-guide" class="post-create-guide"/);
   assert.match(guideBlock, /padding:\s*40px/);
   assert.match(guideBlock, /background:\s*var\(--color-content-bg\)/);
@@ -590,19 +422,10 @@ test("renderer mirrors native post-create guide container layout", () => {
 });
 
 test("renderer mirrors native post-create guide title typography", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const htmlSource = read("src/renderer/index.html");
   const styleSource = read("src/renderer/styles.css");
-  const postCreateGuideSource =
-    nativeSource.match(/private func postCreateGuide\(wikiURL: URL\) -> some View[\s\S]*?private func agentCommand/)?.[0] ??
-    "";
   const guideTitleBlock = cssBlock(styleSource, ".post-create-guide h2");
 
-  assert.notEqual(postCreateGuideSource, "");
-  assert.match(
-    postCreateGuideSource,
-    /Text\("Your wiki is ready"\)[\s\S]*\.font\(\.system\(size:\s*20,\s*weight:\s*\.medium,\s*design:\s*\.serif\)\)[\s\S]*\.foregroundStyle\(Color\.sidebarSelectedText\)/
-  );
   assert.match(htmlSource, /<h2>Your wiki is ready<\/h2>/);
   assert.match(guideTitleBlock, /font-family:\s*Georgia,\s*serif/);
   assert.match(guideTitleBlock, /font-size:\s*20px/);
@@ -612,22 +435,13 @@ test("renderer mirrors native post-create guide title typography", () => {
 });
 
 test("renderer mirrors native post-create guide summary text", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const htmlSource = read("src/renderer/index.html");
   const styleSource = read("src/renderer/styles.css");
-  const postCreateGuideSource =
-    nativeSource.match(/private func postCreateGuide\(wikiURL: URL\) -> some View[\s\S]*?private func agentCommand/)?.[0] ??
-    "";
   const summaryRule =
     styleSource.match(/\.post-create-guide > \.guide-block:first-of-type p\s*\{([^}]+)\}/)?.[1] ?? "";
   const sharedParagraphRule =
     styleSource.match(/\.post-create-guide p,\s*\.post-create-guide li\s*\{([^}]+)\}/)?.[1] ?? "";
 
-  assert.notEqual(postCreateGuideSource, "");
-  assert.match(
-    postCreateGuideSource,
-    /Text\("WikiWise created the folder structure, build tools, and agent skills\. Now seed it with sources\."\)[\s\S]*\.font\(\.system\(size:\s*14\)\)[\s\S]*\.foregroundStyle\(Color\.sidebarText\)[\s\S]*\.lineSpacing\(3\)/
-  );
   assert.match(
     htmlSource,
     /<div class="guide-block">\s*<h2>Your wiki is ready<\/h2>\s*<p>[\s\S]*WikiWise created the folder structure, build tools, and agent skills\.[\s\S]*Now seed it with sources\.[\s\S]*<\/p>\s*<\/div>/
@@ -640,18 +454,13 @@ test("renderer mirrors native post-create guide summary text", () => {
 });
 
 test("renderer mirrors native post-create guide dividers", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const htmlSource = read("src/renderer/index.html");
   const styleSource = read("src/renderer/styles.css");
-  const postCreateGuideSource =
-    nativeSource.match(/private func postCreateGuide\(wikiURL: URL\) -> some View[\s\S]*?private func agentCommand/)?.[0] ??
-    "";
   const widthGroup =
     styleSource.match(/\.post-create-guide > \.guide-block,[\s\S]*?\{[^}]+\}/)?.[0] ?? "";
   const dividerRules = styleSource.match(/\.post-create-guide > \.guide-divider\s*\{[^}]+\}/g) ?? [];
   const dividerRule = dividerRules[dividerRules.length - 1] ?? "";
 
-  assert.equal((postCreateGuideSource.match(/\bDivider\(\)/g) ?? []).length, 3);
   assert.equal((htmlSource.match(/class="guide-divider"/g) ?? []).length, 3);
   assert.match(
     htmlSource,
@@ -672,24 +481,11 @@ test("renderer mirrors native post-create guide dividers", () => {
 });
 
 test("renderer mirrors native post-create guide section headings", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const htmlSource = read("src/renderer/index.html");
   const styleSource = read("src/renderer/styles.css");
-  const postCreateGuideSource =
-    nativeSource.match(/private func postCreateGuide\(wikiURL: URL\) -> some View[\s\S]*?private func agentCommand/)?.[0] ??
-    "";
   const guideHeadingRule = cssBlock(styleSource, ".post-create-guide .eyebrow");
   const globalEyebrowRule = styleSource.match(/\n\.eyebrow\s*\{([^}]+)\}/)?.[1] ?? "";
 
-  assert.notEqual(postCreateGuideSource, "");
-  assert.match(
-    postCreateGuideSource,
-    /Text\("OPEN YOUR AGENT"\)[\s\S]*?\.font\(\.system\(size:\s*10,\s*weight:\s*\.semibold\)\)[\s\S]*?\.tracking\(1\.5\)[\s\S]*?\.foregroundStyle\(Color\.sidebarHeader\)/
-  );
-  assert.match(
-    postCreateGuideSource,
-    /Text\("SEED YOUR WIKI"\)[\s\S]*?\.font\(\.system\(size:\s*10,\s*weight:\s*\.semibold\)\)[\s\S]*?\.tracking\(1\.5\)[\s\S]*?\.foregroundStyle\(Color\.sidebarHeader\)/
-  );
   assert.match(htmlSource, /<p class="eyebrow">OPEN YOUR AGENT<\/p>/);
   assert.match(htmlSource, /<p class="eyebrow">SEED YOUR WIKI<\/p>/);
   assert.match(guideHeadingRule, /font-size:\s*10px/);
@@ -702,27 +498,14 @@ test("renderer mirrors native post-create guide section headings", () => {
 });
 
 test("renderer mirrors native post-create guide intro copy", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const htmlSource = read("src/renderer/index.html");
   const styleSource = read("src/renderer/styles.css");
-  const postCreateGuideSource =
-    nativeSource.match(/private func postCreateGuide\(wikiURL: URL\) -> some View[\s\S]*?private func agentCommand/)?.[0] ??
-    "";
   const introRule =
     styleSource.match(/\.post-create-guide \.guide-block:not\(:first-of-type\) > p:not\(\.eyebrow\)\s*\{([^}]+)\}/)?.[1] ??
     "";
   const sharedParagraphRule =
     styleSource.match(/\.post-create-guide p,\s*\.post-create-guide li\s*\{([^}]+)\}/)?.[1] ?? "";
 
-  assert.notEqual(postCreateGuideSource, "");
-  assert.match(
-    postCreateGuideSource,
-    /Text\("Use the built-in terminal in the right sidebar, or open your own terminal:"\)[\s\S]*?\.font\(\.system\(size:\s*13\)\)[\s\S]*?\.foregroundStyle\(Color\.sidebarText\)/
-  );
-  assert.match(
-    postCreateGuideSource,
-    /Text\("Once your agent is running, try:"\)[\s\S]*?\.font\(\.system\(size:\s*13\)\)[\s\S]*?\.foregroundStyle\(Color\.sidebarText\)/
-  );
   assert.match(
     htmlSource,
     /<p class="eyebrow">OPEN YOUR AGENT<\/p>\s*<p>Use the built-in terminal in the right sidebar, or open your own terminal:<\/p>/
@@ -736,21 +519,12 @@ test("renderer mirrors native post-create guide intro copy", () => {
 });
 
 test("renderer mirrors native post-create guide final guidance", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const htmlSource = read("src/renderer/index.html");
   const styleSource = read("src/renderer/styles.css");
-  const postCreateGuideSource =
-    nativeSource.match(/private func postCreateGuide\(wikiURL: URL\) -> some View[\s\S]*?private func agentCommand/)?.[0] ??
-    "";
   const finalRule = cssBlock(styleSource, ".post-create-guide > p");
   const sharedParagraphRule =
     styleSource.match(/\.post-create-guide p,\s*\.post-create-guide li\s*\{([^}]+)\}/)?.[1] ?? "";
 
-  assert.notEqual(postCreateGuideSource, "");
-  assert.match(
-    postCreateGuideSource,
-    /Text\("This is your project\. You can change anything about it with your agent — the styles, the structure of your wiki pages, the build pipeline\. Make it your own\."\)[\s\S]*?\.font\(\.system\(size:\s*13\)\)[\s\S]*?\.foregroundStyle\(Color\.sidebarText\)[\s\S]*?\.lineSpacing\(2\)/
-  );
   assert.match(
     htmlSource,
     /<hr class="guide-divider" aria-hidden="true" \/>\s*<p>\s*This is your project\. You can change anything about it with your agent[\s\S]*Make it your own\.\s*<\/p>\s*<button id="dismiss-post-create-guide"/
@@ -763,25 +537,12 @@ test("renderer mirrors native post-create guide final guidance", () => {
 });
 
 test("renderer mirrors native post-create guide agent command labels", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
   const htmlSource = read("src/renderer/index.html");
   const styleSource = read("src/renderer/styles.css");
-  const agentCommandSource =
-    nativeSource.match(/private func agentCommand\(agent: String, command: String\) -> some View[\s\S]*?private func seedOption/)?.[0] ??
-    "";
   const commandRule = cssBlock(styleSource, ".guide-command");
   const labelRule = cssBlock(styleSource, ".post-create-guide .guide-command-agent");
 
-  assert.notEqual(agentCommandSource, "");
-  assert.match(
-    agentCommandSource,
-    /Text\(agent\)[\s\S]*?\.font\(\.system\(size:\s*12,\s*weight:\s*\.semibold\)\)[\s\S]*?\.foregroundStyle\(Color\.sidebarText\)/
-  );
-  assert.match(agentCommandSource, /VStack\(alignment:\s*\.leading,\s*spacing:\s*4\)/);
-  assert.match(nativeSource, /agentCommand\(\s*agent:\s*"Claude Code"/);
-  assert.match(nativeSource, /agentCommand\(\s*agent:\s*"Codex"/);
-  assert.match(nativeSource, /agentCommand\(\s*agent:\s*"Cursor"/);
   assert.match(
     htmlSource,
     /<div class="guide-command">\s*<p class="guide-command-agent">Claude Code<\/p>\s*<pre><code id="guide-claude-command"><\/code><\/pre>\s*<\/div>/
@@ -806,20 +567,11 @@ test("renderer mirrors native post-create guide agent command labels", () => {
 });
 
 test("renderer mirrors native post-create guide agent command chrome", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
   const styleSource = read("src/renderer/styles.css");
-  const agentCommandSource =
-    nativeSource.match(/private func agentCommand\(agent: String, command: String\) -> some View[\s\S]*?private func seedOption/)?.[0] ??
-    "";
   const commandChromeRule = cssBlock(styleSource, ".post-create-guide pre");
   const commandTextRule = cssBlock(styleSource, ".post-create-guide code");
 
-  assert.notEqual(agentCommandSource, "");
-  assert.match(
-    agentCommandSource,
-    /Text\(command\)[\s\S]*?\.font\(\.system\(size:\s*12,\s*design:\s*\.monospaced\)\)[\s\S]*?\.foregroundStyle\(Color\.sidebarTextMuted\)[\s\S]*?\.padding\(\.horizontal,\s*10\)[\s\S]*?\.padding\(\.vertical,\s*6\)[\s\S]*?\.background\(Color\.sidebarBg\)[\s\S]*?\.clipShape\(RoundedRectangle\(cornerRadius:\s*4\)\)[\s\S]*?\.textSelection\(\.enabled\)/
-  );
   assert.match(commandTextRule, /font-family:\s*ui-monospace,\s*"SFMono-Regular",\s*Menlo,\s*monospace/);
   assert.match(commandTextRule, /font-size:\s*12px/);
   assert.match(commandChromeRule, /border:\s*0/);
@@ -837,10 +589,8 @@ test("renderer mirrors native post-create guide agent command chrome", () => {
 });
 
 test("renderer mirrors native post-create guide seed option rows", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const htmlSource = read("src/renderer/index.html");
   const styleSource = read("src/renderer/styles.css");
-  const seedOptionSource = nativeSource.match(/private func seedOption\(icon: String, title: String, command: String\) -> some View[\s\S]*?\n\s*\}\n\}/)?.[0] ?? "";
   const seedListRule = cssBlock(styleSource, ".guide-seed-options");
   const seedOptionRule = cssBlock(styleSource, ".post-create-guide .guide-seed-option");
   const seedIconRule = cssBlock(styleSource, ".guide-seed-icon");
@@ -848,15 +598,6 @@ test("renderer mirrors native post-create guide seed option rows", () => {
   const seedTitleRule = cssBlock(styleSource, ".guide-seed-title");
   const seedCommandRule = cssBlock(styleSource, ".guide-seed-command");
 
-  assert.notEqual(seedOptionSource, "");
-  assert.match(
-    seedOptionSource,
-    /HStack\(alignment:\s*\.top,\s*spacing:\s*10\)[\s\S]*?Image\(systemName:\s*icon\)[\s\S]*?\.font\(\.system\(size:\s*13\)\)[\s\S]*?\.foregroundStyle\(Color\.accentPrimary\)[\s\S]*?\.frame\(width:\s*20\)[\s\S]*?VStack\(alignment:\s*\.leading,\s*spacing:\s*2\)[\s\S]*?Text\(title\)[\s\S]*?\.font\(\.system\(size:\s*13,\s*weight:\s*\.medium\)\)[\s\S]*?\.foregroundStyle\(Color\.sidebarSelectedText\)[\s\S]*?Text\(command\)[\s\S]*?\.font\(\.system\(size:\s*12,\s*design:\s*\.monospaced\)\)[\s\S]*?\.foregroundStyle\(Color\.sidebarTextMuted\)/
-  );
-  assert.match(nativeSource, /seedOption\(\s*icon:\s*"book",\s*title:\s*"Import from Readwise",\s*command:\s*"\/import-readwise"/);
-  assert.match(nativeSource, /seedOption\(\s*icon:\s*"link",\s*title:\s*"Ingest an article",\s*command:\s*"Ingest this article: \[paste URL\]"/);
-  assert.match(nativeSource, /seedOption\(\s*icon:\s*"folder",\s*title:\s*"Import existing files",\s*command:\s*"Ingest the files in ~\/my-notes\/ into this wiki"/);
-  assert.match(nativeSource, /seedOption\(\s*icon:\s*"text\.bubble",\s*title:\s*"Start from a topic",\s*command:\s*"Start a wiki about \[your topic\]"/);
 
   assert.match(htmlSource, /<ul class="guide-seed-options">/);
   assert.match(
@@ -897,19 +638,10 @@ test("renderer mirrors native post-create guide seed option rows", () => {
 });
 
 test("renderer mirrors native post-create guide dismiss home selection", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
-  const postCreateGuideSource =
-    nativeSource.match(/private func postCreateGuide\(wikiURL: URL\) -> some View[\s\S]*?private func agentCommand/)?.[0] ??
-    "";
   const dismissFunctionSource =
     rendererSource.match(/async function dismissPostCreateGuide\(\)[\s\S]*?\n\}/)?.[0] ?? "";
 
-  assert.notEqual(postCreateGuideSource, "");
-  assert.match(
-    postCreateGuideSource,
-    /Button\("Got it — start reading"\)[\s\S]*?showPostCreateGuide = false[\s\S]*?let home = root\.appendingPathComponent\("wiki\/home\.md"\)[\s\S]*?FileManager\.default\.fileExists\(atPath:\s*home\.path\)[\s\S]*?selectedFileURL = home[\s\S]*?loadFile\(home\)/
-  );
   assert.match(rendererSource, /function findWikiHomeNode\(\)/);
   assert.match(rendererSource, /state\.tree\.find\(\(node\) => node\.isDirectory && node\.name === "wiki"\)/);
   assert.match(rendererSource, /wikiFolder\?\.children\?\.find\(\(node\) => !node\.isDirectory && node\.name === "home\.md"\)/);
@@ -922,23 +654,7 @@ test("renderer mirrors native post-create guide dismiss home selection", () => {
 });
 
 test("renderer keeps post-create guide visible across incidental navigation like native", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
-  const nativeNavigateSource = sourceBetween(
-    nativeSource,
-    "private func navigateTo(_ url: URL)",
-    "private func goBack()"
-  );
-  const nativeMapToolbarSource = sourceBetween(
-    nativeSource,
-    "// Navigate to 3D map",
-    ".help(\"Open 3D Map\")"
-  );
-  const postCreateGuideSource = sourceBetween(
-    nativeSource,
-    "private func postCreateGuide(wikiURL: URL) -> some View",
-    "    @ViewBuilder\n    private func agentCommand"
-  );
   const selectFileSource = sourceBetween(
     rendererSource,
     "async function selectFile(node, options = {})",
@@ -955,10 +671,6 @@ test("renderer keeps post-create guide visible across incidental navigation like
     "async function loadAppSettings"
   );
 
-  assert.equal((nativeSource.match(/^\s*showPostCreateGuide = false/gm) ?? []).length, 1);
-  assert.match(postCreateGuideSource, /Button\("Got it — start reading"\)[\s\S]*showPostCreateGuide = false/);
-  assert.doesNotMatch(nativeNavigateSource, /showPostCreateGuide/);
-  assert.doesNotMatch(nativeMapToolbarSource, /showPostCreateGuide/);
 
   assert.doesNotMatch(selectFileSource, /state\.showPostCreateGuide = false/);
   assert.doesNotMatch(showGeneratedPageSource, /state\.showPostCreateGuide = false/);
@@ -966,13 +678,7 @@ test("renderer keeps post-create guide visible across incidental navigation like
 });
 
 test("renderer preserves post-create guide across project result application like native", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
-  const nativeOpenURLSource = sourceBetween(
-    nativeSource,
-    "private func openURL(_ url: URL)",
-    "private func createNewWiki()"
-  );
   const applyProjectResultSource = sourceBetween(
     rendererSource,
     "async function applyProjectResult(projectResult, options = {})",
@@ -989,9 +695,6 @@ test("renderer preserves post-create guide across project result application lik
     "async function loadAppSettings"
   );
 
-  assert.notEqual(nativeOpenURLSource, "");
-  assert.match(nativeOpenURLSource, /if isDir\.boolValue \{[\s\S]*rootURL = url[\s\S]*terminalSession\.startIfNeeded/);
-  assert.doesNotMatch(nativeOpenURLSource, /showPostCreateGuide\s*=/);
 
   assert.notEqual(applyProjectResultSource, "");
   assert.doesNotMatch(applyProjectResultSource, /state\.showPostCreateGuide\s*=\s*Boolean\(options\.showPostCreateGuide\)/);

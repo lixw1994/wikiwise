@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       release_version:
-        description: "Release version. Leave empty to use the native app bundle version."
+        description: "Release version. Leave empty to use the Electron package version."
         required: false
         type: string
 
@@ -33,9 +33,6 @@ jobs:
 
       - name: Run JavaScript tests
         run: npm test
-
-      - name: Build native Swift app
-        run: swift build
 
       - name: Import Apple release credentials
         env:

@@ -39,4 +39,4 @@ The repository SHALL document how to run the credential-backed Electron release 
 - **WHEN** a developer reads the Electron release documentation
 - **THEN** it lists the required GitHub secrets
 - **AND** it explains that the workflow runs the canonical release script and retains the DMG, release report, detailed runtime audit evidence, and packaged runtime smoke evidence
-- **AND** it states that final migration completion still requires a successful signed and notarized release run or an explicitly accepted OpenSpec deviation
+- **AND** it states that final Electron release completion still requires a successful signed and notarized release run or an explicitly accepted OpenSpec deviation

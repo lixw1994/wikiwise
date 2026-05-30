@@ -1,8 +1,8 @@
 # Wikiwise Electron
 
-This package is the OpenSpec-driven cross-platform desktop workspace for Wikiwise.
-It is intentionally small: the current production app remains the SwiftUI macOS
-app under `Sources/Wikiwise/`.
+This package is the Electron-only desktop app for Wikiwise. It owns the desktop
+runtime, renderer shell, bundled resources, macOS packaging path, and release
+audit entry points.
 
 ## Commands
 
@@ -24,7 +24,9 @@ npm install
 ```
 
 The Electron app loads the renderer through a narrow preload bridge and reuses
-the shared `@wikiwise/core` package for native-compatible project behavior.
+the shared `@wikiwise/core` package for project behavior. Bundled compiler,
+editor, graph/map, KaTeX, icon, and scaffold assets live in
+`apps/electron/resources/`.
 
 ## Local macOS package
 
@@ -33,11 +35,9 @@ the shared `@wikiwise/core` package for native-compatible project behavior.
 `node_modules/electron/dist/Electron.app`.
 
 This app bundle is unsigned and intended for local migration verification.
-During packaging, the script audits package-only Electron runtime `Info.plist` keys
-against the checked-in native app bundle. The allowed package-only keys are limited
-to reviewed Electron runtime metadata such as `ElectronAsarIntegrity`, and the
-command fails if an unexpected package-only plist key remains before any signed and
-notarized release is produced.
+During packaging, the script audits the packaged `Info.plist` against a reviewed
+Electron key allowlist. The command fails if an unexpected plist key remains
+before any signed and notarized release is produced.
 Production release distribution uses `bash scripts/build-release.sh <version>`,
 which runs the Electron runtime audit, packages the app, runs packaged runtime
 smoke against `apps/electron/out/Wikiwise.app`, signs the Electron app with a
@@ -49,7 +49,7 @@ without producing app, DMG, signed, or notarized release artifacts.
 `npm run electron:release:readiness` runs the same preflight with retained JSON
 evidence at `apps/electron/out/release-readiness/report.json`. A blocked report
 lists prerequisite blocker names and messages, records that no release artifacts
-were produced, and keeps the final gate explicit: Electron migration completion
+were produced, and keeps the final gate explicit: Electron release completion
 still requires an actual signed and notarized release run, or an accepted OpenSpec deviation.
 `npm run electron:release:evidence` runs the full production release command with
 a retained release success report at `apps/electron/out/release/report.json`.
@@ -61,8 +61,8 @@ it is the structured evidence retained by that completed release.
 
 The manual `Electron Release` workflow at
 `.github/workflows/electron-release.yml` runs on macOS and executes the same
-canonical release path. It installs dependencies, runs `npm test` and
-`swift build`, imports Apple release credentials from GitHub secrets, stores a
+canonical release path. It installs dependencies, runs `npm test`, imports Apple
+release credentials from GitHub secrets, stores a
 `notarytool` keychain profile, then runs `bash scripts/build-release.sh
 --release-report apps/electron/out/release/report.json` or
 `npm run electron:release:evidence` when the workflow release-version input is
@@ -82,7 +82,7 @@ After a successful signed and notarized release run, the workflow uploads
 `apps/electron/out/runtime-audit/report.json`,
 `apps/electron/out/runtime-audit/screenshots/`, and
 `apps/electron/out/packaged-runtime-audit/report.json` as artifacts.
-Final Electron migration completion still requires that successful signed and
+Final Electron release completion still requires that successful signed and
 notarized release run, or an accepted OpenSpec deviation.
 
 ## Runtime parity audit
@@ -99,5 +99,5 @@ part of the canonical Electron release gate.
 `npm run electron:audit:packaged` launches the packaged app bundle at
 `apps/electron/out/Wikiwise.app` after `npm run electron:package:mac` and writes
 retained smoke evidence to `apps/electron/out/packaged-runtime-audit/report.json`.
-It verifies the packaged renderer, preload bridge, shared core package, native
+It verifies the packaged renderer, preload bridge, shared core package, Electron
 resources, and `node-pty` helper permissions before release signing mutates the bundle.

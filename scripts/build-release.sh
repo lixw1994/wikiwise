@@ -41,18 +41,18 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-NATIVE_APP_INFO_PLIST="Wikiwise.app/Contents/Info.plist"
-FALLBACK_RELEASE_VERSION="0.1.0"
+ELECTRON_PACKAGE_JSON="apps/electron/package.json"
+FALLBACK_RELEASE_VERSION="0.1.9"
 
 resolve_default_version() {
-  local native_version=""
+  local package_version=""
 
-  if [[ -f "$NATIVE_APP_INFO_PLIST" ]] && command -v plutil >/dev/null 2>&1; then
-    native_version="$(plutil -extract CFBundleShortVersionString raw -o - "$NATIVE_APP_INFO_PLIST" 2>/dev/null || true)"
+  if [[ -f "$ELECTRON_PACKAGE_JSON" ]] && command -v node >/dev/null 2>&1; then
+    package_version="$(node -e "const fs=require('fs'); const pkg=JSON.parse(fs.readFileSync(process.argv[1], 'utf8')); process.stdout.write(pkg.version || '')" "$ELECTRON_PACKAGE_JSON" 2>/dev/null || true)"
   fi
 
-  if [[ -n "$native_version" ]]; then
-    printf '%s' "$native_version"
+  if [[ -n "$package_version" ]]; then
+    printf '%s' "$package_version"
   else
     printf '%s' "$FALLBACK_RELEASE_VERSION"
   fi

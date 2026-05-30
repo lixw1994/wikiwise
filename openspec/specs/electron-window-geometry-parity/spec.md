@@ -1,10 +1,10 @@
 # electron-window-geometry-parity Specification
 
 ## Purpose
-Define Electron app-window default and minimum geometry parity with the current SwiftUI macOS app.
+Define Electron app-window default and minimum geometry parity with the Electron macOS app.
 ## Requirements
 ### Requirement: Native Window Geometry
-The Electron app window SHALL match the current SwiftUI macOS app's default and minimum window geometry.
+The Electron app window SHALL match the Electron macOS app's default and minimum window geometry.
 
 #### Scenario: Main app window is created
 - **WHEN** the Electron main process creates the primary app window

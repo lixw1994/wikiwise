@@ -11,14 +11,6 @@ const preloadSource = fs.readFileSync(
   path.join(packageRoot, "src/preload/preload.cjs"),
   "utf8"
 );
-const nativeAppSource = fs.readFileSync(
-  path.join(repositoryRoot, "Sources/Wikiwise/WikiwiseApp.swift"),
-  "utf8"
-);
-const nativeContentViewSource = fs.readFileSync(
-  path.join(repositoryRoot, "Sources/Wikiwise/ContentView.swift"),
-  "utf8"
-);
 const htmlSource = fs.readFileSync(
   path.join(packageRoot, "src/renderer/index.html"),
   "utf8"
@@ -72,14 +64,6 @@ test("uses product-facing shell title and native welcome copy", () => {
 });
 
 test("matches native welcome action symbols and preserves entry labels", () => {
-  assert.match(
-    nativeContentViewSource,
-    /Image\(systemName:\s*"plus\.circle"\)[\s\S]*Text\("Create a New Wiki"\)/
-  );
-  assert.match(
-    nativeContentViewSource,
-    /Image\(systemName:\s*"folder"\)[\s\S]*Text\("Open Existing Folder"\)/
-  );
 
   const createAction = buttonBodyById("create-new");
   const openAction = buttonBodyById("open-existing");
@@ -93,10 +77,6 @@ test("matches native welcome action symbols and preserves entry labels", () => {
 });
 
 test("matches native welcome secondary action foreground color", () => {
-  assert.match(
-    nativeContentViewSource,
-    /Button\s*\{\s*openFolder\(\)\s*\} label:\s*\{[\s\S]*Image\(systemName:\s*"folder"\)[\s\S]*Text\("Open Existing Folder"\)[\s\S]*\.foregroundStyle\(Color\.sidebarSelectedText\)[\s\S]*\.background\([\s\S]*RoundedRectangle\(cornerRadius:\s*8\)[\s\S]*\.stroke\(Color\.sidebarRule,\s*lineWidth:\s*1\)/
-  );
 
   const secondaryActionBlock = cssBlock(".secondary-action");
   const welcomeActionBlock = cssBlock(".welcome-action");
@@ -112,10 +92,6 @@ test("matches native welcome secondary action foreground color", () => {
 test("matches native welcome mark foreground role", () => {
   const welcomeMarkBlock = cssBlock(".welcome-mark");
 
-  assert.match(
-    nativeContentViewSource,
-    /VStack\(spacing:\s*12\)\s*\{[\s\S]*Text\("W"\)[\s\S]*\.font\(\.system\(size:\s*48,\s*weight:\s*\.light,\s*design:\s*\.serif\)\)[\s\S]*\.italic\(\)[\s\S]*\.foregroundStyle\(Color\.sidebarSelectedText\)[\s\S]*Text\("WikiWise helps you turn any folder\\nof markdown files into a browsable,\\npublishable wiki\."\)/
-  );
   assert.match(htmlSource, /<div class="welcome-mark" aria-hidden="true">W<\/div>/);
   assert.match(welcomeMarkBlock, /color:\s*var\(--color-sidebar-selected-text\)/);
   assert.doesNotMatch(welcomeMarkBlock, /color:\s*var\(--color-tab-active\)/);
@@ -130,10 +106,6 @@ test("matches native welcome intro grouping and spacing", () => {
   const welcomeIntroBlock = cssBlock(".welcome-intro");
   const actionsBlock = cssBlock(".actions");
 
-  assert.match(
-    nativeContentViewSource,
-    /VStack\(spacing:\s*32\)\s*\{[\s\S]*Spacer\(\)[\s\S]*VStack\(spacing:\s*12\)\s*\{[\s\S]*Text\("W"\)[\s\S]*Text\("WikiWise helps you turn any folder\\nof markdown files into a browsable,\\npublishable wiki\."\)[\s\S]*\}[\s\S]*VStack\(spacing:\s*12\)\s*\{[\s\S]*Text\("Create a New Wiki"\)[\s\S]*Text\("Open Existing Folder"\)/
-  );
   assert.match(
     htmlSource,
     /<div class="welcome-content">[\s\S]*<div class="welcome-intro">[\s\S]*<div class="welcome-mark" aria-hidden="true">W<\/div>[\s\S]*<p class="summary">[\s\S]*WikiWise helps you turn any folder[\s\S]*<\/p>[\s\S]*<\/div>[\s\S]*<div class="actions">/
@@ -152,10 +124,6 @@ test("matches native welcome toolbar brand chrome", () => {
   const welcomeToolbarTitleBlock = cssBlock(".welcome-toolbar-title");
   const welcomeContentBlock = cssBlock(".welcome-content");
 
-  assert.match(
-    nativeContentViewSource,
-    /ToolbarItem\(placement:\s*\.navigation\)\s*\{[\s\S]*Text\("W"\)[\s\S]*\.font\(\.system\(size:\s*18,\s*weight:\s*\.medium,\s*design:\s*\.serif\)\)[\s\S]*\.italic\(\)[\s\S]*Text\("WikiWise"\)[\s\S]*\.font\(\.system\(size:\s*13,\s*weight:\s*\.medium\)\)/
-  );
   assert.match(
     htmlSource,
     /<div id="welcome-toolbar" class="welcome-toolbar">[\s\S]*<div class="welcome-toolbar-brand">[\s\S]*<span class="welcome-toolbar-mark" aria-hidden="true">W<\/span>[\s\S]*<span class="welcome-toolbar-title">WikiWise<\/span>/
@@ -181,14 +149,6 @@ test("matches native welcome copy line spacing", () => {
   const welcomeSummaryBlock = cssBlock(".welcome-panel .summary");
   const welcomeHintBlock = cssBlock(".welcome-hint");
 
-  assert.match(
-    nativeContentViewSource,
-    /Text\("WikiWise helps you turn any folder\\nof markdown files into a browsable,\\npublishable wiki\."\)[\s\S]*\.font\(\.system\(size:\s*15,\s*weight:\s*\.regular\)\)[\s\S]*\.lineSpacing\(4\)/
-  );
-  assert.match(
-    nativeContentViewSource,
-    /Text\("Don't have a wiki yet\? Create one above and\\nuse Claude Code, Codex, or Cursor to build it out\."\)[\s\S]*\.font\(\.system\(size:\s*12\)\)[\s\S]*\.lineSpacing\(3\)/
-  );
   assert.match(welcomeSummaryBlock, /font-size:\s*15px/);
   assert.match(welcomeSummaryBlock, /line-height:\s*19px/);
   assert.match(welcomeSummaryBlock, /white-space:\s*pre-line/);
@@ -198,8 +158,6 @@ test("matches native welcome copy line spacing", () => {
 });
 
 test("matches native macOS default and minimum window geometry", () => {
-  assert.match(nativeAppSource, /\.defaultSize\(width:\s*1500,\s*height:\s*1000\)/);
-  assert.match(nativeContentViewSource, /\.frame\(minWidth:\s*800,\s*minHeight:\s*500\)/);
   assert.match(
     mainSource,
     /const nativeWindowDefaultSize = Object\.freeze\(\{\s*width:\s*1500,\s*height:\s*1000\s*\}\);/
@@ -214,17 +172,13 @@ test("matches native macOS default and minimum window geometry", () => {
   assert.match(mainSource, /minHeight:\s*nativeWindowMinimumSize\.height/);
 });
 
-test("matches native runtime app icon branding", () => {
-  const nativeIconPath = path.join(repositoryRoot, "Sources/Wikiwise/Resources/Wikiwise.icns");
+test("uses Electron runtime app icon branding", () => {
+  const electronIconPath = path.join(packageRoot, "resources", "Wikiwise.icns");
 
-  assert.equal(fs.existsSync(nativeIconPath), true);
-  assert.match(
-    nativeAppSource,
-    /wikiwiseBundle\.url\(forResource:\s*"Wikiwise",\s*withExtension:\s*"icns"\)[\s\S]*NSImage\(contentsOf:\s*icnsURL\)[\s\S]*NSApplication\.shared\.applicationIconImage = icon/
-  );
+  assert.equal(fs.existsSync(electronIconPath), true);
   assert.match(
     mainSource,
-    /const nativeAppIconPath = path\.join\(nativeResourcesRoot,\s*"Wikiwise\.icns"\);/
+    /const electronAppIconPath = path\.join\(electronResourcesRoot,\s*"Wikiwise\.icns"\);/
   );
   assert.match(
     mainSource,
@@ -244,8 +198,6 @@ test("matches native runtime app icon branding", () => {
 });
 
 test("matches native startup activation behavior", () => {
-  assert.match(nativeAppSource, /NSApplication\.shared\.setActivationPolicy\(\.regular\)/);
-  assert.match(nativeAppSource, /NSApplication\.shared\.activate\(ignoringOtherApps:\s*true\)/);
   assert.match(mainSource, /function applyNativeActivationPolicy\(\)/);
   assert.match(mainSource, /app\.setActivationPolicy\?\.\("regular"\)/);
   assert.match(mainSource, /app\.focus\(\{\s*steal:\s*true\s*\}\)/);
@@ -259,10 +211,6 @@ test("matches native visible titlebar chrome", () => {
   const welcomeToolbarBlock = cssBlock(".welcome-toolbar");
   const projectToolbarBlock = cssBlock(".project-toolbar");
 
-  assert.match(nativeAppSource, /\.windowStyle\(\.titleBar\)/);
-  assert.match(nativeContentViewSource, /\.navigationTitle\(""\)/);
-  assert.match(nativeContentViewSource, /window\.titlebarSeparatorStyle\s*=\s*\.none/);
-  assert.match(nativeContentViewSource, /window\.title\s*=\s*""/);
   assert.match(mainSource, /title:\s*"Wikiwise"/);
   assert.match(mainSource, /titleBarStyle:\s*"hiddenInset"/);
   assert.match(mainSource, /trafficLightPosition:\s*\{\s*x:\s*12,\s*y:\s*13\s*\}/);
@@ -315,10 +263,6 @@ test("uses full-window shell layout instead of outer debug cards", () => {
 test("offsets toolbar project title like native left-sidebar compensation", () => {
   const toolbarTitleBlock = cssBlock(".toolbar-project-title");
 
-  assert.match(
-    nativeContentViewSource,
-    /\.offset\(x:\s*sidebarVisibility == \.all \? -\(leftSidebarWidth \/ 2\) : 0\)/
-  );
   assert.match(styleSource, /--toolbar-title-offset:\s*0px/);
   assert.match(toolbarTitleBlock, /transform:\s*translateX\(var\(--toolbar-title-offset\)\)/);
   assert.match(rendererSource, /function updateToolbarTitleOffset/);
@@ -327,8 +271,6 @@ test("offsets toolbar project title like native left-sidebar compensation", () =
 });
 
 test("matches native toolbar navigation help labels", () => {
-  assert.match(nativeContentViewSource, /\.help\("Go Back \(\\u\{2318\}\[\)"\)/);
-  assert.match(nativeContentViewSource, /\.help\("Go Forward \(\\u\{2318\}\]\)"\)/);
 
   assert.match(
     htmlSource,
@@ -347,10 +289,6 @@ test("matches native left-sidebar header structure and typography", () => {
   const sidebarHeaderBlock = cssBlock(".sidebar .eyebrow");
   const fileTreeBlock = cssBlock(".file-tree");
 
-  assert.match(
-    nativeContentViewSource,
-    /Text\("FILES"\)\s*\.font\(\.system\(size:\s*9,\s*weight:\s*\.regular,\s*design:\s*\.monospaced\)\)\s*\.tracking\(1\.6\)\s*\.foregroundStyle\(Color\.sidebarHeader\)\s*\.padding\(\.horizontal,\s*18\)\s*\.padding\(\.top,\s*6\)\s*\.padding\(\.bottom,\s*10\)/
-  );
   assert.match(
     htmlSource,
     /<aside id="left-sidebar" class="sidebar">\s*<p class="eyebrow">FILES<\/p>\s*<ul id="file-tree" class="file-tree"><\/ul>/
@@ -382,15 +320,6 @@ test("matches native file tree zero row spacing", () => {
   const treeChildrenBlock = cssBlock(".tree-children");
   const treeRowBlock = cssBlock(".tree-row");
 
-  assert.match(
-    nativeContentViewSource,
-    /private var sidebar:[\s\S]*VStack\(alignment:\s*\.leading,\s*spacing:\s*0\)[\s\S]*Text\("FILES"\)/
-  );
-  assert.match(
-    nativeContentViewSource,
-    /return AnyView\(VStack\(alignment:\s*\.leading,\s*spacing:\s*0\)[\s\S]*ForEach\(children\)/
-  );
-  assert.match(nativeContentViewSource, /\.padding\(\.vertical,\s*5\)/);
 
   assert.match(fileTreeBlock, /gap:\s*0/);
   assert.match(treeChildrenBlock, /gap:\s*0/);
@@ -421,10 +350,6 @@ test("matches native empty detail placeholder", () => {
   const emptyIconBlock = cssBlock(".detail-empty-state .empty-symbol");
   const emptyTextBlock = cssBlock(".detail-empty-state p");
 
-  assert.match(
-    nativeContentViewSource,
-    /selectedFileURL == nil && compiledFileURL == nil[\s\S]*VStack\(spacing:\s*8\)[\s\S]*Image\(systemName:\s*"doc\.text"\)[\s\S]*\.font\(\.system\(size:\s*32,\s*weight:\s*\.light\)\)[\s\S]*\.foregroundStyle\(Color\.sidebarTextMuted\)[\s\S]*Text\("Select a file to read"\)[\s\S]*\.font\(\.system\(size:\s*13\)\)[\s\S]*\.foregroundStyle\(Color\.sidebarTextMuted\)[\s\S]*\.frame\(maxWidth:\s*\.infinity,\s*maxHeight:\s*\.infinity\)[\s\S]*\.background\(Color\.contentBg\)/
-  );
 
   assert.match(htmlSource, /id="detail-empty-state" class="detail-empty-state" hidden/);
   assert.match(htmlSource, /data-native-symbol="doc\.text"[^>]*>[\s\S]*<\/span>/);

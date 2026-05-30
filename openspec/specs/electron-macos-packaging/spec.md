@@ -58,27 +58,25 @@ The packaged Electron app SHALL remove unused Electron template permission and a
 - **AND** it does not declare `NSAppTransportSecurity` with arbitrary-loads relaxation
 - **AND** Wikiwise display name, bundle name, executable name, bundle identifier, version, and icon metadata remain present
 
-### Requirement: Native-Aligned Minimum macOS Metadata
+### Requirement: Electron Minimum macOS Metadata
 
-The packaged Electron app SHALL declare the same minimum macOS version as the native Wikiwise app.
+The packaged Electron app SHALL declare the supported minimum macOS version.
 
 #### Scenario: Packaged Info.plist minimum system version is inspected
 
 - **WHEN** the packaged Electron app's `Contents/Info.plist` is inspected
 - **THEN** it declares `LSMinimumSystemVersion` as `14.0`
-- **AND** this value matches the native SwiftPM macOS platform baseline
-- **AND** this value matches the current native app bundle metadata
 - **AND** Wikiwise product metadata and release packaging behavior remain unchanged
 
-### Requirement: Native-Aligned Default Bundle Version Metadata
+### Requirement: Electron Package Default Bundle Version Metadata
 
-The no-argument local Electron package command SHALL default to the current native app bundle version metadata while preserving explicit release-version overrides.
+The no-argument local Electron package command SHALL default to the current Electron package version metadata while preserving explicit release-version overrides.
 
 #### Scenario: Local package Info.plist version metadata is inspected
 
 - **WHEN** the Electron macOS package command runs without an explicit version argument
-- **THEN** the packaged app's `CFBundleShortVersionString` matches the current native app bundle's `CFBundleShortVersionString`
-- **AND** the packaged app's `CFBundleVersion` matches the current native app bundle's `CFBundleVersion`
+- **THEN** the packaged app's `CFBundleShortVersionString` matches `apps/electron/package.json` `version`
+- **AND** the packaged app's `CFBundleVersion` matches `apps/electron/package.json` `version`
 - **AND** Wikiwise product metadata, minimum macOS metadata, privacy metadata cleanup, and release packaging behavior remain unchanged
 
 #### Scenario: Explicit release version is supplied
@@ -87,9 +85,9 @@ The no-argument local Electron package command SHALL default to the current nati
 - **THEN** the packaged app's `CFBundleShortVersionString` uses that explicit release version
 - **AND** the canonical release script continues to pass its `<version>` argument into the package command
 
-### Requirement: Native-Aligned Template Build Metadata Cleanup
+### Requirement: Electron Template Build Metadata Cleanup
 
-The packaged Electron app SHALL remove non-runtime Electron template build-provenance and category plist metadata that the current native app bundle does not declare.
+The packaged Electron app SHALL remove non-runtime Electron template build-provenance and category plist metadata.
 
 #### Scenario: Packaged Info.plist template build metadata is inspected
 
@@ -100,9 +98,9 @@ The packaged Electron app SHALL remove non-runtime Electron template build-prove
 - **AND** it does not declare `DTXcode`
 - **AND** it does not declare `DTXcodeBuild`
 - **AND** it does not declare `LSApplicationCategoryType`
-- **AND** Wikiwise product metadata, Electron runtime-required metadata, native-aligned version metadata, minimum macOS metadata, privacy metadata cleanup, and release packaging behavior remain unchanged
+- **AND** Wikiwise product metadata, Electron runtime-required metadata, version metadata, minimum macOS metadata, privacy metadata cleanup, and release packaging behavior remain unchanged
 
-### Requirement: Native-Aligned Template Icon Resource Cleanup
+### Requirement: Electron Template Icon Resource Cleanup
 
 The packaged Electron app SHALL remove the unused inherited Electron template icon resource while preserving the Wikiwise app icon.
 
@@ -112,9 +110,9 @@ The packaged Electron app SHALL remove the unused inherited Electron template ic
 - **THEN** it contains `Wikiwise.icns`
 - **AND** it does not contain `electron.icns`
 - **AND** the packaged app's `Contents/Info.plist` still declares `CFBundleIconFile` as `Wikiwise`
-- **AND** Electron runtime resources, embedded app layout, native-aligned plist metadata, and release packaging behavior remain unchanged
+- **AND** Electron runtime resources, embedded app layout, plist metadata, and release packaging behavior remain unchanged
 
-### Requirement: Native-Aligned Template PkgInfo Cleanup
+### Requirement: Electron Template PkgInfo Cleanup
 
 The packaged Electron app SHALL remove the unused inherited Electron template `PkgInfo` file while preserving required app metadata and runtime resources.
 
@@ -126,20 +124,19 @@ The packaged Electron app SHALL remove the unused inherited Electron template `P
 - **AND** it contains `Resources/Wikiwise.icns`
 - **AND** it contains `Resources/default_app.asar`
 - **AND** it does not contain `PkgInfo`
-- **AND** the native `Wikiwise.app` bundle also does not contain `Contents/PkgInfo`
-- **AND** Electron runtime resources, embedded app layout, native-aligned plist metadata, template icon cleanup, and release packaging behavior remain unchanged
+- **AND** Electron runtime resources, embedded app layout, plist metadata, template icon cleanup, and release packaging behavior remain unchanged
 
-### Requirement: Package-Only Runtime Info.plist Delta Audit
+### Requirement: Reviewed Runtime Info.plist Key Audit
 
-The Electron package command SHALL reject unexpected package-only top-level `Info.plist` keys while allowing explicitly reviewed Electron runtime metadata that the native app bundle does not declare.
+The Electron package command SHALL reject unexpected top-level `Info.plist` keys while allowing explicitly reviewed Electron and Wikiwise app metadata.
 
 #### Scenario: Packaged Info.plist top-level key delta is inspected
 
 - **WHEN** the Electron macOS package command rewrites the packaged app's `Contents/Info.plist`
-- **THEN** it compares the packaged top-level plist keys against the current native app bundle's top-level plist keys
-- **AND** package-only top-level keys are limited to `CFBundleInfoDictionaryVersion`, `ElectronAsarIntegrity`, `LSEnvironment`, `NSMainNibFile`, `NSPrefersDisplaySafeAreaCompatibilityMode`, `NSPrincipalClass`, `NSQuitAlwaysKeepsWindows`, `NSRequiresAquaSystemAppearance`, and `NSSupportsAutomaticGraphicsSwitching`
-- **AND** it exits non-zero if any other package-only top-level plist key remains
-- **AND** Wikiwise product metadata, native-aligned version metadata, minimum macOS metadata, template metadata cleanup, template resource cleanup, Electron runtime resources, and release packaging behavior remain unchanged
+- **THEN** it compares the packaged top-level plist keys against a checked-in reviewed key allowlist
+- **AND** reviewed top-level keys include Wikiwise product/version keys and Electron runtime keys such as `CFBundleInfoDictionaryVersion`, `ElectronAsarIntegrity`, `LSEnvironment`, `NSMainNibFile`, `NSPrefersDisplaySafeAreaCompatibilityMode`, `NSPrincipalClass`, `NSQuitAlwaysKeepsWindows`, `NSRequiresAquaSystemAppearance`, and `NSSupportsAutomaticGraphicsSwitching`
+- **AND** it exits non-zero if any other top-level plist key remains
+- **AND** Wikiwise product metadata, version metadata, minimum macOS metadata, template metadata cleanup, template resource cleanup, Electron runtime resources, and release packaging behavior remain unchanged
 
 ### Requirement: Packaged Node PTY Spawn Helper Permissions
 The Electron macOS package command SHALL preserve an executable `node-pty` spawn helper inside the packaged app bundle.
@@ -147,7 +144,7 @@ The Electron macOS package command SHALL preserve an executable `node-pty` spawn
 #### Scenario: Packaged app runtime dependencies are assembled
 - **WHEN** the Electron macOS package command copies runtime dependencies into `apps/electron/out/Wikiwise.app/Contents/Resources/app`
 - **THEN** the packaged `node-pty` spawn helper is made executable before package verification and later release signing steps
-- **AND** app bundle metadata, embedded app layout, native resource copying, and local unsigned packaging behavior remain unchanged
+- **AND** app bundle metadata, embedded app layout, Electron resource copying, and local unsigned packaging behavior remain unchanged
 
 ### Requirement: Universal Node PTY Helper Permissions
 The Electron macOS packaging command SHALL repair executable permissions for every packaged Darwin `node-pty` `spawn-helper` included in the app bundle.

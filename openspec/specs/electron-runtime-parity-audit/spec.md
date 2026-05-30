@@ -143,7 +143,7 @@ The Electron runtime parity audit SHALL retain evidence that shared progressive 
 - **THEN** runtime audit fails the affected project scenario
 
 ### Requirement: Native Window Viewport Evidence
-The Electron runtime parity audit SHALL capture screenshots at the native SwiftUI default window viewport.
+The Electron runtime parity audit SHALL capture screenshots at the Electron macOS default window viewport.
 
 #### Scenario: Audit viewport is inspected
 - **WHEN** the runtime audit script is inspected

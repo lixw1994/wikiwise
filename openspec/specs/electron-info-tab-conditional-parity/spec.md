@@ -1,10 +1,10 @@
 # electron-info-tab-conditional-parity Specification
 
 ## Purpose
-Define Electron right-sidebar INFO optional-section rendering parity with the current SwiftUI macOS app.
+Define Electron right-sidebar INFO optional-section rendering parity with the Electron macOS app.
 ## Requirements
 ### Requirement: Optional Info Sections
-The Electron right-sidebar INFO tab SHALL match native SwiftUI conditional rendering for optional document sections.
+The Electron right-sidebar INFO tab SHALL match Electron macOS conditional rendering for optional document sections.
 
 #### Scenario: Markdown file has no directions
 - **WHEN** a selected markdown file has no frontmatter `directions:` value

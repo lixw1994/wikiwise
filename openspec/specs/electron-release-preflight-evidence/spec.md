@@ -37,7 +37,7 @@ Release preflight verification SHALL retain evidence that distinguishes implemen
 - **WHEN** a release preflight phase is verified
 - **THEN** verification records the exact preflight command
 - **AND** it records whether preflight passed or which prerequisite blocked it
-- **AND** it records that final migration completion still requires an actual signed and notarized release run or an explicitly accepted OpenSpec deviation
+- **AND** it records that final Electron release completion still requires an actual signed and notarized release run or an explicitly accepted OpenSpec deviation
 
 ### Requirement: Optional Release Preflight Report
 The Electron release preflight path SHALL support writing retained prerequisite evidence to a caller-provided JSON report path.

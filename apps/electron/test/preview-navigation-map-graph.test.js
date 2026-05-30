@@ -73,13 +73,7 @@ test("renderer intercepts preview and generated frame links through app navigati
 });
 
 test("generated preview links only push source-file history like native", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
-  const nativeGeneratedLinkSource = sourceBetween(
-    nativeSource,
-    "else if let c = compiler {",
-    "    /// Find a .md file"
-  );
   const rendererPreviewNavigationSource = sourceBetween(
     rendererSource,
     "async function navigateFromPreviewResult(result)",
@@ -92,11 +86,6 @@ test("generated preview links only push source-file history like native", () => 
   );
 
   assert.match(
-    nativeGeneratedLinkSource,
-    /if let current = selectedFileURL \{\s*backHistory\.append\(current\)\s*forwardHistory = \[\]\s*\}/
-  );
-  assert.doesNotMatch(nativeGeneratedLinkSource, /else if let compiled = compiledFileURL/);
-  assert.match(
     rendererPreviewNavigationSource,
     /if \(result\.kind === "generated"\) \{\s*showGeneratedPage\(result,\s*\{\s*pushHistory:\s*Boolean\(state\.selectedFile\)\s*\}\);\s*return;\s*\}/
   );
@@ -105,23 +94,7 @@ test("generated preview links only push source-file history like native", () => 
 });
 
 test("generated page navigation uses existing output without compiling like native", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const mainSource = read("src/main/main.js");
-  const nativeFolderOpenSource = sourceBetween(
-    nativeSource,
-    "let c = Compiler(sourceDir: url)",
-    "            // Background drip: compile remaining pages"
-  );
-  const nativeToolbarMapSource = sourceBetween(
-    nativeSource,
-    "// Navigate to 3D map",
-    ".help(\"Open 3D Map\")"
-  );
-  const nativeGeneratedLinkSource = sourceBetween(
-    nativeSource,
-    "else if let c = compiler {",
-    "    /// Find a .md file"
-  );
   const electronProjectOpenSource = sourceBetween(
     mainSource,
     "function createProjectResult(targetPath, webContents = null)",
@@ -138,12 +111,6 @@ test("generated page navigation uses existing output without compiling like nati
     "function findMarkdownFileForSlug(projectRoot, slug)"
   );
 
-  assert.match(nativeFolderOpenSource, /c\.scanPages\(\)/);
-  assert.doesNotMatch(nativeFolderOpenSource, /c\.compileAll\(\)/);
-  assert.match(nativeToolbarMapSource, /FileManager\.default\.fileExists\(atPath: mapFile\.path\)/);
-  assert.doesNotMatch(nativeToolbarMapSource, /compileAll\(\)/);
-  assert.match(nativeGeneratedLinkSource, /FileManager\.default\.fileExists\(atPath: htmlFile\.path\)/);
-  assert.doesNotMatch(nativeGeneratedLinkSource, /compileAll\(\)/);
 
   assert.match(electronProjectOpenSource, /getCompiler\(projectRoot\)\.scanPages\(\)/);
   assert.doesNotMatch(electronGeneratedPageSource, /compileAll\(\)/);
@@ -153,14 +120,8 @@ test("generated page navigation uses existing output without compiling like nati
 });
 
 test("raw generated preview links fall through to generated HTML like native", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const mainSource = read("src/main/main.js");
   const coreSource = readRepository("packages/wikiwise-core/src/index.js");
-  const nativeMarkdownLookupSource = sourceBetween(
-    nativeSource,
-    "private func findMarkdownFile(slug: String, in dir: URL) -> URL?",
-    "    // MARK: - Actions"
-  );
   const electronMarkdownLookupSource = sourceBetween(
     mainSource,
     "function findMarkdownFileForSlug(projectRoot, slug)",
@@ -172,8 +133,6 @@ test("raw generated preview links fall through to generated HTML like native", (
     "function settingsPath()"
   );
 
-  assert.match(nativeMarkdownLookupSource, /self\.slug\(for: file\) == slug/);
-  assert.doesNotMatch(nativeMarkdownLookupSource, /raw-/);
   assert.match(coreSource, /if \(parts\.includes\("raw"\)[\s\S]*slug = `raw-\$\{slug\}`/);
   assert.match(electronCompileSource, /compiler\.invalidatePage\(slugForPath\(filePath\)\)/);
   assert.match(electronMarkdownLookupSource, /markdownSlugForPath\(filePath\) === slug/);
@@ -181,21 +140,13 @@ test("raw generated preview links fall through to generated HTML like native", (
 });
 
 test("preview navigation normalizes clicked HTML target slugs like native", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const mainSource = read("src/main/main.js");
-  const nativeSlugSource = sourceBetween(
-    nativeSource,
-    "private func slug(for url: URL) -> String",
-    "    /// Map an HTML URL"
-  );
   const electronResolveSource = sourceBetween(
     mainSource,
     "function resolvePreviewNavigation(payload)",
     "function findMarkdownFileForSlug(projectRoot, slug)"
   );
 
-  assert.match(nativeSlugSource, /deletingPathExtension\(\)\.lastPathComponent/);
-  assert.match(nativeSlugSource, /\.lowercased\(\)\.replacingOccurrences\(of: " ", with: "-"\)/);
   assert.match(electronResolveSource, /const pageSlug = markdownSlugForPath\(targetPath\);/);
   assert.doesNotMatch(
     electronResolveSource,
@@ -206,13 +157,7 @@ test("preview navigation normalizes clicked HTML target slugs like native", () =
 });
 
 test("preview markdown lookup uses native lowercase md extension candidates", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const mainSource = read("src/main/main.js");
-  const nativeMarkdownLookupSource = sourceBetween(
-    nativeSource,
-    "private func findMarkdownFile(slug: String, in dir: URL) -> URL?",
-    "    // MARK: - Actions"
-  );
   const electronMarkdownLookupSource = sourceBetween(
     mainSource,
     "function findMarkdownFileForSlug(projectRoot, slug)",
@@ -224,29 +169,19 @@ test("preview markdown lookup uses native lowercase md extension candidates", ()
     "\n}"
   );
 
-  assert.match(nativeMarkdownLookupSource, /for file in files where file\.pathExtension == "md"/);
   assert.match(electronMarkdownLookupSource, /isPreviewMarkdownLookupCandidate\(entry\.name\)/);
   assert.doesNotMatch(electronMarkdownLookupSource, /isMarkdownFile\(entry\.name\)/);
   assert.match(electronGlobalMarkdownHelperSource, /\/\\\.md\$\/i\.test\(filePath\)/);
 });
 
 test("manual Refresh Page command reloads selected source files like native", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
-  const nativeRefreshSource = sourceBetween(
-    nativeSource,
-    "private func recompileCurrentPage(_ c: Compiler)",
-    "    // MARK: - Publish"
-  );
   const rendererRefreshSource = sourceBetween(
     rendererSource,
     "async function refreshCurrentView()",
     "function attachPreviewNavigation"
   );
 
-  assert.match(nativeRefreshSource, /guard let url = selectedFileURL else \{ return \}/);
-  assert.doesNotMatch(nativeRefreshSource, /pathExtension/);
-  assert.match(nativeRefreshSource, /loadFile\(url\)/);
   assert.match(rendererRefreshSource, /if \(!state\.selectedFile\?\.path\) return/);
   assert.match(rendererRefreshSource, /if \(isMarkdownFile\(state\.selectedFile\.path\)\) \{/);
   assert.match(rendererRefreshSource, /refreshSelectedMarkdown\(\{ invalidate:\s*true \}\)/);
@@ -261,18 +196,7 @@ test("manual Refresh Page command reloads selected source files like native", ()
 });
 
 test("manual Refresh Page rewrites active-file marker like native loadFile", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
-  const nativeLoadFileSource = sourceBetween(
-    nativeSource,
-    "private func loadFile(_ url: URL)",
-    "    /// Write the currently open file path"
-  );
-  const nativeRefreshSource = sourceBetween(
-    nativeSource,
-    "private func recompileCurrentPage(_ c: Compiler)",
-    "    // MARK: - Publish"
-  );
   const rendererRefreshSource = sourceBetween(
     rendererSource,
     "async function refreshCurrentView()",
@@ -284,9 +208,6 @@ test("manual Refresh Page rewrites active-file marker like native loadFile", () 
     "function compileMarkdownPreview"
   );
 
-  assert.match(nativeLoadFileSource, /writeActiveFile\(url\)/);
-  assert.match(nativeRefreshSource, /guard let url = selectedFileURL else \{ return \}/);
-  assert.match(nativeRefreshSource, /loadFile\(url\)/);
   assert.match(rendererRefreshSource, /refreshSelectedMarkdown\(\{ invalidate:\s*true \}\)/);
   assert.match(rendererMarkdownRefreshSource, /await setActiveSelectedFile\(refreshedPath\)/);
   assert.match(rendererRefreshSource, /const selectedPath = state\.selectedFile\.path/);
@@ -296,28 +217,13 @@ test("manual Refresh Page rewrites active-file marker like native loadFile", () 
 });
 
 test("watcher-driven output changes leave active generated pages unchanged like native", () => {
-  const nativeContentSource = readRepository("Sources/Wikiwise/ContentView.swift");
-  const nativeWebViewSource = readRepository("Sources/Wikiwise/WebView.swift");
   const rendererSource = read("src/renderer/renderer.js");
-  const nativeWatcherSource = sourceBetween(
-    nativeContentSource,
-    "private func startFileWatcher(directory: URL, compiler c: Compiler)",
-    "    /// Rescan the sidebar file tree"
-  );
-  const nativeWebViewUpdateSource = sourceBetween(
-    nativeWebViewSource,
-    "func updateNSView(_ wv: WKWebView, context: Context)",
-    "    final class Coordinator"
-  );
   const projectChangedSource = sourceBetween(
     rendererSource,
     "async function handleProjectChanged(change)",
     "async function refreshSelectedMarkdown"
   );
 
-  assert.match(nativeWatcherSource, /if selectedFileURL != nil \{\s*recompileCurrentPage\(c\)\s*\}/);
-  assert.match(nativeWatcherSource, /if let current = selectedFileURL,[\s\S]*changedPaths\.contains\(current\.path\) \{\s*recompileCurrentPage\(c\)\s*\}/);
-  assert.match(nativeWebViewUpdateSource, /if wv\.url != fileURL \|\| context\.coordinator\.lastReloadToken != reloadToken/);
   assert.doesNotMatch(projectChangedSource, /generatedOutputChanged/);
   assert.doesNotMatch(projectChangedSource, /await refreshGeneratedPage\(\)/);
   assert.match(projectChangedSource, /currentMarkdownSelected/);

@@ -26,8 +26,7 @@ const electronTemplatePath = path.join(repositoryRoot, electronTemplateRelativeP
 const outputAppPath = path.join(repositoryRoot, outputAppRelativePath);
 const electronPackageRoot = path.join(repositoryRoot, "apps", "electron");
 const corePackageRoot = path.join(repositoryRoot, "packages", "wikiwise-core");
-const nativeResourcesRoot = path.join(repositoryRoot, "Sources", "Wikiwise", "Resources");
-const nativeAppInfoPlistPath = path.join(repositoryRoot, "Wikiwise.app", "Contents", "Info.plist");
+const electronResourcesRoot = path.join(electronPackageRoot, "resources");
 const requireFromElectronPackage = createRequire(path.join(electronPackageRoot, "package.json"));
 const electronRuntimeDependencyNames = Object.freeze([
   "node-pty",
@@ -50,10 +49,20 @@ const inheritedElectronTemplateInfoPlistKeys = Object.freeze([
   "DTXcodeBuild",
   "LSApplicationCategoryType"
 ]);
-const electronRuntimeInfoPlistKeyAllowlist = Object.freeze([
+const reviewedPackagedInfoPlistKeys = Object.freeze([
+  "CFBundleDisplayName",
+  "CFBundleExecutable",
+  "CFBundleIconFile",
+  "CFBundleIdentifier",
   "CFBundleInfoDictionaryVersion",
+  "CFBundleName",
+  "CFBundlePackageType",
+  "CFBundleShortVersionString",
+  "CFBundleVersion",
   "ElectronAsarIntegrity",
   "LSEnvironment",
+  "LSMinimumSystemVersion",
+  "NSHighResolutionCapable",
   "NSMainNibFile",
   "NSPrefersDisplaySafeAreaCompatibilityMode",
   "NSPrincipalClass",
@@ -66,8 +75,7 @@ const electronPackage = JSON.parse(
   fs.readFileSync(path.join(electronPackageRoot, "package.json"), "utf8")
 );
 const explicitReleaseVersion = process.argv[2] || "";
-const nativeVersionMetadata = readNativeAppVersionMetadata();
-const versionMetadata = resolveVersionMetadata(explicitReleaseVersion, nativeVersionMetadata);
+const versionMetadata = resolveVersionMetadata(explicitReleaseVersion);
 const version = versionMetadata.shortVersion;
 
 function assertDirectory(targetPath, message) {
@@ -117,11 +125,6 @@ function setPlistString(plist, key, value) {
   );
 }
 
-function plistStringValue(plist, key) {
-  const match = plist.match(new RegExp(`<key>${key}</key>\\s*<string>([^<]*)</string>`));
-  return match?.[1] ?? "";
-}
-
 function topLevelPlistKeys(plist) {
   const keys = [];
   const tokenPattern = /<\/?(?:dict|array)>|<key>([^<]+)<\/key>/g;
@@ -145,27 +148,12 @@ function topLevelPlistKeys(plist) {
   return keys;
 }
 
-function readNativeAppVersionMetadata() {
-  if (!fs.existsSync(nativeAppInfoPlistPath)) {
-    return {
-      shortVersion: "",
-      bundleVersion: ""
-    };
-  }
-
-  const plist = fs.readFileSync(nativeAppInfoPlistPath, "utf8");
-  return {
-    shortVersion: plistStringValue(plist, "CFBundleShortVersionString"),
-    bundleVersion: plistStringValue(plist, "CFBundleVersion")
-  };
-}
-
-function resolveVersionMetadata(explicitReleaseVersion, nativeVersionMetadata) {
+function resolveVersionMetadata(explicitReleaseVersion) {
   const fallbackVersion = electronPackage.version || "0.0.0";
 
   return {
-    shortVersion: explicitReleaseVersion || nativeVersionMetadata.shortVersion || fallbackVersion,
-    bundleVersion: explicitReleaseVersion || nativeVersionMetadata.bundleVersion || nativeVersionMetadata.shortVersion || fallbackVersion
+    shortVersion: explicitReleaseVersion || fallbackVersion,
+    bundleVersion: explicitReleaseVersion || fallbackVersion
   };
 }
 
@@ -214,19 +202,14 @@ function rewriteInfoPlist() {
   fs.writeFileSync(infoPlistPath, plist);
 }
 
-function assertPackagedInfoPlistKeyDelta() {
+function assertReviewedPackagedInfoPlistKeys() {
   const infoPlistPath = path.join(outputAppPath, ...packagedInfoPlistRelativePath.split("/"));
-  assertFile(nativeAppInfoPlistPath, "Missing native app Info.plist for package-only plist key audit.");
-
   const packagedKeys = topLevelPlistKeys(fs.readFileSync(infoPlistPath, "utf8"));
-  const nativeKeys = new Set(topLevelPlistKeys(fs.readFileSync(nativeAppInfoPlistPath, "utf8")));
-  const allowedPackageOnlyKeys = new Set(electronRuntimeInfoPlistKeyAllowlist);
-  const unexpectedPackageOnlyKeys = packagedKeys.filter(
-    (key) => !nativeKeys.has(key) && !allowedPackageOnlyKeys.has(key)
-  );
+  const reviewedKeys = new Set(reviewedPackagedInfoPlistKeys);
+  const unexpectedPackageKeys = packagedKeys.filter((key) => !reviewedKeys.has(key));
 
-  if (unexpectedPackageOnlyKeys.length > 0) {
-    throw new Error(`Unexpected package-only Info.plist keys: ${unexpectedPackageOnlyKeys.join(", ")}`);
+  if (unexpectedPackageKeys.length > 0) {
+    throw new Error(`Unexpected packaged Info.plist keys: ${unexpectedPackageKeys.join(", ")}`);
   }
 }
 
@@ -349,11 +332,11 @@ function ensurePackagedNodePtySpawnHelperExecutable() {
   return repairedCount;
 }
 
-function copyNativeResources() {
-  const packagedResources = path.join(outputAppPath, "Contents", "Sources", "Wikiwise", "Resources");
-  copyDirectory(nativeResourcesRoot, packagedResources);
+function copyElectronResources() {
+  const packagedResources = path.join(outputAppPath, embeddedAppRelativePath, "resources");
+  copyDirectory(electronResourcesRoot, packagedResources);
   copyFile(
-    path.join(nativeResourcesRoot, "Wikiwise.icns"),
+    path.join(electronResourcesRoot, "Wikiwise.icns"),
     path.join(outputAppPath, ...packagedWikiwiseIconRelativePath.split("/"))
   );
 }
@@ -377,7 +360,7 @@ function packageElectronMacApp() {
     electronTemplatePath,
     `Missing installed Electron runtime at ${electronTemplateRelativePath}. Run npm install first.`
   );
-  assertDirectory(nativeResourcesRoot, "Missing native Wikiwise resources.");
+  assertDirectory(electronResourcesRoot, "Missing Electron Wikiwise resources.");
 
   fs.rmSync(outputAppPath, { recursive: true, force: true });
   fs.mkdirSync(path.dirname(outputAppPath), { recursive: true });
@@ -393,9 +376,9 @@ function packageElectronMacApp() {
   copyCorePackage();
   copyElectronRuntimeDependencies();
   ensurePackagedNodePtySpawnHelperExecutable();
-  copyNativeResources();
+  copyElectronResources();
   rewriteInfoPlist();
-  assertPackagedInfoPlistKeyDelta();
+  assertReviewedPackagedInfoPlistKeys();
   assertRequiredPackagedFiles();
 
   return {

@@ -20,7 +20,8 @@ test("Electron release workflow is manually dispatched on macOS", () => {
   assert.match(workflow, /runs-on:\s*macos-/);
   assert.match(workflow, /npm ci/);
   assert.match(workflow, /npm test/);
-  assert.match(workflow, /swift build/);
+  assert.doesNotMatch(workflow, new RegExp(["swift", " build"].join("")));
+  assert.match(workflow, /Electron package version/);
 });
 
 test("Electron release workflow bootstraps Apple credentials from secrets", () => {

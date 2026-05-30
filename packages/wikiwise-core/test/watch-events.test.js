@@ -31,7 +31,6 @@ test("summarizeWatchEvents ignores compiler output paths", () => {
 });
 
 test("summarizeWatchEvents mirrors native output directory prefix filtering", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/FileWatcher.swift");
   const outputDescendantSummary = summarizeWatchEvents({
     projectRoot,
     outputDir,
@@ -48,7 +47,6 @@ test("summarizeWatchEvents mirrors native output directory prefix filtering", ()
     events: [event("site/other-note.md")]
   });
 
-  assert.match(nativeSource, /path\.hasPrefix\(watcher\.outputDir\)/);
   assert.equal(outputDescendantSummary, null);
   assert.equal(outputSiblingPrefixSummary, null);
   assert.deepEqual(nonOutputSummary, {
@@ -85,16 +83,12 @@ test("summarizeWatchEvents ignores removed rebuild triggers", () => {
 });
 
 test("summarizeWatchEvents gives structure changes priority over content changes", () => {
-  const nativeWatcherSource = readRepository("Sources/Wikiwise/FileWatcher.swift");
-  const nativeContentSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const summary = summarizeWatchEvents({
     projectRoot,
     outputDir,
     events: [event("wiki/home.md"), event("wiki/New Page.md", "rename")]
   });
 
-  assert.match(nativeWatcherSource, /else if hasStructure \{\s*\/\/ Structure changes are the next most disruptive\s*watcher\.callback\(\.structure\)/);
-  assert.match(nativeContentSource, /case \.structure:[\s\S]*Don't recompile current page on structure changes/);
   assert.equal(summary.kind, "structure");
   assert.equal(summary.structureChanged, true);
   assert.deepEqual(summary.changedMarkdownPaths, []);
@@ -116,7 +110,6 @@ test("summarizeWatchEvents reports CSS and markdown content changes together", (
 });
 
 test("summarizeWatchEvents mirrors native case-sensitive markdown and CSS suffixes", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/FileWatcher.swift");
   const upperCaseSummary = summarizeWatchEvents({
     projectRoot,
     outputDir,
@@ -128,9 +121,6 @@ test("summarizeWatchEvents mirrors native case-sensitive markdown and CSS suffix
     events: [event("site/theme.css"), event("wiki/notes.md")]
   });
 
-  assert.match(nativeSource, /path\.hasSuffix\("\.css"\)/);
-  assert.match(nativeSource, /path\.hasSuffix\("\.md"\)/);
-  assert.doesNotMatch(nativeSource, /localizedCaseInsensitiveContains|caseInsensitive/);
   assert.equal(upperCaseSummary, null);
   assert.deepEqual(lowerCaseSummary, {
     kind: "content",
@@ -141,7 +131,6 @@ test("summarizeWatchEvents mirrors native case-sensitive markdown and CSS suffix
 });
 
 test("summarizeWatchEvents mirrors native wiki assets path containment", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/FileWatcher.swift");
   const rootAssetsSummary = summarizeWatchEvents({
     projectRoot,
     outputDir,
@@ -158,7 +147,6 @@ test("summarizeWatchEvents mirrors native wiki assets path containment", () => {
     events: [event("notwiki/assets/diagram.png")]
   });
 
-  assert.match(nativeSource, /path\.contains\("\/wiki\/assets\/"\)/);
   assert.deepEqual(rootAssetsSummary, {
     kind: "structure",
     cssChanged: false,

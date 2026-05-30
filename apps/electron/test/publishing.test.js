@@ -43,10 +43,7 @@ test("main process exposes publishing IPC through core helpers", () => {
 });
 
 test("main process mirrors native publish config refresh fallback", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const mainSource = read("src/main/main.js");
-  const nativeRefreshSource =
-    nativeSource.match(/private func loadPublishConfig\(\) \{[\s\S]*?\n    \}/)?.[0] ?? "";
   const getPublishConfigSource =
     mainSource.match(/function getPublishConfig\(payload\) \{[\s\S]*?\n\}/)?.[0] ?? "";
   const publishProjectSource =
@@ -54,9 +51,6 @@ test("main process mirrors native publish config refresh fallback", () => {
   const unpublishProjectSource =
     mainSource.match(/async function unpublishProject\(payload\) \{[\s\S]*?\n\}/)?.[0] ?? "";
 
-  assert.notEqual(nativeRefreshSource, "");
-  assert.match(nativeRefreshSource, /publishConfig = try\? Publisher\.loadConfig\(projectRoot:\s*root\)/);
-  assert.doesNotMatch(nativeRefreshSource, /catch|publishError/);
 
   assert.notEqual(getPublishConfigSource, "");
   assert.match(getPublishConfigSource, /try\s*\{[\s\S]*loadPublishConfig\(projectRoot\)/);
@@ -119,13 +113,8 @@ test("renderer contains native publishing state and project service refresh", ()
 });
 
 test("renderer mirrors native publish toolbar help text", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
 
-  assert.match(
-    nativeSource,
-    /\.help\(publishConfig\.map\s*\{\s*"Last published: \\\(\$0\.lastPublishedAt \?\? "never"\)\\n\\\(\$0\.url\)\\n\\u\{2325\}-click to change URL"\s*\}\s*\?\?\s*"Publish wiki to wiki-wise\.com"\)/
-  );
   assert.match(rendererSource, /function publishButtonHelpText/);
   assert.match(rendererSource, /Publish wiki to wiki-wise\.com/);
   assert.match(rendererSource, /Last published: \$\{state\.publishConfig\.lastPublishedAt \?\? "never"\}/);
@@ -136,12 +125,8 @@ test("renderer mirrors native publish toolbar help text", () => {
 });
 
 test("renderer mirrors native publish action labels", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
 
-  assert.match(nativeSource, /Text\("PUBLISHING\\u\{2026\}"\)/);
-  assert.match(nativeSource, /Text\("PUBLISH \\u\{2191\}"\)/);
-  assert.match(nativeSource, /Button\("Publish"\)/);
 
   assert.match(rendererSource, /const publishBusy = state\.isPublishing \|\| state\.isUnpublishing/);
   assert.match(rendererSource, /publishLabel\.textContent = publishBusy \? "PUBLISHING…" : "PUBLISH ↑"/);
@@ -153,14 +138,9 @@ test("renderer mirrors native publish action labels", () => {
 });
 
 test("renderer mirrors native publish toolbar button style", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const cssSource = read("src/renderer/styles.css");
   const publishButtonBlock = cssBlock(cssSource, ".publish-button");
 
-  assert.match(
-    nativeSource,
-    /Text\("PUBLISH \\u\{2191\}"\)[\s\S]*\.font\(\.system\(size:\s*10,\s*weight:\s*\.regular,\s*design:\s*\.monospaced\)\)[\s\S]*\.tracking\(0\.8\)[\s\S]*\.foregroundStyle\(Color\.sidebarSelectedText\)[\s\S]*\.padding\(\.horizontal,\s*10\)[\s\S]*\.padding\(\.vertical,\s*4\)[\s\S]*RoundedRectangle\(cornerRadius:\s*3\)[\s\S]*\.fill\(Color\.sidebarSelectedBg\)[\s\S]*\.strokeBorder\(Color\.sidebarRule,\s*lineWidth:\s*1\)/
-  );
   assert.match(publishButtonBlock, /font-family:\s*ui-monospace,\s*"SFMono-Regular",\s*Menlo,\s*monospace/);
   assert.match(publishButtonBlock, /font-size:\s*10px/);
   assert.match(publishButtonBlock, /letter-spacing:\s*0\.8px/);
@@ -172,7 +152,6 @@ test("renderer mirrors native publish toolbar button style", () => {
 });
 
 test("renderer mirrors native publish toolbar busy indicator", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const htmlSource = read("src/renderer/index.html");
   const normalizedHtml = normalized(htmlSource);
   const rendererSource = read("src/renderer/renderer.js");
@@ -180,10 +159,6 @@ test("renderer mirrors native publish toolbar busy indicator", () => {
   const busyIndicatorBlock = cssBlock(cssSource, ".publish-busy-indicator");
   const publishButtonBlock = cssBlock(cssSource, ".publish-button");
 
-  assert.match(
-    nativeSource,
-    /if isPublishing \{[\s\S]*ProgressView\(\)[\s\S]*\.controlSize\(\.small\)[\s\S]*\.frame\(width:\s*12,\s*height:\s*12\)[\s\S]*Text\("PUBLISHING\\u\{2026\}"\)/
-  );
   assert.match(
     normalizedHtml,
     /<button id="publish-wiki"[\s\S]*<span id="publish-busy-indicator" class="publish-busy-indicator" hidden aria-hidden="true"><\/span>\s*<span id="publish-label">PUBLISH ↑<\/span>[\s\S]*<\/button>/
@@ -203,30 +178,19 @@ test("renderer mirrors native publish toolbar busy indicator", () => {
 });
 
 test("renderer mirrors native toolbar busy state during unpublish", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
   const confirmUnpublishBody = rendererSource.match(
     /async function confirmUnpublish\(\) \{([\s\S]*?)\n\}\n\nasync function startProjectWatcher/
   )?.[1] ?? "";
 
-  assert.match(
-    nativeSource,
-    /private func performUnpublish\(\) \{[\s\S]*isPublishing = true/
-  );
-  assert.match(nativeSource, /\.disabled\(isPublishing \|\| compiler == nil\)/);
   assert.match(rendererSource, /function isProjectFolder\(\)/);
   assert.match(rendererSource, /publishButton\.disabled = !isProjectFolder\(\) \|\| publishBusy/);
   assert.match(confirmUnpublishBody, /state\.isUnpublishing = true;[\s\S]*renderPublishStatus\(\)/);
 });
 
 test("renderer mirrors native publish dialog keyboard shortcuts", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
 
-  assert.match(
-    nativeSource,
-    /private var publishConfirmSheet[\s\S]*Button\("Cancel"\)\s*\{[\s\S]*showPublishConfirm = false[\s\S]*\.keyboardShortcut\(\.cancelAction\)[\s\S]*Button\("Publish"\)\s*\{[\s\S]*performPublish\(subdomain: pendingSubdomain\)[\s\S]*\.keyboardShortcut\(\.defaultAction\)/
-  );
   assert.match(rendererSource, /function handlePublishDialogKeydown\(event\)/);
   assert.match(rendererSource, /event\.key === "Escape"[\s\S]*closePublishDialog\(\)/);
   assert.match(rendererSource, /event\.key === "Enter"[\s\S]*confirmPublishButton\.disabled[\s\S]*publishCurrentProject\(\)/);
@@ -234,16 +198,11 @@ test("renderer mirrors native publish dialog keyboard shortcuts", () => {
 });
 
 test("renderer mirrors native publish dialog dismissal before publishing", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
   const publishBody = rendererSource.match(
     /async function publishCurrentProject\(\) \{([\s\S]*?)\n\}\n\nfunction openUnpublishConfirmation/
   )?.[1] ?? "";
 
-  assert.match(
-    nativeSource,
-    /Button\("Publish"\)\s*\{[\s\S]*showPublishConfirm = false[\s\S]*performPublish\(subdomain: pendingSubdomain\)/
-  );
 
   const closeIndex = publishBody.indexOf("state.isPublishDialogOpen = false;");
   const renderIndex = publishBody.indexOf("renderPublishDialog();", closeIndex);
@@ -258,7 +217,6 @@ test("renderer mirrors native publish dialog dismissal before publishing", () =>
 });
 
 test("renderer publish error modal surfaces native publish failure descriptions", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/Publisher.swift");
   const coreSource = readRepository("packages/wikiwise-core/src/index.js");
   const rendererSource = read("src/renderer/renderer.js");
   const htmlSource = read("src/renderer/index.html");
@@ -270,7 +228,6 @@ test("renderer publish error modal surfaces native publish failure descriptions"
   ];
 
   for (const message of nativeMessages) {
-    assert.match(nativeSource, new RegExp(escapeRegExp(`return "${message}"`)));
     assert.match(coreSource, new RegExp(escapeRegExp(message)));
   }
 
@@ -319,16 +276,11 @@ test("renderer markup and styles include publish dialog, status, and unpublish c
 });
 
 test("renderer mirrors native unpublish confirmation cancel keyboard behavior", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
   const handlerBody = rendererSource.match(
     /function handleUnpublishConfirmationKeydown\(event\) \{([\s\S]*?)\n\}\n\nasync function confirmUnpublish/
   )?.[1] ?? "";
 
-  assert.match(
-    nativeSource,
-    /\.alert\("Unpublish wiki\?",[\s\S]*Button\("Cancel", role: \.cancel\)/
-  );
   assert.match(rendererSource, /function handleUnpublishConfirmationKeydown\(event\)/);
   assert.match(rendererSource, /event\.key === "Escape"[\s\S]*closeUnpublishConfirmation\(\)/);
   assert.doesNotMatch(handlerBody, /event\.key === "Enter"/);
@@ -340,13 +292,8 @@ test("renderer mirrors native unpublish confirmation cancel keyboard behavior", 
 });
 
 test("renderer mirrors native unpublish confirmation action label", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
 
-  assert.match(
-    nativeSource,
-    /\.alert\("Unpublish wiki\?",[\s\S]*Button\("Unpublish", role: \.destructive\)/
-  );
   assert.match(rendererSource, /confirmUnpublishButton\.disabled = state\.isUnpublishing/);
   assert.match(rendererSource, /confirmUnpublishButton\.textContent = "Unpublish"/);
   assert.doesNotMatch(
@@ -356,19 +303,10 @@ test("renderer mirrors native unpublish confirmation action label", () => {
 });
 
 test("renderer mirrors native unpublish confirmation dismissal before request", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
-  const nativeAlertSource =
-    nativeSource.match(/\.alert\("Unpublish wiki\?",[\s\S]*?\} message: \{[\s\S]*?\n\s*\}/)?.[0] ?? "";
   const confirmUnpublishBody =
     rendererSource.match(/async function confirmUnpublish\(\) \{([\s\S]*?)\n\}/)?.[1] ?? "";
 
-  assert.notEqual(nativeAlertSource, "");
-  assert.match(
-    nativeAlertSource,
-    /Button\("Unpublish", role: \.destructive\) \{ performUnpublish\(\) \}/
-  );
-  assert.doesNotMatch(nativeAlertSource, /showUnpublishConfirm = false/);
 
   assert.notEqual(confirmUnpublishBody, "");
   const closeIndex = confirmUnpublishBody.indexOf("state.isUnpublishConfirmOpen = false;");
@@ -390,18 +328,10 @@ test("renderer mirrors native unpublish confirmation dismissal before request", 
 });
 
 test("renderer mirrors native unpublish success draft reset", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
-  const nativeUnpublishSource =
-    nativeSource.match(/private func performUnpublish\(\) \{[\s\S]*?\n    \}/)?.[0] ?? "";
   const confirmUnpublishBody =
     rendererSource.match(/async function confirmUnpublish\(\) \{([\s\S]*?)\n\}/)?.[1] ?? "";
 
-  assert.notEqual(nativeUnpublishSource, "");
-  assert.match(nativeUnpublishSource, /try await Publisher\.unpublish\(projectRoot:\s*root\)/);
-  assert.match(nativeUnpublishSource, /publishConfig = nil/);
-  assert.match(nativeUnpublishSource, /pendingSubdomain = ""/);
-  assert.match(nativeUnpublishSource, /subdomainAvailability = \.unknown/);
 
   assert.notEqual(confirmUnpublishBody, "");
   assert.match(confirmUnpublishBody, /await window\.wikiwise\.unpublishSite/);
@@ -416,15 +346,10 @@ test("renderer mirrors native unpublish success draft reset", () => {
 });
 
 test("renderer mirrors native publish dialog copy", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const htmlSource = read("src/renderer/index.html");
   const normalizedHtml = normalized(htmlSource);
   const rendererSource = read("src/renderer/renderer.js");
 
-  assert.match(
-    nativeSource,
-    /Text\("A publish\.json file will be saved in your project \\u\{2014\} it contains your publish token\. Treat it like a password: if you lose it, you won\\u\{2019\}t be able to update this site\."\)/
-  );
   assert.match(
     normalizedHtml,
     /A publish\.json file will be saved in your project — it contains your publish token\. Treat it like a password: if you lose it, you won’t be able to update this site\./
@@ -434,7 +359,6 @@ test("renderer mirrors native publish dialog copy", () => {
     /A publish\.json file will be saved in your project\. It contains your publish token\./
   );
 
-  assert.match(nativeSource, /Button\("Unpublish\\u\{2026\}"\)/);
   assert.match(htmlSource, />\s*Unpublish…\s*<\/button>/);
   assert.match(rendererSource, /unpublishButton\.textContent = "Unpublish…"/);
   assert.doesNotMatch(htmlSource, /Unpublish\.\.\./);
@@ -446,27 +370,10 @@ test("renderer mirrors native publish dialog copy", () => {
 });
 
 test("renderer preserves first-publish subdomain draft across cancel like native sheet state", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
-  const nativeToolbarPublishAction =
-    nativeSource.match(/Button \{\s*if publishConfig == nil \{[\s\S]*?\n\s*\} label: \{/)?.[0] ?? "";
-  const nativeSheetOnAppear =
-    nativeSource.match(/\.onAppear \{\s*if pendingSubdomain\.isEmpty \{[\s\S]*?\n\s*\}\s*\}/)?.[0] ?? "";
   const openPublishDialogBody =
     rendererSource.match(/async function openPublishDialog\(\) \{([\s\S]*?)\n\}\n\nfunction closePublishDialog/)?.[1] ?? "";
 
-  assert.notEqual(nativeToolbarPublishAction, "");
-  assert.match(nativeToolbarPublishAction, /if publishConfig == nil \{\s*\/\/ First publish[\s\S]*showPublishConfirm = true/);
-  assert.match(
-    nativeToolbarPublishAction,
-    /else \{[\s\S]*pendingSubdomain = publishConfig\?\.subdomain \?\? ""[\s\S]*subdomainAvailability = \.owned/
-  );
-  assert.doesNotMatch(
-    nativeToolbarPublishAction.match(/if publishConfig == nil \{([\s\S]*?)\} else/)?.[1] ?? "",
-    /pendingSubdomain|subdomainAvailability/
-  );
-  assert.notEqual(nativeSheetOnAppear, "");
-  assert.match(nativeSheetOnAppear, /if pendingSubdomain\.isEmpty \{[\s\S]*pendingSubdomain = Publisher\.randomSubdomain/);
 
   assert.notEqual(openPublishDialogBody, "");
   assert.match(openPublishDialogBody, /let shouldCheckAvailability = false;/);
@@ -483,17 +390,12 @@ test("renderer preserves first-publish subdomain draft across cancel like native
 });
 
 test("renderer mirrors native publish URL intro font", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const htmlSource = read("src/renderer/index.html");
   const normalizedHtml = normalized(htmlSource);
   const cssSource = read("src/renderer/styles.css");
   const publishUrlIntroBlock = cssBlock(cssSource, ".publish-url-intro");
   const compactSummaryBlock = cssBlock(cssSource, ".compact-summary");
 
-  assert.match(
-    nativeSource,
-    /Text\("Your wiki will be available at:"\)[\s\S]*\.font\(\.system\(size:\s*13\)\)[\s\S]*\.foregroundStyle\(\.secondary\)/
-  );
   assert.match(
     normalizedHtml,
     /<p class="summary compact-summary publish-url-intro">\s*Your wiki will be available at:\s*<\/p>/
@@ -507,7 +409,6 @@ test("renderer mirrors native publish URL intro font", () => {
 });
 
 test("renderer mirrors native publish token warning line spacing", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const htmlSource = read("src/renderer/index.html");
   const normalizedHtml = normalized(htmlSource);
   const cssSource = read("src/renderer/styles.css");
@@ -515,10 +416,6 @@ test("renderer mirrors native publish token warning line spacing", () => {
   const summaryBlock = cssBlock(cssSource, ".summary");
   const compactSummaryBlock = cssBlock(cssSource, ".compact-summary");
 
-  assert.match(
-    nativeSource,
-    /Text\("A publish\.json file will be saved in your project \\u\{2014\} it contains your publish token[\s\S]*\.font\(\.system\(size:\s*12\)\)[\s\S]*\.foregroundStyle\(\.secondary\)[\s\S]*\.lineSpacing\(2\)/
-  );
   assert.match(
     normalizedHtml,
     /<p class="summary compact-summary publish-token-warning">\s*A publish\.json file will be saved in your project — it contains your publish token/
@@ -529,14 +426,9 @@ test("renderer mirrors native publish token warning line spacing", () => {
 });
 
 test("renderer mirrors native publish URL row layout", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const cssSource = read("src/renderer/styles.css");
   const publishUrlRowBlock = cssBlock(cssSource, ".publish-url-row");
 
-  assert.match(
-    nativeSource,
-    /HStack\(spacing:\s*0\)[\s\S]*Text\("https:\/\/"\)[\s\S]*TextField\("subdomain"[\s\S]*\.frame\(maxWidth:\s*200\)[\s\S]*Text\("\.wiki-wise\.com"\)[\s\S]*Spacer\(\)[\s\S]*\.frame\(width:\s*16,\s*height:\s*16\)/
-  );
 
   assert.match(
     cssSource,
@@ -549,14 +441,9 @@ test("renderer mirrors native publish URL row layout", () => {
 });
 
 test("renderer mirrors native publish URL row chrome", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const cssSource = read("src/renderer/styles.css");
   const publishUrlRowBlock = cssBlock(cssSource, ".publish-url-row");
 
-  assert.match(
-    nativeSource,
-    /\.padding\(8\)[\s\S]*\.background\(RoundedRectangle\(cornerRadius:\s*4\)\.fill\(Color\.sidebarBg\)\)/
-  );
   assert.match(publishUrlRowBlock, /border:\s*0/);
   assert.match(publishUrlRowBlock, /border-radius:\s*4px/);
   assert.match(publishUrlRowBlock, /background:\s*var\(--color-sidebar-bg\)/);
@@ -565,16 +452,11 @@ test("renderer mirrors native publish URL row chrome", () => {
 });
 
 test("renderer mirrors native publish URL row font", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const cssSource = read("src/renderer/styles.css");
   const publishUrlRowBlock = cssBlock(cssSource, ".publish-url-row");
   const publishSubdomainBlock = cssBlock(cssSource, ".publish-subdomain");
   const availabilityIndicatorBlock = cssBlock(cssSource, ".publish-availability-indicator");
 
-  assert.match(
-    nativeSource,
-    /Text\("https:\/\/"\)[\s\S]*\.font\(\.system\(size:\s*13,\s*design:\s*\.monospaced\)\)[\s\S]*TextField\("subdomain"[\s\S]*\.font\(\.system\(size:\s*13,\s*design:\s*\.monospaced\)\)[\s\S]*Text\("\.wiki-wise\.com"\)[\s\S]*\.font\(\.system\(size:\s*13,\s*design:\s*\.monospaced\)\)/
-  );
   assert.match(publishUrlRowBlock, /font-family:\s*ui-monospace,\s*"SFMono-Regular",\s*Menlo,\s*monospace/);
   assert.match(publishUrlRowBlock, /font-size:\s*13px/);
   assert.match(publishSubdomainBlock, /font-family:\s*inherit/);
@@ -584,30 +466,14 @@ test("renderer mirrors native publish URL row font", () => {
 });
 
 test("renderer mirrors native publish URL row color hierarchy", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const htmlSource = read("src/renderer/index.html");
   const normalizedHtml = normalized(htmlSource);
   const cssSource = read("src/renderer/styles.css");
-  const nativePublishSheet = nativeSource.match(
-    /private var publishConfirmSheet:[\s\S]*?\n    private var canPublish/
-  )?.[0] ?? "";
-  const nativeSubdomainField = nativePublishSheet.match(
-    /TextField\("subdomain"[\s\S]*?\.frame\(maxWidth:\s*200\)/
-  )?.[0] ?? "";
   const publishUrlAffixBlock = cssBlock(cssSource, ".publish-url-affix");
   const publishUrlRowBlock = cssBlock(cssSource, ".publish-url-row");
   const publishSubdomainBlock = cssBlock(cssSource, ".publish-subdomain");
   const availabilityIndicatorBlock = cssBlock(cssSource, ".publish-availability-indicator");
 
-  assert.match(
-    nativePublishSheet,
-    /Text\("https:\/\/"\)[\s\S]*\.foregroundStyle\(\.secondary\)[\s\S]*TextField\("subdomain"/
-  );
-  assert.doesNotMatch(nativeSubdomainField, /foregroundStyle\(\.secondary\)/);
-  assert.match(
-    nativePublishSheet,
-    /Text\("\.wiki-wise\.com"\)[\s\S]*\.foregroundStyle\(\.secondary\)/
-  );
 
   assert.match(normalizedHtml, /<span class="publish-url-affix">https:\/\/<\/span>/);
   assert.match(normalizedHtml, /<span class="publish-url-affix">\.wiki-wise\.com<\/span>/);
@@ -621,15 +487,10 @@ test("renderer mirrors native publish URL row color hierarchy", () => {
 });
 
 test("renderer mirrors native publish subdomain plain input padding", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const cssSource = read("src/renderer/styles.css");
   const publishUrlRowBlock = cssBlock(cssSource, ".publish-url-row");
   const publishSubdomainBlock = cssBlock(cssSource, ".publish-subdomain");
 
-  assert.match(
-    nativeSource,
-    /TextField\("subdomain",\s*text:\s*\$pendingSubdomain\)[\s\S]*\.textFieldStyle\(\.plain\)/
-  );
   assert.match(publishUrlRowBlock, /padding:\s*8px/);
   assert.match(publishSubdomainBlock, /padding:\s*0/);
   assert.match(publishSubdomainBlock, /border:\s*0/);
@@ -637,17 +498,9 @@ test("renderer mirrors native publish subdomain plain input padding", () => {
 });
 
 test("renderer mirrors native publish URL display without duplicate detail row", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const htmlSource = read("src/renderer/index.html");
   const rendererSource = read("src/renderer/renderer.js");
-  const nativePublishSheet = nativeSource.match(
-    /private var publishConfirmSheet:[\s\S]*?\n    private var canPublish/
-  )?.[0] ?? "";
 
-  assert.match(
-    nativePublishSheet,
-    /HStack\(spacing:\s*0\)[\s\S]*Text\("https:\/\/"\)[\s\S]*TextField\("subdomain"[\s\S]*Text\("\.wiki-wise\.com"\)/
-  );
   assert.doesNotMatch(htmlSource, /id="publish-url"/);
   assert.doesNotMatch(rendererSource, /querySelector\("#publish-url"\)/);
   assert.doesNotMatch(rendererSource, /publishUrl\.textContent/);
@@ -655,66 +508,45 @@ test("renderer mirrors native publish URL display without duplicate detail row",
 });
 
 test("renderer mirrors native publish dialog panel padding", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const cssSource = read("src/renderer/styles.css");
   const publishDialogBlock = cssBlock(cssSource, ".publish-dialog");
   const modalPanelBlock = cssBlock(cssSource, ".modal-panel");
 
-  assert.match(
-    nativeSource,
-    /private var publishConfirmSheet:[\s\S]*\.padding\(24\)[\s\S]*\.frame\(width:\s*480\)/
-  );
   assert.match(publishDialogBlock, /width:\s*min\(480px,\s*100%\)/);
   assert.match(publishDialogBlock, /padding:\s*24px/);
   assert.match(modalPanelBlock, /padding:\s*22px/);
 });
 
 test("renderer mirrors native publish dialog content spacing", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const cssSource = read("src/renderer/styles.css");
   const publishDialogBlock = cssBlock(cssSource, ".publish-dialog");
   const modalPanelBlock = cssBlock(cssSource, ".modal-panel");
 
-  assert.match(
-    nativeSource,
-    /private var publishConfirmSheet:[\s\S]*VStack\(alignment:\s*\.leading,\s*spacing:\s*16\)/
-  );
   assert.match(publishDialogBlock, /gap:\s*16px/);
   assert.match(modalPanelBlock, /gap:\s*12px/);
 });
 
 test("renderer mirrors native publish dialog title typography", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const cssSource = read("src/renderer/styles.css");
   const publishTitleBlock = cssBlock(cssSource, ".publish-dialog h2");
 
-  assert.match(
-    nativeSource,
-    /Text\("Publish your wiki"\)[\s\S]*\.font\(\.system\(size:\s*18,\s*weight:\s*\.medium,\s*design:\s*\.serif\)\)/
-  );
   assert.match(publishTitleBlock, /font-family:\s*Georgia,\s*serif/);
   assert.match(publishTitleBlock, /font-size:\s*18px/);
   assert.match(publishTitleBlock, /font-weight:\s*500/);
 });
 
 test("renderer mirrors native publish dialog title spacing without extra margin", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const cssSource = read("src/renderer/styles.css");
   const publishDialogBlock = cssBlock(cssSource, ".publish-dialog");
   const publishTitleBlock = cssBlock(cssSource, ".publish-dialog h2");
   const modalTitleBlock = cssBlock(cssSource, ".modal-panel h2");
 
-  assert.match(
-    nativeSource,
-    /private var publishConfirmSheet:[\s\S]*VStack\(alignment:\s*\.leading,\s*spacing:\s*16\)/
-  );
   assert.match(publishDialogBlock, /gap:\s*16px/);
   assert.match(publishTitleBlock, /margin-bottom:\s*0/);
   assert.match(modalTitleBlock, /margin-bottom:\s*4px/);
 });
 
 test("renderer mirrors native publish dialog actions spacing", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const htmlSource = read("src/renderer/index.html");
   const normalizedHtml = normalized(htmlSource);
   const cssSource = read("src/renderer/styles.css");
@@ -722,10 +554,6 @@ test("renderer mirrors native publish dialog actions spacing", () => {
   const publishActionsBlock = cssBlock(cssSource, ".publish-actions");
   const modalActionsBlock = cssBlock(cssSource, ".modal-actions");
 
-  assert.match(
-    nativeSource,
-    /VStack\(alignment:\s*\.leading,\s*spacing:\s*16\)[\s\S]*Text\("A publish\.json file will be saved in your project \\u\{2014\} it contains your publish token[\s\S]*\.lineSpacing\(2\)[\s\S]*HStack \{[\s\S]*Button\("Cancel"\)[\s\S]*Button\("Publish"\)/
-  );
   assert.match(
     normalizedHtml,
     /<div class="modal-actions publish-actions">[\s\S]*id="unpublish-wiki"[\s\S]*id="cancel-publish"[\s\S]*id="confirm-publish"/
@@ -736,14 +564,8 @@ test("renderer mirrors native publish dialog actions spacing", () => {
 });
 
 test("renderer mirrors native publish result copy", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
 
-  assert.match(
-    nativeSource,
-    /Your wiki is live at \\\(result\.url\.absoluteString\)\\n\\nA publish\.json file has been saved to your project\. Keep it safe \\u\{2014\} it\\u\{2019\}s your key to update this site\./
-  );
-  assert.match(nativeSource, /Updated \\\(result\.url\.absoluteString\)/);
 
   assert.match(rendererSource, /function publishResultMessageText\(result\)/);
   assert.match(
@@ -759,22 +581,8 @@ test("renderer mirrors native publish result copy", () => {
 });
 
 test("renderer mirrors native publish availability hint copy", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
 
-  assert.match(
-    nativeSource,
-    /case \.taken:\s*Text\("This name is already taken\. Try another\."\)/
-  );
-  assert.match(
-    nativeSource,
-    /case \.invalid:\s*Text\("3\\u\{2013\}48 characters, letters, numbers, and hyphens only\."\)/
-  );
-  assert.match(nativeSource, /case \.owned:\s*Text\("You already own this name\."\)/);
-  assert.match(
-    nativeSource,
-    /default:\s*Text\("Anyone with this link can view your wiki\."\)/
-  );
 
   assert.match(rendererSource, /case "taken":\s*return "This name is already taken\. Try another\."/);
   assert.match(
@@ -798,11 +606,7 @@ test("renderer mirrors native publish availability hint copy", () => {
 });
 
 test("renderer mirrors native publish availability hint colors", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const cssSource = read("src/renderer/styles.css");
-  const nativePublishSheet = nativeSource.match(
-    /private var publishConfirmSheet:[\s\S]*?\n    private var canPublish/
-  )?.[0] ?? "";
   const publishAvailabilityBlock = cssBlock(cssSource, ".publish-availability");
   const ownedHintBlock = cssBlock(cssSource, '.publish-availability[data-state="owned"]');
   const takenHintBlock = cssBlock(cssSource, '.publish-availability[data-state="taken"]');
@@ -810,22 +614,6 @@ test("renderer mirrors native publish availability hint colors", () => {
   const ownedIndicatorBlock = cssBlock(cssSource, '.publish-availability-indicator[data-state="owned"]');
   const invalidIndicatorBlock = cssBlock(cssSource, '.publish-availability-indicator[data-state="invalid"]');
 
-  assert.match(
-    nativePublishSheet,
-    /case \.taken:\s*Text\("This name is already taken\. Try another\."\)[\s\S]*?\.foregroundStyle\(\.red\)/
-  );
-  assert.match(
-    nativePublishSheet,
-    /case \.invalid:\s*Text\("3\\u\{2013\}48 characters, letters, numbers, and hyphens only\."\)[\s\S]*?\.foregroundStyle\(\.orange\)/
-  );
-  assert.match(
-    nativePublishSheet,
-    /case \.owned:\s*Text\("You already own this name\."\)[\s\S]*?\.foregroundStyle\(\.blue\)/
-  );
-  assert.match(
-    nativePublishSheet,
-    /default:\s*Text\("Anyone with this link can view your wiki\."\)[\s\S]*?\.foregroundStyle\(\.secondary\)/
-  );
 
   assert.match(publishAvailabilityBlock, /color:\s*var\(--color-muted-text\)/);
   assert.doesNotMatch(cssSource, /\.publish-availability\[data-state="available"\]\s*\{/);
@@ -838,47 +626,31 @@ test("renderer mirrors native publish availability hint colors", () => {
 });
 
 test("renderer mirrors native publish subdomain sanitizer length behavior", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
-  const nativePublishSheet = nativeSource.match(
-    /private var publishConfirmSheet:[\s\S]*?\n    private var canPublish/
-  )?.[0] ?? "";
   const sanitizeBody = rendererSource.match(
     /function sanitizePublishSubdomain\(value\) \{([\s\S]*?)\n\}/
   )?.[1] ?? "";
 
-  assert.match(
-    nativePublishSheet,
-    /let sanitized = newValue\.lowercased\(\)\s*\.filter \{ \$0\.isLetter \|\| \$0\.isNumber \|\| \$0 == "-" \}/
-  );
-  assert.doesNotMatch(nativePublishSheet, /prefix\(48\)|count\s*>\s*48/);
   assert.match(sanitizeBody, /String\(value\)\.toLowerCase\(\)\.replace\(/);
   assert.doesNotMatch(sanitizeBody, /\.slice\(0,\s*48\)|\.substring\(0,\s*48\)|\.substr\(0,\s*48\)/);
 });
 
 test("renderer mirrors native publish subdomain sanitizer character behavior", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
-  const nativePublishSheet = nativeSource.match(
-    /private var publishConfirmSheet:[\s\S]*?\n    private var canPublish/
-  )?.[0] ?? "";
   const sanitizeBody = rendererSource.match(
     /function sanitizePublishSubdomain\(value\) \{([\s\S]*?)\n\}/
   )?.[1] ?? "";
 
-  assert.match(nativePublishSheet, /\$0\.isLetter \|\| \$0\.isNumber \|\| \$0 == "-"/);
   assert.match(sanitizeBody, /replace\(\/\[\^\\p\{L\}\\p\{N\}-\]\/gu,\s*""\)/);
   assert.doesNotMatch(sanitizeBody, /\[\^a-z0-9-\]/);
 });
 
 test("renderer mirrors native publish subdomain character count behavior", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
   const scheduleBody = rendererSource.match(
     /function scheduleAvailabilityCheck\(\) \{([\s\S]*?)\n\}\n\nasync function checkPublishAvailability/
   )?.[1] ?? "";
 
-  assert.match(nativeSource, /guard subdomain\.count >= 3 else/);
   assert.match(rendererSource, /function publishSubdomainCharacterCount\(value\)/);
   assert.match(rendererSource, /Array\.from\(value\)\.length/);
   assert.match(scheduleBody, /publishSubdomainCharacterCount\(subdomain\)\s*<\s*3/);
@@ -886,17 +658,11 @@ test("renderer mirrors native publish subdomain character count behavior", () =>
 });
 
 test("renderer inherits native random publish subdomain Unicode prefix behavior from core", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/Publisher.swift");
   const coreSource = readRepository("packages/wikiwise-core/src/index.js");
-  const nativeRandomSubdomain = nativeSource.match(
-    /static func randomSubdomain\(wikiName: String\? = nil\) -> String \{[\s\S]*?\n    \}/
-  )?.[0] ?? "";
   const coreRandomSubdomain = coreSource.match(
     /export function randomPublishSubdomain\(wikiName = ""\) \{[\s\S]*?\n\}/
   )?.[0] ?? "";
 
-  assert.match(nativeRandomSubdomain, /\.filter \{ \$0\.isLetter \|\| \$0\.isNumber \|\| \$0 == "-" \}/);
-  assert.match(nativeRandomSubdomain, /\.prefix\(20\)/);
   assert.match(coreRandomSubdomain, /replace\(\/\[\^\\p\{L\}\\p\{N\}-\]\/gu,\s*""\)/);
   assert.match(coreRandomSubdomain, /Array\.from\(sanitized\)\s*\.slice\(0,\s*20\)\s*\.join\(""\)/);
   assert.doesNotMatch(
@@ -906,16 +672,7 @@ test("renderer inherits native random publish subdomain Unicode prefix behavior 
 });
 
 test("renderer inherits native first-publish conflict retry subdomain behavior from core", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/Publisher.swift");
   const coreSource = readRepository("packages/wikiwise-core/src/index.js");
-  const nativePublishStart = nativeSource.indexOf(
-    "static func publish(siteFolder: URL, projectRoot: URL, subdomain: String? = nil)"
-  );
-  const nativePublishEnd = nativeSource.indexOf("    // MARK: - Private", nativePublishStart);
-  const nativePublishSource = nativeSource.slice(nativePublishStart, nativePublishEnd);
-  const nativeUploadStart = nativeSource.indexOf("private static func upload", nativePublishEnd);
-  const nativeRandomStart = nativeSource.indexOf("static func randomSubdomain", nativeUploadStart);
-  const nativeUploadSource = nativeSource.slice(nativeUploadStart, nativeRandomStart);
   const corePublishStart = coreSource.indexOf("export async function publishSite");
   const corePublishEnd = coreSource.indexOf("export async function unpublishSite", corePublishStart);
   const corePublishSource = coreSource.slice(corePublishStart, corePublishEnd);
@@ -923,16 +680,10 @@ test("renderer inherits native first-publish conflict retry subdomain behavior f
   const headersStart = coreSource.indexOf("function publishHeaders", uploadStart);
   const uploadSource = coreSource.slice(uploadStart, headersStart);
 
-  assert.notEqual(nativePublishStart, -1);
-  assert.notEqual(nativePublishEnd, -1);
-  assert.notEqual(nativeUploadStart, -1);
-  assert.notEqual(nativeRandomStart, -1);
   assert.notEqual(corePublishStart, -1);
   assert.notEqual(corePublishEnd, -1);
   assert.notEqual(uploadStart, -1);
   assert.notEqual(headersStart, -1);
-  assert.match(nativePublishSource, /randomSubdomain\(wikiName:\s*projectRoot\.lastPathComponent\)/);
-  assert.match(nativeUploadSource, /case 409:[\s\S]*config\.subdomain = randomSubdomain\(\)/);
   assert.match(
     corePublishSource,
     /const randomSubdomain = options\.randomSubdomain \?\? \(\(wikiName\) => randomPublishSubdomain\(wikiName\)\)/
@@ -943,17 +694,10 @@ test("renderer inherits native first-publish conflict retry subdomain behavior f
 });
 
 test("renderer mirrors native publish availability inline indicator", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const htmlSource = read("src/renderer/index.html");
   const rendererSource = read("src/renderer/renderer.js");
   const cssSource = read("src/renderer/styles.css");
 
-  assert.match(nativeSource, /ProgressView\(\)[\s\S]*\.controlSize\(\.small\)/);
-  assert.match(nativeSource, /Image\(systemName: "checkmark\.circle\.fill"\)[\s\S]*\.foregroundStyle\(\.green\)/);
-  assert.match(nativeSource, /Image\(systemName: "checkmark\.circle\.fill"\)[\s\S]*\.foregroundStyle\(\.blue\)/);
-  assert.match(nativeSource, /Image\(systemName: "xmark\.circle\.fill"\)[\s\S]*\.foregroundStyle\(\.red\)/);
-  assert.match(nativeSource, /Image\(systemName: "exclamationmark\.circle\.fill"\)[\s\S]*\.foregroundStyle\(\.orange\)/);
-  assert.match(nativeSource, /\.frame\(width:\s*16,\s*height:\s*16\)/);
 
   assert.match(htmlSource, /id="publish-availability-indicator"/);
   assert.match(rendererSource, /const publishAvailabilityIndicator = document\.querySelector\("#publish-availability-indicator"\)/);

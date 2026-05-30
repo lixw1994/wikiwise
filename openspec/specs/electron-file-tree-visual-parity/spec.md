@@ -38,7 +38,7 @@ The Electron runtime audit SHALL verify file-tree visual markers.
 
 ### Requirement: Native Sidebar Header
 
-The Electron project sidebar SHALL match the native SwiftUI sidebar header structure and styling.
+The Electron project sidebar SHALL match the Electron macOS sidebar header structure and styling.
 
 #### Scenario: Project sidebar header is displayed
 
@@ -56,12 +56,12 @@ The Electron file tree SHALL expose native folder help text for directory row to
 
 #### Scenario: Special top-level folders are displayed
 - **WHEN** the Electron project tree renders `wiki`, `sources`, `raw`, or `site` folder rows
-- **THEN** their row tooltips match the native SwiftUI `folderTooltip(_:)` strings
+- **THEN** their row tooltips match the Electron macOS `folderTooltip(_:)` strings
 - **AND** `wiki`, `sources`, and `raw` tooltip copy uses the native em dash punctuation
 - **AND** the `site` tooltip remains `Build tooling and compiled HTML output`
 
 ### Requirement: File Tree Row Spacing Parity
-The Electron file tree SHALL match the native SwiftUI zero-spacing layout between both root rows and expanded child rows.
+The Electron file tree SHALL match the Electron macOS zero-spacing layout between both root rows and expanded child rows.
 
 #### Scenario: File tree row spacing is inspected
 - **WHEN** the Electron project browser renders root file-tree rows
@@ -71,28 +71,28 @@ The Electron file tree SHALL match the native SwiftUI zero-spacing layout betwee
 
 ### Requirement: Special File Row Weight Parity
 
-Electron file-tree rows for native special files SHALL render with the same medium typography weight as native SwiftUI.
+Electron file-tree rows for native special files SHALL render with the same medium typography weight as Electron macOS.
 
 #### Scenario: Special file rows are rendered
 - **WHEN** Electron renders file-tree rows for `home.md`, `index.md`, or `log.md`
-- **THEN** those rows use a medium font weight matching native SwiftUI `.medium`
+- **THEN** those rows use a medium font weight matching Electron macOS `.medium`
 - **AND** regular file rows remain regular weight
 - **AND** file-tree indentation, selected accent, serif typography, and special filename membership remain unchanged
 
 ### Requirement: File Tree Row Typography Parity
 
-Electron file-tree folder and file row labels SHALL render with the same native 13px regular serif typography as SwiftUI, while preserving native medium weight for special file rows.
+Electron file-tree folder and file row labels SHALL render with the same native 13px regular serif typography as Electron macOS, while preserving native medium weight for special file rows.
 
 #### Scenario: File-tree rows are rendered
 - **WHEN** Electron renders folder rows in the project file tree
-- **THEN** their labels use 13px regular serif typography matching native SwiftUI
-- **AND** regular file labels use 13px regular serif typography matching native SwiftUI
+- **THEN** their labels use 13px regular serif typography matching Electron macOS
+- **AND** regular file labels use 13px regular serif typography matching Electron macOS
 - **AND** `home.md`, `index.md`, and `log.md` continue to use the native medium special-file weight
 - **AND** file-tree indentation, row padding, selected-row italic styling, selected accent, folder icons, and expansion behavior remain unchanged
 
 ### Requirement: Selected File Accent Height Parity
 
-Electron selected file-tree rows SHALL render the leading accent as a full-height row overlay matching native SwiftUI.
+Electron selected file-tree rows SHALL render the leading accent as a full-height row overlay matching Electron macOS.
 
 #### Scenario: File row is selected
 - **WHEN** Electron renders the selected file row in the project tree
@@ -103,7 +103,7 @@ Electron selected file-tree rows SHALL render the leading accent as a full-heigh
 
 ### Requirement: Folder Icon Aspect Parity
 
-Electron file-tree folder icons SHALL use the same native 13px-scaled 14-by-12 SVG aspect and special-folder marker geometry as SwiftUI `FolderIcon(size: 13)`.
+Electron file-tree folder icons SHALL use the same native 13px-scaled 14-by-12 SVG aspect and special-folder marker geometry as Electron macOS `FolderIcon(size: 13)`.
 
 #### Scenario: Folder rows are rendered
 - **WHEN** Electron renders a directory row in the project file tree
@@ -115,7 +115,7 @@ Electron file-tree folder icons SHALL use the same native 13px-scaled 14-by-12 S
 
 ### Requirement: Folder Icon Stroke Weight Parity
 
-Electron file-tree folder icons SHALL use the same native scaled stroke width as SwiftUI `FolderIcon(size: 13)`.
+Electron file-tree folder icons SHALL use the same native scaled stroke width as Electron macOS `FolderIcon(size: 13)`.
 
 #### Scenario: Folder rows are rendered
 - **WHEN** Electron renders a directory row in the project file tree
@@ -126,7 +126,7 @@ Electron file-tree folder icons SHALL use the same native scaled stroke width as
 
 ### Requirement: Folder Row Trailing Padding Parity
 
-Electron file-tree folder rows SHALL match the native SwiftUI folder-row trailing padding behavior.
+Electron file-tree folder rows SHALL match the Electron macOS folder-row trailing padding behavior.
 
 #### Scenario: Folder and file rows are rendered
 - **WHEN** Electron renders folder and file rows in the project file tree
@@ -136,7 +136,7 @@ Electron file-tree folder rows SHALL match the native SwiftUI folder-row trailin
 
 ### Requirement: Folder Icon Path Parity
 
-Electron file-tree folder icons SHALL render the same Paper 14-by-12 folder path as native SwiftUI `FolderIcon`.
+Electron file-tree folder icons SHALL render the same Paper 14-by-12 folder path as Electron macOS `FolderIcon`.
 
 #### Scenario: Folder rows are rendered
 - **WHEN** Electron renders directory rows in the project file tree

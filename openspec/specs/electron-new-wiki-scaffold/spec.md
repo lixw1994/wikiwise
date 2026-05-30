@@ -15,7 +15,7 @@ The Electron app SHALL provide a create-new-wiki flow from the welcome screen th
 - **AND** it displays the native `~/wikis` fallback label when no selected location path is available
 - **AND** it lets the user choose a different parent directory through the main process
 - **AND** the location chooser uses the native message copy `Choose where to create your wiki`
-- **AND** the location chooser does not set an explicit dialog title because the current SwiftUI `NSOpenPanel` does not set `panel.title`
+- **AND** the location chooser does not set an explicit dialog title because the current Electron macOS `NSOpenPanel` does not set `panel.title`
 - **AND** the location chooser action uses the native `Choose…` label
 - **AND** the confirm action uses the native `Create` label
 - **AND** the Create action is disabled only while the trimmed wiki name is empty
@@ -62,7 +62,7 @@ The scaffold/new wiki phase SHALL identify native creation gaps that remain for 
 - **AND** built-in terminal, publishing setup, persistence, and native modal polish are not listed as deferred once their parity evidence has been archived
 
 ### Requirement: New Wiki Sheet Layout Parity
-The Electron create-new-wiki dialog SHALL match the native SwiftUI new-wiki sheet's core layout and typography.
+The Electron create-new-wiki dialog SHALL match the Electron macOS new-wiki sheet's core layout and typography.
 
 #### Scenario: New wiki sheet is inspected
 - **WHEN** the Electron create-new-wiki dialog is rendered
@@ -144,7 +144,7 @@ The Electron create-new-wiki dialog SHALL mirror the native sheet's 6px spacing 
 - **AND** wiki creation continues to use the full selected location path
 
 ### Requirement: New Wiki Field Label Color Parity
-The Electron create-new-wiki dialog SHALL render its field labels with the same sidebar text color used by the native SwiftUI sheet.
+The Electron create-new-wiki dialog SHALL render its field labels with the same sidebar text color used by the Electron macOS sheet.
 
 #### Scenario: New wiki field labels are inspected
 - **WHEN** the Electron create-new-wiki dialog is rendered
@@ -153,7 +153,7 @@ The Electron create-new-wiki dialog SHALL render its field labels with the same 
 - **AND** shared field label color remains available for non-new-wiki dialogs
 
 ### Requirement: New Wiki Location Path Color Parity
-The Electron create-new-wiki dialog SHALL render the selected location path with the same muted sidebar text color used by the native SwiftUI sheet.
+The Electron create-new-wiki dialog SHALL render the selected location path with the same muted sidebar text color used by the Electron macOS sheet.
 
 #### Scenario: New wiki location path color is inspected
 - **WHEN** the Electron create-new-wiki dialog displays the selected location path
@@ -162,7 +162,7 @@ The Electron create-new-wiki dialog SHALL render the selected location path with
 - **AND** shared muted text color remains available for non-new-wiki surfaces
 
 ### Requirement: Post-Create Guide Container Layout Parity
-The Electron post-create guide SHALL match the native SwiftUI guide surface background, inset, and leading content column width.
+The Electron post-create guide SHALL match the Electron macOS guide surface background, inset, and leading content column width.
 
 #### Scenario: Post-create guide container is inspected
 - **WHEN** Electron shows the post-create guide after creating a wiki
@@ -172,7 +172,7 @@ The Electron post-create guide SHALL match the native SwiftUI guide surface back
 - **AND** existing guide copy, command rendering, and dismiss behavior are preserved
 
 ### Requirement: Post-Create Guide Title Parity
-The Electron post-create guide SHALL render its title with the same native SwiftUI typography and selected text color.
+The Electron post-create guide SHALL render its title with the same Electron macOS typography and selected text color.
 
 #### Scenario: Post-create guide title is inspected
 - **WHEN** Electron shows the post-create guide after creating a wiki
@@ -181,7 +181,7 @@ The Electron post-create guide SHALL render its title with the same native Swift
 - **AND** existing guide copy, container layout, command rendering, and dismiss behavior are preserved
 
 ### Requirement: Post-Create Guide Summary Text Parity
-The Electron post-create guide SHALL render its opening summary paragraph with the same native SwiftUI typography, color, and line spacing.
+The Electron post-create guide SHALL render its opening summary paragraph with the same Electron macOS typography, color, and line spacing.
 
 #### Scenario: Post-create guide summary is inspected
 - **WHEN** Electron shows the post-create guide after creating a wiki
@@ -191,7 +191,7 @@ The Electron post-create guide SHALL render its opening summary paragraph with t
 - **AND** later guide paragraphs, guide copy, command rendering, and dismiss behavior are preserved
 
 ### Requirement: Post-Create Guide Divider Parity
-The Electron post-create guide SHALL render native-style section dividers between the same guide sections separated by SwiftUI `Divider()` rows.
+The Electron post-create guide SHALL render native-style section dividers between the same guide sections separated by Electron macOS `Divider()` rows.
 
 #### Scenario: Post-create guide dividers are inspected
 - **WHEN** Electron shows the post-create guide after creating a wiki
@@ -201,7 +201,7 @@ The Electron post-create guide SHALL render native-style section dividers betwee
 - **AND** existing guide copy, command rendering, seed options, summary/title styling, and dismiss behavior are preserved
 
 ### Requirement: Post-Create Guide Section Heading Parity
-The Electron post-create guide SHALL render its section heading labels with the same native SwiftUI typography, tracking, and color.
+The Electron post-create guide SHALL render its section heading labels with the same Electron macOS typography, tracking, and color.
 
 #### Scenario: Post-create guide section headings are inspected
 - **WHEN** Electron shows the post-create guide after creating a wiki
@@ -211,7 +211,7 @@ The Electron post-create guide SHALL render its section heading labels with the 
 - **AND** non-guide eyebrow styling and existing guide copy, dividers, command rendering, seed options, summary/title styling, and dismiss behavior are preserved
 
 ### Requirement: Post-Create Guide Intro Copy Parity
-The Electron post-create guide SHALL render its agent and seed intro paragraphs with the same native SwiftUI typography and color.
+The Electron post-create guide SHALL render its agent and seed intro paragraphs with the same Electron macOS typography and color.
 
 #### Scenario: Post-create guide intro copy is inspected
 - **WHEN** Electron shows the post-create guide after creating a wiki
@@ -221,7 +221,7 @@ The Electron post-create guide SHALL render its agent and seed intro paragraphs 
 - **AND** summary text, final guidance, lists, command rendering, headings, dividers, and dismiss behavior are preserved
 
 ### Requirement: Post-Create Guide Final Guidance Parity
-The Electron post-create guide SHALL render its final guidance paragraph with the same native SwiftUI typography, color, and line spacing.
+The Electron post-create guide SHALL render its final guidance paragraph with the same Electron macOS typography, color, and line spacing.
 
 #### Scenario: Post-create guide final guidance is inspected
 - **WHEN** Electron shows the post-create guide after creating a wiki
@@ -231,7 +231,7 @@ The Electron post-create guide SHALL render its final guidance paragraph with th
 - **AND** summary text, intro copy, headings, dividers, lists, command rendering, and dismiss behavior are preserved
 
 ### Requirement: Post-Create Guide Agent Command Label Parity
-The Electron post-create guide SHALL render visible agent labels above each quick-start command with native SwiftUI typography and color.
+The Electron post-create guide SHALL render visible agent labels above each quick-start command with Electron macOS typography and color.
 
 #### Scenario: Post-create guide agent command labels are inspected
 - **WHEN** Electron shows the post-create guide after creating a wiki
@@ -242,7 +242,7 @@ The Electron post-create guide SHALL render visible agent labels above each quic
 - **AND** existing command code IDs, command population behavior, guide copy, dividers, headings, and dismiss behavior are preserved
 
 ### Requirement: Post-Create Guide Agent Command Chrome Parity
-The Electron post-create guide SHALL render each quick-start command with native SwiftUI command text chrome.
+The Electron post-create guide SHALL render each quick-start command with Electron macOS command text chrome.
 
 #### Scenario: Post-create guide agent command chrome is inspected
 - **WHEN** Electron shows the post-create guide after creating a wiki
@@ -290,7 +290,7 @@ The Electron scaffold/new-wiki phase SHALL retain runtime evidence for the compl
 - **AND** dismissing the guide starts reading `wiki/home.md`
 
 ### Requirement: New Wiki Failure Dismissal Parity
-The Electron new-wiki flow SHALL mirror native SwiftUI scaffold failure behavior by dismissing the create dialog without opening a project or showing the post-create guide.
+The Electron new-wiki flow SHALL mirror Electron macOS scaffold failure behavior by dismissing the create dialog without opening a project or showing the post-create guide.
 
 #### Scenario: Scaffold creation fails
 - **WHEN** the user submits a valid new-wiki name and location
@@ -305,7 +305,7 @@ The Electron new-wiki location picker SHALL preserve native message-only dialog 
 
 #### Scenario: New wiki location picker is configured
 - **WHEN** the Electron main process opens the new-wiki location picker
-- **THEN** the dialog message matches the native SwiftUI `NSOpenPanel` message
+- **THEN** the dialog message matches the Electron macOS `NSOpenPanel` message
 - **AND** the dialog does not set an explicit title override
 - **AND** directory-only selection, directory creation, and the default `~/wikis` path remain unchanged
 
@@ -337,7 +337,7 @@ The Electron create-new-wiki flow SHALL inherit native empty-slug behavior from 
 
 ### Requirement: Post-Create Guide Explicit Dismiss Parity
 
-Electron post-create guide visibility SHALL mirror native SwiftUI by remaining visible until the user explicitly activates the guide dismissal action.
+Electron post-create guide visibility SHALL mirror Electron macOS by remaining visible until the user explicitly activates the guide dismissal action.
 
 #### Scenario: User selects a file while post-create guide is visible
 - **WHEN** the post-create guide is visible after creating a wiki
@@ -351,7 +351,7 @@ Electron post-create guide visibility SHALL mirror native SwiftUI by remaining v
 - **AND** the user activates generated-page navigation such as the 3D map toolbar action
 - **THEN** Electron may update generated-page state behind the guide
 - **AND** Electron keeps the post-create guide visible
-- **AND** this matches the native generated-page toolbar path, which does not clear `showPostCreateGuide`
+- **AND** this matches the Electron generated-page toolbar path, which does not clear `showPostCreateGuide`
 
 #### Scenario: User dismisses the post-create guide explicitly
 - **WHEN** the user activates `Got it — start reading`
@@ -361,7 +361,7 @@ Electron post-create guide visibility SHALL mirror native SwiftUI by remaining v
 
 ### Requirement: Post-Create Guide Project Result Persistence Parity
 
-Electron post-create guide visibility SHALL mirror native SwiftUI by preserving an already-visible guide across ordinary project result application until an explicit show or hide path changes it.
+Electron post-create guide visibility SHALL mirror Electron macOS by preserving an already-visible guide across ordinary project result application until an explicit show or hide path changes it.
 
 #### Scenario: User opens another project while post-create guide is visible
 - **WHEN** the Electron post-create guide is visible after creating a wiki

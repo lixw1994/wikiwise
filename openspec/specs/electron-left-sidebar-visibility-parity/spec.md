@@ -46,7 +46,7 @@ The Electron runtime audit SHALL verify left-sidebar visibility parity.
 - **AND** it fails if the sidebar does not hide, does not restore, or the detail area does not expand while hidden
 
 ### Requirement: Left Sidebar Visibility Animation Parity
-The Electron left file sidebar SHALL animate project layout changes when the toolbar control hides or restores the sidebar, matching the native SwiftUI toolbar restore timing.
+The Electron left file sidebar SHALL animate project layout changes when the toolbar control hides or restores the sidebar, matching the Electron macOS toolbar restore timing.
 
 #### Scenario: User toggles left sidebar visibility
 - **WHEN** the user activates the project toolbar left-sidebar control

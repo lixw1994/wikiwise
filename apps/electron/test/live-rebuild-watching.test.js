@@ -31,14 +31,11 @@ test("main process owns debounced project watchers and sends change summaries", 
 });
 
 test("shared watch summaries mirror native case-sensitive markdown and CSS suffixes", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/FileWatcher.swift");
   const coreSource = readRepository("packages/wikiwise-core/src/index.js");
   const mainSource = read("src/main/main.js");
   const summarizeWatchEventsSource =
     coreSource.match(/export function summarizeWatchEvents\(\{[\s\S]*?\n\}/)?.[0] ?? "";
 
-  assert.match(nativeSource, /path\.hasSuffix\("\.css"\)/);
-  assert.match(nativeSource, /path\.hasSuffix\("\.md"\)/);
   assert.notEqual(summarizeWatchEventsSource, "");
   assert.match(summarizeWatchEventsSource, /eventPath\.endsWith\("\.css"\)/);
   assert.match(summarizeWatchEventsSource, /eventPath\.endsWith\("\.md"\)/);
@@ -48,13 +45,11 @@ test("shared watch summaries mirror native case-sensitive markdown and CSS suffi
 });
 
 test("shared watch summaries mirror native output directory prefix filtering", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/FileWatcher.swift");
   const coreSource = readRepository("packages/wikiwise-core/src/index.js");
   const mainSource = read("src/main/main.js");
   const summarizeWatchEventsSource =
     coreSource.match(/export function summarizeWatchEvents\(\{[\s\S]*?\n\}/)?.[0] ?? "";
 
-  assert.match(nativeSource, /path\.hasPrefix\(watcher\.outputDir\)/);
   assert.notEqual(summarizeWatchEventsSource, "");
   assert.match(coreSource, /function isNativeOutputPath\(eventPath, outputDir\) \{[\s\S]*eventPath\.startsWith\(path\.resolve\(outputDir\)\)/);
   assert.match(summarizeWatchEventsSource, /isNativeOutputPath\(eventPath, outputDir\)/);
@@ -63,13 +58,11 @@ test("shared watch summaries mirror native output directory prefix filtering", (
 });
 
 test("shared watch summaries mirror native wiki assets path containment", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/FileWatcher.swift");
   const coreSource = readRepository("packages/wikiwise-core/src/index.js");
   const mainSource = read("src/main/main.js");
   const summarizeWatchEventsSource =
     coreSource.match(/export function summarizeWatchEvents\(\{[\s\S]*?\n\}/)?.[0] ?? "";
 
-  assert.match(nativeSource, /path\.contains\("\/wiki\/assets\/"\)/);
   assert.notEqual(summarizeWatchEventsSource, "");
   assert.match(coreSource, /function isNativeWikiAssetsPath\(relativePath\) \{[\s\S]*relativePath\.startsWith\("wiki\/assets\/"\)[\s\S]*relativePath\.includes\("\/wiki\/assets\/"\)/);
   assert.match(summarizeWatchEventsSource, /isNativeWikiAssetsPath\(relativePath\)/);
@@ -97,15 +90,11 @@ test("main process restarts background compilation after watcher compiler change
 });
 
 test("shared watch summaries mirror native structure priority payloads", () => {
-  const nativeWatcherSource = readRepository("Sources/Wikiwise/FileWatcher.swift");
-  const nativeContentSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const coreSource = readRepository("packages/wikiwise-core/src/index.js");
   const rendererSource = read("src/renderer/renderer.js");
   const summarizeWatchEventsSource =
     coreSource.match(/export function summarizeWatchEvents\(\{[\s\S]*?\n\}/)?.[0] ?? "";
 
-  assert.match(nativeWatcherSource, /else if hasStructure \{[\s\S]*watcher\.callback\(\.structure\)/);
-  assert.match(nativeContentSource, /case \.structure:[\s\S]*Don't recompile current page on structure changes/);
   assert.notEqual(summarizeWatchEventsSource, "");
   assert.match(summarizeWatchEventsSource, /if \(structureChanged\) \{\s*return createWatchSummary\("structure", false, \[\], true\);/);
   assert.doesNotMatch(summarizeWatchEventsSource, /return createWatchSummary\("structure", false, sortedMarkdownPaths, true\);/);
@@ -127,21 +116,12 @@ test("preload exposes watcher APIs and cleans up project-change listeners", () =
 });
 
 test("renderer reloads selected non-markdown source files on native css and rebuild watcher events", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
-  const recompileCurrentPageSource =
-    nativeSource.match(/private func recompileCurrentPage\(_ c: Compiler\) \{[\s\S]*?\n    \}/)?.[0] ?? "";
   const handleProjectChangedSource =
     rendererSource.match(/async function handleProjectChanged\(change\) \{[\s\S]*?\n\}\n\nasync function refreshSelectedMarkdown/)?.[0] ?? "";
   const reloadSelectedFileSource =
     rendererSource.match(/async function reloadSelectedFileFromDisk\(filePath\) \{[\s\S]*?\n\}/)?.[0] ?? "";
 
-  assert.match(nativeSource, /case \.css:[\s\S]*if selectedFileURL != nil \{\s*recompileCurrentPage\(c\)\s*\}/);
-  assert.match(nativeSource, /case \.rebuild:[\s\S]*if selectedFileURL != nil \{\s*recompileCurrentPage\(c\)\s*\}/);
-  assert.notEqual(recompileCurrentPageSource, "");
-  assert.match(recompileCurrentPageSource, /guard let url = selectedFileURL else \{ return \}/);
-  assert.match(recompileCurrentPageSource, /loadFile\(url\)/);
-  assert.doesNotMatch(recompileCurrentPageSource, /pathExtension/);
 
   assert.notEqual(handleProjectChangedSource, "");
   assert.match(handleProjectChangedSource, /const selectedNonMarkdownSourceChanged\s*=\s*Boolean\([\s\S]*!currentMarkdownSelected[\s\S]*change\.kind === "rebuild"[\s\S]*change\.cssChanged[\s\S]*\);/);
@@ -177,10 +157,7 @@ test("renderer starts watching projects and refreshes tree, source, and preview 
 });
 
 test("watcher selected-source refreshes rewrite active-file marker like native loadFile", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
-  const recompileCurrentPageSource =
-    nativeSource.match(/private func recompileCurrentPage\(_ c: Compiler\) \{[\s\S]*?\n    \}/)?.[0] ?? "";
   const handleProjectChangedSource =
     rendererSource.match(/async function handleProjectChanged\(change\) \{[\s\S]*?\n\}\n\nasync function refreshSelectedMarkdown/)?.[0] ?? "";
   const refreshSelectedMarkdownSource =
@@ -188,12 +165,6 @@ test("watcher selected-source refreshes rewrite active-file marker like native l
   const reloadSelectedFileSource =
     rendererSource.match(/async function reloadSelectedFileFromDisk\(filePath\) \{[\s\S]*?\n\}/)?.[0] ?? "";
 
-  assert.match(nativeSource, /private func loadFile\(_ url: URL\) \{[\s\S]*writeActiveFile\(url\)/);
-  assert.notEqual(recompileCurrentPageSource, "");
-  assert.match(recompileCurrentPageSource, /loadFile\(url\)/);
-  assert.match(nativeSource, /case \.css:[\s\S]*if selectedFileURL != nil \{\s*recompileCurrentPage\(c\)\s*\}/);
-  assert.match(nativeSource, /case \.markdown\(let changedPaths\):[\s\S]*changedPaths\.contains\(current\.path\) \{\s*recompileCurrentPage\(c\)\s*\}/);
-  assert.match(nativeSource, /case \.rebuild:[\s\S]*if selectedFileURL != nil \{\s*recompileCurrentPage\(c\)\s*\}/);
 
   assert.notEqual(handleProjectChangedSource, "");
   assert.match(handleProjectChangedSource, /selectedMarkdownChanged && state\.selectedFile && !state\.selectedFile\.isDirty/);

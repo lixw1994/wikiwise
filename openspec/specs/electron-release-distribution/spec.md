@@ -89,7 +89,7 @@ The canonical Electron release command SHALL support retained structured evidenc
 - **THEN** it writes a JSON report at `<path>`
 - **AND** the report records the release version, canonical release command, DMG artifact path, DMG SHA-256 checksum, completed runtime audit, package, app-signing, DMG-signing, notarization, stapling, and assessment gates
 - **AND** the report records that a signed and notarized release artifact was produced
-- **AND** the report records that the final Electron migration release requirement is satisfied by this release artifact
+- **AND** the report records that the final Electron release requirement is satisfied by this release artifact
 
 #### Scenario: Full release report cannot be produced before success
 
@@ -103,19 +103,19 @@ The canonical Electron release command SHALL support retained structured evidenc
 - **THEN** the command exits non-zero before running release work
 - **AND** it reports that release success evidence requires the full production release command
 
-### Requirement: Native-Aligned Default Release Version
-The canonical Electron release command SHALL default to the current native app bundle version metadata when no explicit release version is provided.
+### Requirement: Electron Package Default Release Version
+The canonical Electron release command SHALL default to the current Electron package version metadata when no explicit release version is provided.
 
 #### Scenario: Release script is inspected for default version resolution
 - **WHEN** the release script is inspected
-- **THEN** it reads the native app `CFBundleShortVersionString` from `Wikiwise.app/Contents/Info.plist`
+- **THEN** it reads `version` from `apps/electron/package.json`
 - **AND** it uses that value as the release version when no positional `<version>` argument is supplied
-- **AND** it still lets an explicit `<version>` argument override the native default
+- **AND** it still lets an explicit `<version>` argument override the Electron package default
 
 #### Scenario: Default release version is used in release evidence
 - **WHEN** the release command writes readiness or release evidence without an explicit version argument
-- **THEN** the evidence records the native app `CFBundleShortVersionString` as `version`
-- **AND** generated release command strings include that native-aligned version
+- **THEN** the evidence records the Electron package version as `version`
+- **AND** generated release command strings include that Electron package version
 
 ### Requirement: Automated Release Workflow Delegation
 Any repository automation that produces Electron release artifacts SHALL delegate to the canonical Electron release script instead of duplicating release gates.

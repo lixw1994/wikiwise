@@ -1,22 +1,22 @@
 schema: spec-driven
 
 context: |
-  Wikiwise is a SwiftUI macOS app built with SwiftPM.
+  Wikiwise is an Electron-only desktop app built with Node/npm.
   Keep the repository default workflow lightweight.
   Use spec-driven-superpowers at change creation time for high-risk or cross-cutting work.
-  Build validation for app changes should include `swift build`.
+  Build validation for app changes should include relevant npm tests and Electron packaging/audits when affected.
   Release changes must use `bash scripts/build-release.sh <version>` and must not bypass signing, notarization, or DMG packaging steps.
 
 rules:
   proposal:
     - Keep proposals focused on user-visible behavior and affected app surfaces.
-    - Call out affected Swift, bundled JavaScript, scaffold, or release surfaces when relevant.
+    - Call out affected Electron, core, bundled JavaScript, scaffold, or release surfaces when relevant.
   specs:
     - Describe required behavior and scenarios, not implementation tactics.
     - Include file watching, rendering, scaffold, or release expectations when those surfaces are affected.
   design:
-    - Mention affected files or subsystems such as SwiftUI views, WKWebView, SwiftTerm, bundled JS resources, FSEvents, or scaffold templates.
+    - Mention affected files or subsystems such as Electron main/preload/renderer code, CodeMirror editor resources, xterm terminal integration, bundled JS resources, file watching, or scaffold templates.
     - Include rollback or compatibility notes for scaffold and release workflow changes.
   tasks:
-    - Include `swift build` validation for app changes.
-    - Include targeted manual checks when UI, WebView rendering, terminal behavior, scaffold output, or release packaging is affected.
+    - Include targeted npm validation for app changes.
+    - Include targeted manual checks when UI, preview rendering, terminal behavior, scaffold output, or release packaging is affected.

@@ -1,10 +1,10 @@
 # electron-toolbar-icon-parity Specification
 
 ## Purpose
-Define opened-project Electron toolbar icon semantics that mirror native SwiftUI toolbar controls while preserving accessible labels and runtime audit evidence.
+Define opened-project Electron toolbar icon semantics that mirror Electron macOS toolbar controls while preserving accessible labels and runtime audit evidence.
 ## Requirements
 ### Requirement: Icon-Only Toolbar Controls
-The Electron opened-project toolbar SHALL match native SwiftUI icon-only semantics for appearance, map, and sidebar controls.
+The Electron opened-project toolbar SHALL match Electron macOS icon-only semantics for appearance, map, and sidebar controls.
 
 #### Scenario: Toolbar controls render native symbol semantics
 - **WHEN** a project is open
@@ -35,7 +35,7 @@ The Electron opened-project toolbar SHALL match native SwiftUI icon-only semanti
 - **AND** the control label reflects the new mode.
 
 ### Requirement: Sidebar Toolbar Toggle Color Parity
-The Electron sidebar toolbar toggle controls SHALL match the native SwiftUI plain-icon foreground color states instead of using selected-button chrome.
+The Electron sidebar toolbar toggle controls SHALL match the Electron macOS plain-icon foreground color states instead of using selected-button chrome.
 
 #### Scenario: Sidebar toolbar toggles use native color states
 - **WHEN** a project toolbar is rendered
@@ -45,7 +45,7 @@ The Electron sidebar toolbar toggle controls SHALL match the native SwiftUI plai
 - **AND** sidebar toggle symbol names, titles, aria labels, `aria-pressed` state, click behavior, sidebar layout behavior, and toolbar title offset behavior are not changed for this requirement
 
 ### Requirement: Toolbar Icon Size Parity
-The Electron opened-project icon-only toolbar controls SHALL match native SwiftUI symbol font sizes while preserving existing symbols and behavior.
+The Electron opened-project icon-only toolbar controls SHALL match Electron macOS symbol font sizes while preserving existing symbols and behavior.
 
 #### Scenario: Icon-only toolbar controls use native symbol sizes
 - **WHEN** a project toolbar is rendered
@@ -56,7 +56,7 @@ The Electron opened-project icon-only toolbar controls SHALL match native SwiftU
 - **AND** Back/Forward arrow typography, toolbar group spacing, sidebar toggle color states, symbol names, titles, aria labels, click behavior, sidebar layout behavior, and project title offset behavior are not changed for this requirement
 
 ### Requirement: Toolbar Plain Icon Chrome Parity
-The Electron opened-project icon-only toolbar controls SHALL match native SwiftUI `.buttonStyle(.plain)` chrome by avoiding custom bordered rounded button styling.
+The Electron opened-project icon-only toolbar controls SHALL match Electron macOS `.buttonStyle(.plain)` chrome by avoiding custom bordered rounded button styling.
 
 #### Scenario: Icon-only toolbar controls use plain chrome
 - **WHEN** a project toolbar is rendered

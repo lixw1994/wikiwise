@@ -17,12 +17,6 @@ function readJson(relativePath) {
   return JSON.parse(read(relativePath));
 }
 
-function plistStringValue(plist, key) {
-  const match = plist.match(new RegExp(`<key>${key}</key>\\s*<string>([^<]+)</string>`));
-  assert.ok(match, `Expected ${key} string value in plist`);
-  return match[1];
-}
-
 const inheritedElectronTemplatePlistKeys = [
   "NSCameraUsageDescription",
   "NSMicrophoneUsageDescription",
@@ -88,27 +82,22 @@ test("packaging script assembles a Wikiwise macOS app from installed Electron", 
 
 test("packaging script strips unused Electron template privacy plist metadata", () => {
   const script = read("scripts/package-electron-macos.mjs");
-  const nativeInfoPlist = read("Wikiwise.app/Contents/Info.plist");
 
-  assert.match(nativeInfoPlist, /<key>CFBundleDisplayName<\/key>/);
   assert.match(script, /removeElectronTemplateInfoPlistKeys/);
   assert.match(script, /removePlistEntry/);
   assert.match(script, /plist = removeElectronTemplateInfoPlistKeys\(plist\)/);
 
   for (const key of inheritedElectronTemplatePlistKeys) {
-    assert.doesNotMatch(nativeInfoPlist, new RegExp(`<key>${key}</key>`));
     assert.match(script, new RegExp(`"${key}"`));
   }
 });
 
 test("packaging script strips non-native Electron template build plist metadata", () => {
   const script = read("scripts/package-electron-macos.mjs");
-  const nativeInfoPlist = read("Wikiwise.app/Contents/Info.plist");
 
   assert.match(script, /removeElectronTemplateInfoPlistKeys/);
 
   for (const key of nonNativeElectronTemplatePlistKeys) {
-    assert.doesNotMatch(nativeInfoPlist, new RegExp(`<key>${key}</key>`));
     assert.match(script, new RegExp(`"${key}"`));
   }
 
@@ -117,23 +106,20 @@ test("packaging script strips non-native Electron template build plist metadata"
 
 test("packaging script removes unused Electron template icon resource", () => {
   const script = read("scripts/package-electron-macos.mjs");
-  const nativeResources = read("Wikiwise.app/Contents/Info.plist");
 
   assert.match(script, /electronTemplateIconRelativePath/);
   assert.match(script, /Contents\/Resources\/electron\.icns/);
   assert.match(script, /removeElectronTemplateResources/);
   assert.match(script, /fs\.rmSync\(path\.join\(outputAppPath,\s*\.\.\.electronTemplateIconRelativePath\.split\("\/"\)\),\s*\{\s*force:\s*true\s*\}\)/);
-  assert.match(script, /copyNativeResources\(\)/);
+  assert.match(script, /copyElectronResources\(\)/);
+  assert.match(script, /embeddedAppRelativePath,\s*"resources"/);
   assert.match(script, /Wikiwise\.icns/);
   assert.match(script, /CFBundleIconFile:\s*productName/);
-  assert.match(nativeResources, /<key>CFBundleIconFile<\/key><string>Wikiwise<\/string>/);
 });
 
 test("packaging script removes unused Electron template PkgInfo file", () => {
   const script = read("scripts/package-electron-macos.mjs");
-  const nativePkgInfoPath = path.join(repositoryRoot, "Wikiwise.app", "Contents", "PkgInfo");
 
-  assert.equal(fs.existsSync(nativePkgInfoPath), false);
   assert.match(script, /electronTemplatePkgInfoRelativePath/);
   assert.match(script, /Contents\/PkgInfo/);
   assert.match(script, /removeElectronTemplateResources/);
@@ -144,18 +130,17 @@ test("packaging script removes unused Electron template PkgInfo file", () => {
   assert.match(script, /Contents\/Resources\/default_app\.asar/);
 });
 
-test("packaging script allowlists only reviewed package-only Electron runtime plist keys", () => {
+test("packaging script allowlists only reviewed packaged Info.plist keys", () => {
   const script = read("scripts/package-electron-macos.mjs");
-  const nativeInfoPlist = read("Wikiwise.app/Contents/Info.plist");
 
-  assert.match(script, /electronRuntimeInfoPlistKeyAllowlist/);
+  assert.match(script, /reviewedPackagedInfoPlistKeys/);
   assert.match(script, /topLevelPlistKeys/);
-  assert.match(script, /assertPackagedInfoPlistKeyDelta/);
-  assert.match(script, /Unexpected package-only Info\.plist keys/);
-  assert.match(script, /nativeAppInfoPlistPath/);
+  assert.match(script, /assertReviewedPackagedInfoPlistKeys/);
+  assert.match(script, /Unexpected packaged Info\.plist keys/);
+  assert.doesNotMatch(script, new RegExp(["native", "App", "Info", "Plist", "Path"].join("")));
+  assert.doesNotMatch(script, /Wikiwise\.app",\s*"Contents",\s*"Info\.plist"/);
 
   for (const key of electronRuntimeInfoPlistKeys) {
-    assert.doesNotMatch(nativeInfoPlist, new RegExp(`<key>${key}</key>`));
     assert.match(script, new RegExp(`"${key}"`));
   }
 
@@ -164,41 +149,30 @@ test("packaging script allowlists only reviewed package-only Electron runtime pl
   }
 });
 
-test("packaging script mirrors native minimum macOS metadata", () => {
+test("packaging script sets Electron minimum macOS metadata", () => {
   const script = read("scripts/package-electron-macos.mjs");
-  const packageManifest = read("Package.swift");
   const readme = read("README.md");
-  const nativeInfoPlist = read("Wikiwise.app/Contents/Info.plist");
 
-  assert.match(packageManifest, /platforms:\s*\[\.macOS\(\.v14\)\]/);
   assert.match(readme, /Requires macOS 14\+/);
-  assert.match(
-    nativeInfoPlist,
-    new RegExp(`<key>LSMinimumSystemVersion</key>\\s*<string>${nativeMinimumMacOSVersion}</string>`)
-  );
   assert.match(script, /LSMinimumSystemVersion:\s*"14\.0"/);
   assert.doesNotMatch(script, /LSMinimumSystemVersion:\s*"11\.0"/);
 });
 
-test("packaging script defaults Electron bundle version metadata to native app values", () => {
+test("packaging script defaults Electron bundle version metadata to Electron package values", () => {
   const script = read("scripts/package-electron-macos.mjs");
   const releaseScript = read("scripts/build-release.sh");
-  const nativeInfoPlist = read("Wikiwise.app/Contents/Info.plist");
+  const electronPackage = JSON.parse(read("apps/electron/package.json"));
 
-  const nativeShortVersion = plistStringValue(nativeInfoPlist, "CFBundleShortVersionString");
-  const nativeBundleVersion = plistStringValue(nativeInfoPlist, "CFBundleVersion");
-
-  assert.notEqual(nativeShortVersion, "");
-  assert.notEqual(nativeBundleVersion, "");
-  assert.match(script, /nativeAppInfoPlistPath/);
-  assert.match(script, /readNativeAppVersionMetadata/);
+  assert.notEqual(electronPackage.version, "");
+  assert.notEqual(electronPackage.version, "0.0.0");
+  assert.doesNotMatch(script, new RegExp(["native", "App", "Info", "Plist", "Path"].join("")));
+  assert.doesNotMatch(script, new RegExp(["read", "Native", "App", "Version", "Metadata"].join("")));
   assert.match(script, /resolveVersionMetadata/);
   assert.match(script, /explicitReleaseVersion/);
   assert.match(script, /CFBundleShortVersionString:\s*versionMetadata\.shortVersion/);
   assert.match(script, /CFBundleVersion:\s*versionMetadata\.bundleVersion/);
-  assert.match(script, /shortVersion:\s*explicitReleaseVersion \|\| nativeVersionMetadata\.shortVersion/);
-  assert.match(script, /bundleVersion:\s*explicitReleaseVersion \|\| nativeVersionMetadata\.bundleVersion/);
-  assert.match(script, /Wikiwise\.app",\s*"Contents",\s*"Info\.plist"/);
+  assert.match(script, /shortVersion:\s*explicitReleaseVersion \|\| fallbackVersion/);
+  assert.match(script, /bundleVersion:\s*explicitReleaseVersion \|\| fallbackVersion/);
   assert.match(releaseScript, /npm run electron:package:mac -- "\$VERSION"/);
 });
 
@@ -221,7 +195,7 @@ test("packaging script makes the packaged node-pty spawn helper executable", () 
   const script = read("scripts/package-electron-macos.mjs");
   const copyDependenciesIndex = script.indexOf("copyElectronRuntimeDependencies();");
   const ensureHelperIndex = script.indexOf("ensurePackagedNodePtySpawnHelperExecutable();");
-  const copyResourcesIndex = script.indexOf("copyNativeResources();");
+  const copyResourcesIndex = script.indexOf("copyElectronResources();");
 
   assert.match(script, /prebuilds/);
   assert.match(script, /spawn-helper/);
@@ -258,12 +232,12 @@ test("README documents local unsigned packaging and release guardrails", () => {
   assert.match(readme, /DMG/);
 });
 
-test("README documents package-only Electron runtime plist delta auditing", () => {
+test("README documents reviewed Electron plist key auditing", () => {
   const readme = read("apps/electron/README.md");
 
-  assert.match(readme, /package-only Electron runtime `Info\.plist` keys/i);
-  assert.match(readme, /ElectronAsarIntegrity/);
-  assert.match(readme, /unexpected package-only plist key/i);
+  assert.match(readme, /packaged `Info\.plist`/i);
+  assert.match(readme, /reviewed\s+Electron key allowlist/i);
+  assert.match(readme, /unexpected plist key/i);
   assert.match(readme, /signed and notarized release/i);
 });
 
@@ -285,7 +259,7 @@ test("canonical release script builds a signed notarized Electron DMG", () => {
   assert.match(script, /xcrun notarytool submit "\$DMG" --keychain-profile "\$NOTARY_PROFILE" --wait/);
   assert.match(script, /xcrun stapler staple "\$DMG"/);
   assert.match(script, /spctl --assess --type open --context context:primary-signature "\$DMG"/);
-  assert.doesNotMatch(script, /swift build -c release/);
+  assert.doesNotMatch(script, new RegExp(["swift", " build -c release"].join("")));
   assert.doesNotMatch(script, /lipo -create/);
   assert.ok(packageIndex >= 0, "release script should package the Electron app");
   assert.ok(packagedAuditIndex > packageIndex, "packaged runtime smoke should run after packaging");
@@ -415,11 +389,16 @@ test("blocked release preflight writes a readiness report without running releas
   assert.match(report.finalMigrationRequirement, /actual signed and notarized release run/i);
 });
 
-test("blocked release readiness defaults to native app bundle version", () => {
+test("blocked release readiness defaults to Electron package version", () => {
   const tempDir = fs.mkdtempSync(path.join(os.tmpdir(), "wikiwise-release-default-version-"));
   const reportPath = path.join(tempDir, "report.json");
-  const nativeInfoPlist = read("Wikiwise.app/Contents/Info.plist");
-  const nativeShortVersion = plistStringValue(nativeInfoPlist, "CFBundleShortVersionString");
+  const releaseScript = read("scripts/build-release.sh");
+  const electronPackage = readJson("apps/electron/package.json");
+
+  assert.match(releaseScript, /apps\/electron\/package\.json/);
+  assert.doesNotMatch(releaseScript, new RegExp(["NATIVE", "APP", "INFO", "PLIST"].join("_")));
+  assert.doesNotMatch(releaseScript, /Wikiwise\.app\/Contents\/Info\.plist/);
+
   const result = spawnSync(
     "bash",
     [
@@ -444,11 +423,11 @@ test("blocked release readiness defaults to native app bundle version", () => {
   assert.doesNotMatch(result.stdout, /\[1\/7\] Running Electron runtime parity audit/);
 
   const report = JSON.parse(fs.readFileSync(reportPath, "utf8"));
-  assert.equal(report.version, nativeShortVersion);
-  assert.equal(report.releaseCommand, `bash scripts/build-release.sh ${nativeShortVersion}`);
+  assert.equal(report.version, electronPackage.version);
+  assert.equal(report.releaseCommand, `bash scripts/build-release.sh ${electronPackage.version}`);
   assert.equal(
     report.preflightCommand,
-    `bash scripts/build-release.sh --preflight --preflight-report ${reportPath} ${nativeShortVersion}`
+    `bash scripts/build-release.sh --preflight --preflight-report ${reportPath} ${electronPackage.version}`
   );
   assert.equal(report.artifactProduction.signedOrNotarizedReleaseProduced, false);
   assert.equal(report.artifactProduction.releaseArtifactsProduced, false);

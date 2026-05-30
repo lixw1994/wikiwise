@@ -44,23 +44,7 @@ test("main process compiles wiki home when opening scaffolded folders", () => {
 });
 
 test("selected markdown preview compilation uses existing scan lifecycle like native", () => {
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const mainSource = read("src/main/main.js");
-  const nativeFolderOpenSource = sourceBetween(
-    nativeSource,
-    "let c = Compiler(sourceDir: url)",
-    "            // Background drip: compile remaining pages"
-  );
-  const nativeLoadFileSource = sourceBetween(
-    nativeSource,
-    "private func loadFile(_ url: URL)",
-    "    /// Write the currently open file path"
-  );
-  const nativeWatcherSource = sourceBetween(
-    nativeSource,
-    "private func startFileWatcher(directory: URL, compiler c: Compiler)",
-    "    /// Rescan the sidebar file tree"
-  );
   const electronCompileSource = sourceBetween(
     mainSource,
     "function compileMarkdownFile(projectRoot, filePath, options = {})",
@@ -77,13 +61,6 @@ test("selected markdown preview compilation uses existing scan lifecycle like na
     "function closeProjectWatcher(webContentsId)"
   );
 
-  assert.match(nativeFolderOpenSource, /c\.scanPages\(\)/);
-  assert.match(nativeLoadFileSource, /compileSingle\(slug:\s*pageSlug\)/);
-  assert.match(nativeLoadFileSource, /compileAdhoc\(filePath:\s*url\.path,\s*outputPath:\s*htmlFile\.path\)/);
-  assert.doesNotMatch(nativeLoadFileSource, /scanPages\(\)|rescan\(\)/);
-  assert.match(nativeWatcherSource, /case \.markdown\(let changedPaths\):[\s\S]*c\.rescan\(\)/);
-  assert.match(nativeWatcherSource, /case \.rebuild:[\s\S]*c\.rescan\(\)/);
-  assert.match(nativeWatcherSource, /case \.structure:[\s\S]*c\.rescan\(\)/);
 
   assert.match(electronProjectOpenSource, /getCompiler\(projectRoot\)\.scanPages\(\)/);
   assert.match(electronCompileSource, /compiler\.compileMarkdownFile\(filePath\)/);
@@ -109,12 +86,7 @@ test("main process schedules native-style background compilation batches", () =>
 
 test("main process ties background compilation to native window resource cleanup", () => {
   const mainSource = read("src/main/main.js");
-  const nativeSource = readRepository("Sources/Wikiwise/ContentView.swift");
 
-  assert.match(
-    nativeSource,
-    /\.onDisappear\s*\{[\s\S]*backgroundTimer\?\.invalidate\(\)[\s\S]*backgroundTimer = nil[\s\S]*fileWatcher\?\.stop\(\)[\s\S]*fileWatcher = nil/
-  );
   assert.match(mainSource, /const projectRootsByWebContents = new Map\(\)/);
   assert.match(mainSource, /function setWebContentsProjectRoot\(webContents,\s*projectRoot\)/);
   assert.match(mainSource, /const previousRoot = projectRootsByWebContents\.get\(webContentsId\)/);
@@ -152,20 +124,8 @@ test("renderer exposes File and Wiki modes with preview iframe wiring", () => {
 });
 
 test("renderer preserves selected mode for subsequent file selections like native", () => {
-  const nativeContentViewSource = readRepository("Sources/Wikiwise/ContentView.swift");
   const rendererSource = read("src/renderer/renderer.js");
-  const nativeNavigateToSource =
-    nativeContentViewSource.match(/private func navigateTo\(_ url: URL\) \{[\s\S]*?\n    \}/)?.[0] ?? "";
 
-  assert.match(
-    nativeContentViewSource,
-    /else if let url = selectedFileURL,\s*url\.pathExtension\.lowercased\(\) != "md" \{[\s\S]*EditorWebView\(fileURL:\s*url,[\s\S]*\}\s*else\s*\{[\s\S]*switch detailMode/
-  );
-  assert.match(
-    nativeContentViewSource,
-    /private func navigateTo\(_ url: URL\) \{[\s\S]*selectedFileURL = url[\s\S]*loadFile\(url\)[\s\S]*webViewReloadToken \+= 1[\s\S]*\}/
-  );
-  assert.doesNotMatch(nativeNavigateToSource, /detailMode\s*=/);
   assert.match(
     rendererSource,
     /function detailModeForSelectedFile\(file,\s*options = \{\}\)\s*\{[\s\S]*if \(!file\) return "wiki";[\s\S]*if \(options\.preserveDetailMode\) return state\.detailMode;[\s\S]*if \(!isMarkdownFile\(file\.path\)\) return state\.detailMode;[\s\S]*return "wiki";[\s\S]*\}/
@@ -195,22 +155,8 @@ test("renderer preserves selected mode for subsequent file selections like nativ
 });
 
 test("renderer mirrors native compiled preview scroll preservation", () => {
-  const nativeContentViewSource = readRepository("Sources/Wikiwise/ContentView.swift");
-  const nativeWebViewSource = readRepository("Sources/Wikiwise/WebView.swift");
   const rendererSource = read("src/renderer/renderer.js");
 
-  assert.match(
-    nativeContentViewSource,
-    /private func captureScrollAndSwitch\(to mode: DetailMode\)[\s\S]*activeWebView\.captureScrollFraction\(isEditor:\s*isEditor\)[\s\S]*scrollFraction = fraction[\s\S]*detailMode = mode/
-  );
-  assert.match(
-    nativeWebViewSource,
-    /window\.scrollY \/ Math\.max\(1,\s*document\.body\.scrollHeight - window\.innerHeight\)/
-  );
-  assert.match(
-    nativeWebViewSource,
-    /func webView\(_ webView: WKWebView,\s*didFinish navigation: WKNavigation!\)[\s\S]*window\.scrollTo\(0,[\s\S]*document\.body\.scrollHeight - window\.innerHeight/
-  );
 
   assert.match(rendererSource, /function capturePreviewScrollFraction\(\)/);
   assert.match(rendererSource, /previewFrame\.contentWindow/);

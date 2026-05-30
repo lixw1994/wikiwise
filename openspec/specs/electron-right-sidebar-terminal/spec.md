@@ -1,7 +1,7 @@
 # electron-right-sidebar-terminal Specification
 
 ## Purpose
-Define Electron right sidebar parity for document metadata and the project-root terminal, including PTY-backed terminal behavior that matches the native SwiftTerm surface.
+Define Electron right sidebar parity for document metadata and the project-root terminal, including PTY-backed terminal behavior that matches the native xterm/PTY terminal surface.
 ## Requirements
 ### Requirement: Right Sidebar Layout
 
@@ -37,7 +37,7 @@ The Electron right sidebar SHALL provide a PTY-backed interactive login-shell su
 - **WHEN** a project is opened or created
 - **THEN** the renderer asks preload to start a terminal for the project root
 - **AND** the main process starts a PTY session in that project root
-- **AND** the PTY starts the user's resolved shell with native login-shell semantics matching SwiftTerm's leading-dash `execName`
+- **AND** the PTY starts the user's resolved shell with native login-shell semantics matching xterm/PTY terminal's leading-dash `execName`
 - **AND** the terminal tab renders shell output through a terminal emulator surface
 - **AND** the terminal buffer does not include Electron-only startup text such as `Starting shell...`
 - **AND** keyboard input entered in the terminal emulator is sent to the PTY session
@@ -60,12 +60,12 @@ The Electron right sidebar SHALL provide a PTY-backed interactive login-shell su
 
 ### Requirement: Deferred Terminal Gaps
 
-The right sidebar/terminal phase SHALL no longer list PTY-grade terminal emulation, ANSI rendering, resizing, or SwiftTerm parity as deferred after Electron adopts a PTY-backed terminal emulator.
+The right sidebar/terminal phase SHALL no longer list PTY-grade terminal emulation, ANSI rendering, resizing, or xterm/PTY terminal parity as deferred after Electron adopts a PTY-backed terminal emulator.
 
 #### Scenario: PTY terminal is available
 
 - **WHEN** Electron can start a project-root terminal and exchange input/output
-- **THEN** the phase verification records that PTY-grade terminal emulation, ANSI rendering, resizing, and SwiftTerm parity are implemented
+- **THEN** the phase verification records that PTY-grade terminal emulation, ANSI rendering, resizing, and xterm/PTY terminal parity are implemented
 - **AND** any remaining terminal deviations are explicitly tracked as accepted follow-up gaps
 
 ### Requirement: Resizable Right Sidebar Surface
@@ -154,7 +154,7 @@ The Electron terminal tab SHALL place the xterm surface with the native top and 
 - **AND** PTY startup, terminal input/output, terminal resizing, ANSI rendering, Info tab behavior, tab switching, and sidebar resizing behavior are not changed for this requirement
 
 ### Requirement: Terminal CSS Palette Parity
-The Electron terminal panel and surface CSS SHALL use native SwiftTerm background and foreground colors for light and dark appearances.
+The Electron terminal panel and surface CSS SHALL use native xterm/PTY terminal background and foreground colors for light and dark appearances.
 
 #### Scenario: Terminal CSS fallback uses native palette
 - **WHEN** the Electron terminal tab is rendered before or around xterm initialization
@@ -185,7 +185,7 @@ The Electron right-sidebar resize handle SHALL visually match the native macOS t
 - **AND** right-sidebar width dragging, tab selection, terminal behavior, Info tab behavior, and layout constraints are not changed for this requirement
 
 ### Requirement: Standalone File Terminal Boundary
-The Electron app SHALL not start a project-root terminal for standalone-file opens, and SHALL preserve an existing window terminal session when native SwiftUI would leave it untouched.
+The Electron app SHALL not start a project-root terminal for standalone-file opens, and SHALL preserve an existing window terminal session when Electron macOS would leave it untouched.
 
 #### Scenario: Standalone file opens with no running terminal
 - **WHEN** the renderer applies a standalone-file project result and no terminal session is running
@@ -204,7 +204,7 @@ The Electron app SHALL not start a project-root terminal for standalone-file ope
 - **THEN** existing project-root terminal startup behavior is retained
 
 ### Requirement: Info Word Count Format Parity
-The Electron INFO tab SHALL render selected-document word counts with the same native decimal grouping behavior used by SwiftUI.
+The Electron INFO tab SHALL render selected-document word counts with the same native decimal grouping behavior used by Electron macOS.
 
 #### Scenario: Large word count is displayed
 - **WHEN** the selected document metadata contains a numeric word count large enough to use decimal grouping in the user's locale
@@ -269,7 +269,7 @@ The Electron INFO tab SHALL mirror native right-sidebar fallback behavior when s
 - **AND** it does not show the generic shell error message for that metadata miss
 
 ### Requirement: Right Sidebar Tab Animation Parity
-The Electron right sidebar SHALL animate INFO/TERMINAL tab selection state changes with the same native timing as the SwiftUI right-sidebar tab switcher.
+The Electron right sidebar SHALL animate INFO/TERMINAL tab selection state changes with the same native timing as the Electron macOS right-sidebar tab switcher.
 
 #### Scenario: User switches right-sidebar tabs
 - **WHEN** the user changes the active right-sidebar tab between INFO and TERMINAL
@@ -277,7 +277,7 @@ The Electron right sidebar SHALL animate INFO/TERMINAL tab selection state chang
 - **AND** right tab IDs, selected state, default Terminal tab, panel switching behavior, terminal behavior, Info tab behavior, and right sidebar resizing behavior are unchanged
 
 ### Requirement: Right Sidebar Visibility Animation Parity
-The Electron right sidebar SHALL animate project layout changes when the toolbar control hides or restores the right sidebar, matching the native SwiftUI toolbar toggle timing.
+The Electron right sidebar SHALL animate project layout changes when the toolbar control hides or restores the right sidebar, matching the Electron macOS toolbar toggle timing.
 
 #### Scenario: User toggles right sidebar visibility
 - **WHEN** the user activates the project toolbar right-sidebar control
@@ -286,7 +286,7 @@ The Electron right sidebar SHALL animate project layout changes when the toolbar
 - **AND** toolbar button labels, selected state, right-sidebar tab state, terminal behavior, Info tab behavior, saved width, and resizing behavior are unchanged
 
 ### Requirement: Terminal Login Shell Parity
-The Electron project terminal SHALL mirror the native SwiftTerm login-shell startup contract.
+The Electron project terminal SHALL mirror the native xterm/PTY terminal login-shell startup contract.
 
 #### Scenario: Project terminal shell is spawned
 - **WHEN** Electron starts the project terminal on macOS/non-Windows platforms

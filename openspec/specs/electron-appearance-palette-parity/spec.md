@@ -1,7 +1,7 @@
 # electron-appearance-palette-parity Specification
 
 ## Purpose
-Defines the Electron renderer shell palette contract for matching Wikiwise's native SwiftUI light and dark appearance colors across primary visible surfaces and runtime audit evidence.
+Defines the Electron renderer shell palette contract for matching Wikiwise's Electron macOS light and dark appearance colors across primary visible surfaces and runtime audit evidence.
 ## Requirements
 ### Requirement: Native Adaptive Shell Palette
 The Electron renderer SHALL apply native-equivalent light and dark palette tokens to primary shell surfaces.
