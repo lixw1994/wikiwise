@@ -1,74 +1,60 @@
 # Agent Instructions
 
-This is a wiki maintained by an LLM agent. Read `CLAUDE.md` for the full schema, conventions, and workflows.
-
-This file exists so that **any** LLM coding agent — Claude Code, OpenAI Codex, Cursor, Windsurf, Copilot CLI, or others — can operate this wiki. If your agent reads `CLAUDE.md` natively (Claude Code does), great. If not, everything you need is here plus the skill files referenced below.
+This is a wiki maintained by an LLM agent, following the llm-wiki pattern. This file is the agent-facing schema, conventions, and workflow reference for maintaining the wiki.
 
 ## Quick reference
 
 - **`raw/`** — immutable source documents. Read-only.
+- **`translation/`** — translated versions of non-target-language raw sources when auto-translation is enabled in `wikiwise.json`.
 - **`wiki/`** — LLM-maintained markdown pages. All edits here. Source summaries go in `wiki/sources/`.
 - **`site/`** — build tooling and compiled output. `site/out/` is auto-generated.
-- **`CLAUDE.md`** — the wiki schema. Your source of truth for how this wiki works.
+- **`wikiwise.json`** — project settings, including optional auto-translation target language.
+- **`.agents/skills/`** — detailed workflow skills. Read the relevant skill before running a workflow.
 
 ## Key conventions
 
 - Link with `[[wikilinks]]`. Bare filename, no path.
 - Cite sources inline: `([[source-slug]])`.
 - Wiki pages are short blog posts, not reference dumps. TL;DR first, then the argument.
+- If `wikiwise.json` enables translation, translate non-target-language raw sources into `translation/` before source-summary creation.
 - After any ingest, update `wiki/index.md` and append to `wiki/log.md`.
 - Log entry format: `## [YYYY-MM-DD HH:MM] <op> | <title>`.
 - Voice: opinionated, direct, declarative. Most pages under 800 words.
 
-## Tool mapping
-
-Skills reference Claude Code tool names. If you're running a different agent, use the equivalent:
-
-| Claude Code | Codex CLI | Copilot CLI | Generic |
-|---|---|---|---|
-| `Read` | `read_file` | `read_file` | read a file |
-| `Write` | `write_file` | `write_file` | write/create a file |
-| `Edit` | `write_file` (partial) | `patch` | edit part of a file |
-| `Bash(*)` | `shell` | `run_command` | run a shell command |
-| `Glob` | `shell` + `find` | `run_command` + `find` | find files by pattern |
-| `Grep` | `shell` + `grep`/`rg` | `run_command` + `grep` | search file contents |
-| `Agent` (subagent) | N/A | N/A | do it inline |
-
-When a skill says `allowed-tools: Bash(*) Read Write Edit Glob Grep`, that's Claude Code syntax. In other agents, just use whatever tools let you run shell commands and read/write files.
-
 ## Skills
 
-Detailed skill files live in `.claude/skills/<name>/SKILL.md`. **Read the skill file before running a workflow** — it contains step-by-step instructions, shell commands, and rules.
+Detailed skill files live in `.agents/skills/<name>/SKILL.md`. Read the skill file before running a workflow; it contains step-by-step instructions, shell commands, and rules.
 
-### How to use skills
-
-- **Claude Code**: Skills are auto-discovered from `.claude/skills/`. Invoke with `/ingest`, `/lint`, etc.
-- **Codex / other agents**: Read the skill file manually — e.g., read `.claude/skills/ingest/SKILL.md` — then follow its instructions. The skill files are plain markdown with step-by-step workflows.
+Use the file, search, edit, and shell tools available in your agent environment to follow the skill. If a skill mentions a tool name that differs from your environment, use the equivalent operation.
 
 ### Skill catalog
 
 | Skill | Path | Purpose |
 |---|---|---|
-| **ingest** | `.claude/skills/ingest/SKILL.md` | Add a source to the wiki — save raw, create summary page, propagate claims, update index and log |
-| **digest** | `.claude/skills/digest/SKILL.md` | Deep-propagate ingested sources across the wiki — update concept/entity pages, flag contradictions, create new pages where warranted |
-| **lint** | `.claude/skills/lint/SKILL.md` | Health-check for contradictions, orphan pages, broken links, stale claims, missing cross-links |
-| **ingest-tweets** | `.claude/skills/ingest-tweets/SKILL.md` | Search Twitter/X for tweets on a topic using browser automation, extract content, and ingest into the wiki |
-| **import-readwise** | `.claude/skills/import-readwise/SKILL.md` | Search and import documents/highlights from Readwise (orchestrator — delegates to fetch skills below) |
-| **fetch-readwise-document** | `.claude/skills/fetch-readwise-document/SKILL.md` | Stream a Reader document into `raw/` without loading the body into context |
-| **fetch-readwise-highlights** | `.claude/skills/fetch-readwise-highlights/SKILL.md` | Vector-search highlights, group by parent doc, write to `raw/` |
+| **ingest** | `.agents/skills/ingest/SKILL.md` | Add a source to the wiki — save raw, translate when configured, create summary page, propagate claims, update index and log |
+| **digest** | `.agents/skills/digest/SKILL.md` | Deep-propagate ingested sources across the wiki — update concept/entity pages, flag contradictions, create new pages where warranted |
+| **lint** | `.agents/skills/lint/SKILL.md` | Health-check for contradictions, orphan pages, broken links, stale claims, missing cross-links |
+| **translate-raw** | `.agents/skills/translate-raw/SKILL.md` | Translate one raw source into the configured target language under `translation/` |
+| **translate-imports** | `.agents/skills/translate-imports/SKILL.md` | Translate a batch of imported raw sources before ingest |
+| **ingest-tweets** | `.agents/skills/ingest-tweets/SKILL.md` | Search Twitter/X for tweets on a topic using browser automation, extract content, and ingest into the wiki |
+| **import-readwise** | `.agents/skills/import-readwise/SKILL.md` | Search and import documents/highlights from Readwise |
+| **fetch-readwise-document** | `.agents/skills/fetch-readwise-document/SKILL.md` | Stream a Reader document into `raw/` without loading the body into context |
+| **fetch-readwise-highlights** | `.agents/skills/fetch-readwise-highlights/SKILL.md` | Vector-search highlights, group by parent doc, write to `raw/` |
+| **upgrade** | `.agents/skills/upgrade/SKILL.md` | Upgrade scaffold files and build tooling to match the latest Wikiwise app version |
 
-### Workflow cheat sheet
+## Workflow cheat sheet
 
 These are abbreviated versions. Read the full skill files for details.
 
 **Ingest a source:**
 1. Save raw source to `raw/<slug>.md`
-2. Create source-summary page at `wiki/sources/<slug>.md` with frontmatter (`type`, `date`, `author`, `url`, `raw`)
-3. Propagate claims into concept/entity pages with citations `([[slug]])`
-4. **Cross-link aggressively** — add `[[wikilinks]]` FROM existing pages TO new pages (edit 2-3 related pages), and FROM new pages TO existing ones. No orphans.
-5. Update `wiki/index.md` — add new pages with one-line summaries
-6. Update `wiki/home.md` if the source changes the narrative
-7. Append to `wiki/log.md` — `## [YYYY-MM-DD HH:MM] ingest | <title>`
+2. If `wikiwise.json` enables translation and the source language differs from the target language, write a full translation to `translation/<slug>.md`
+3. Create source-summary page at `wiki/sources/<slug>.md` with frontmatter (`type`, `date`, `author`, `url`, `raw`, and `translation` when available)
+4. Propagate claims into concept/entity pages with citations `([[slug]])`
+5. **Cross-link aggressively** — add `[[wikilinks]]` FROM existing pages TO new pages (edit 2-3 related pages), and FROM new pages TO existing ones. No orphans.
+6. Update `wiki/index.md` — add new pages with one-line summaries
+7. Update `wiki/home.md` if the source changes the narrative
+8. Append to `wiki/log.md` — `## [YYYY-MM-DD HH:MM] ingest | <title>`
 
 **Lint the wiki:**
 1. Scan `wiki/` for contradictions, orphan pages, broken `[[wikilinks]]`, stale claims, missing cross-links
@@ -84,15 +70,8 @@ These are abbreviated versions. Read the full skill files for details.
 
 ## Running your agent
 
-WikiWise includes a built-in terminal in the right sidebar — click the terminal icon in the toolbar. You can also run your agent in any external terminal pointed at this folder.
+WikiWise includes a built-in terminal in the right sidebar. You can also run any agent in an external terminal pointed at this folder.
 
 ```bash
-# Claude Code
-claude
-
-# Codex
-codex
-
-# Any agent — just cd to the wiki folder first
 cd /path/to/your-wiki
 ```

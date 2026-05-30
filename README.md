@@ -52,7 +52,7 @@ requires `npm install` first so Electron can be downloaded.
 - **Filesystem watcher** for live recompilation and tree refreshes
 - **Electron resources** under `apps/electron/resources/` for compiler, editor, graph/map pages, KaTeX assets, icon, and scaffold templates
 - **Shared JavaScript core** under `packages/wikiwise-core/` for reusable wiki helpers
-- Wiki scaffold includes Claude Code skills for ingest, lint, and Readwise import
+- Wiki scaffold includes agent skills for ingest, translation, lint, and Readwise import
 
 ## Wiki structure
 
@@ -61,6 +61,7 @@ Each wiki folder is self-contained:
 ```
 my-wiki/
   raw/            # immutable source documents
+  translation/    # optional full translations of non-target-language sources
   wiki/           # agent-maintained markdown pages
     sources/      # one summary per ingested source
     home.md       # human entry point
@@ -70,12 +71,14 @@ my-wiki/
     build.js      # the wiki compiler
     style.css     # the wiki theme
     out/           # compiled HTML (gitignored)
-  .claude/        # agent skills and settings
-  CLAUDE.md       # wiki schema
+  .agents/        # agent skills
+  .claude/        # Claude Code settings and mirrored skills
+  AGENTS.md       # agent schema and workflows
+  CLAUDE.md       # Claude Code schema
   llm-wiki.md     # Karpathy's pattern (reference)
 ```
 
-See [`apps/electron/resources/scaffold/`](apps/electron/resources/scaffold/) for the full template — this is what gets copied when you create a new wiki, including the schema (`CLAUDE.md`), agent skills, and seed pages.
+See [`apps/electron/resources/scaffold/`](apps/electron/resources/scaffold/) for the full template — this is what gets copied when you create a new wiki, including the schemas, agent skills, and seed pages.
 
 ## License
 

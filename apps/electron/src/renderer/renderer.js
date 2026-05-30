@@ -41,6 +41,7 @@ const openExistingButton = document.querySelector("#open-existing");
 const createNewButton = document.querySelector("#create-new");
 const newWikiDialog = document.querySelector("#new-wiki-dialog");
 const newWikiNameInput = document.querySelector("#new-wiki-name");
+const newWikiTranslationTargetSelect = document.querySelector("#new-wiki-translation-target");
 const newWikiLocationLabel = document.querySelector("#new-wiki-location");
 const chooseNewWikiLocationButton = document.querySelector("#choose-new-wiki-location");
 const cancelCreateNewButton = document.querySelector("#cancel-create-new");
@@ -160,6 +161,7 @@ const state = {
   availabilityCheckTimer: null,
   isNewWikiDialogOpen: false,
   newWikiName: "",
+  newWikiTranslationTargetLanguage: "",
   newWikiLocation: "",
   isCreatingWiki: false,
   showPostCreateGuide: false,
@@ -1257,6 +1259,7 @@ async function openNewWikiDialog() {
   setError(null);
   state.isNewWikiDialogOpen = true;
   state.newWikiName = "";
+  state.newWikiTranslationTargetLanguage = "";
   state.isCreatingWiki = false;
 
   try {
@@ -1301,11 +1304,15 @@ function renderNewWikiDialog() {
   if (document.activeElement !== newWikiNameInput) {
     newWikiNameInput.value = state.newWikiName;
   }
+  if (document.activeElement !== newWikiTranslationTargetSelect) {
+    newWikiTranslationTargetSelect.value = state.newWikiTranslationTargetLanguage;
+  }
   const fullLocationPath = state.newWikiLocation || "~/wikis";
   newWikiLocationLabel.textContent = middleTruncatePath(fullLocationPath);
   newWikiLocationLabel.title = fullLocationPath;
   newWikiLocationLabel.setAttribute("aria-label", fullLocationPath);
   newWikiNameInput.disabled = false;
+  newWikiTranslationTargetSelect.disabled = false;
   chooseNewWikiLocationButton.disabled = false;
   cancelCreateNewButton.disabled = false;
   confirmCreateNewButton.disabled = state.newWikiName.trim().length === 0;
@@ -1337,7 +1344,8 @@ async function createNewWiki() {
   try {
     const result = await window.wikiwise.createNewWiki({
       name,
-      parentDir: state.newWikiLocation
+      parentDir: state.newWikiLocation,
+      translationTargetLanguage: state.newWikiTranslationTargetLanguage
     });
 
     state.isNewWikiDialogOpen = false;
@@ -2428,6 +2436,10 @@ confirmUnpublishButton.addEventListener("click", confirmUnpublish);
 unpublishConfirmDialog.addEventListener("keydown", handleUnpublishConfirmationKeydown);
 newWikiNameInput.addEventListener("input", () => {
   state.newWikiName = newWikiNameInput.value;
+  renderNewWikiDialog();
+});
+newWikiTranslationTargetSelect.addEventListener("change", () => {
+  state.newWikiTranslationTargetLanguage = newWikiTranslationTargetSelect.value;
   renderNewWikiDialog();
 });
 chooseNewWikiLocationButton.addEventListener("click", chooseNewWikiLocation);

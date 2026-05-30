@@ -1351,7 +1351,8 @@ function createNewWiki(payload, webContents = null) {
     repositoryRoot,
     resourceRoot: electronResourcesRoot,
     parentDir: payload.parentDir,
-    name: payload.name
+    name: payload.name,
+    translationTargetLanguage: payload.translationTargetLanguage
   });
   rememberProjectRoot(scaffold.path);
 

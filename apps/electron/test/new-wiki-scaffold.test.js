@@ -107,6 +107,7 @@ test("renderer contains new-wiki dialog state, create flow, and post-create guid
   assert.match(rendererSource, /isNewWikiDialogOpen/);
   assert.match(rendererSource, /newWikiName/);
   assert.match(rendererSource, /newWikiLocation/);
+  assert.match(rendererSource, /newWikiTranslationTargetLanguage/);
   assert.match(rendererSource, /isCreatingWiki/);
   assert.match(rendererSource, /showPostCreateGuide/);
   assert.match(rendererSource, /openNewWikiDialog/);
@@ -123,9 +124,46 @@ test("renderer contains new-wiki dialog state, create flow, and post-create guid
   assert.match(htmlSource, /id="new-wiki-dialog"/);
   assert.match(htmlSource, /id="new-wiki-name"/);
   assert.match(htmlSource, /id="new-wiki-location"/);
+  assert.match(htmlSource, /id="new-wiki-translation-target"/);
   assert.match(htmlSource, /id="confirm-create-new"/);
   assert.match(htmlSource, /id="post-create-guide"/);
   assert.doesNotMatch(htmlSource, /later OpenSpec phase/);
+});
+
+test("new-wiki flow offers common auto-translation languages and sends the selection", () => {
+  const htmlSource = read("src/renderer/index.html");
+  const rendererSource = read("src/renderer/renderer.js");
+  const mainSource = read("src/main/main.js");
+  const createNewWikiSource = sourceBetween(
+    rendererSource,
+    "async function createNewWiki()",
+    "function renderPostCreateGuide()"
+  );
+
+  assert.match(htmlSource, /<label class="field-label" for="new-wiki-translation-target">Auto-translate raw sources<\/label>/);
+  assert.match(htmlSource, /<select id="new-wiki-translation-target"/);
+  assert.match(htmlSource, /<option value="">Off<\/option>/);
+  for (const language of [
+    "Simplified Chinese",
+    "Traditional Chinese",
+    "English",
+    "Japanese",
+    "Korean",
+    "Spanish",
+    "French",
+    "German",
+    "Portuguese",
+    "Italian"
+  ]) {
+    assert.match(htmlSource, new RegExp(`>${language}<`));
+  }
+
+  assert.match(rendererSource, /const newWikiTranslationTargetSelect = document\.querySelector\("#new-wiki-translation-target"\)/);
+  assert.match(rendererSource, /newWikiTranslationTargetLanguage:\s*""/);
+  assert.match(rendererSource, /newWikiTranslationTargetSelect\.value = state\.newWikiTranslationTargetLanguage/);
+  assert.match(rendererSource, /newWikiTranslationTargetSelect\.addEventListener\("change"/);
+  assert.match(createNewWikiSource, /translationTargetLanguage:\s*state\.newWikiTranslationTargetLanguage/);
+  assert.match(mainSource, /translationTargetLanguage:\s*payload\.translationTargetLanguage/);
 });
 
 test("renderer mirrors native scaffold failure dismissal behavior", () => {

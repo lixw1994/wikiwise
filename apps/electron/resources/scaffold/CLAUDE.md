@@ -6,6 +6,7 @@ A personal wiki maintained by an LLM agent, following the [llm-wiki pattern](llm
 
 - `llm-wiki.md` — Karpathy's pattern description (reference, read-only).
 - `raw/` — immutable source documents. Read-only for the LLM.
+- `translation/` — full translated versions of non-target-language raw sources. The target language is configured in `wikiwise.json`. Do not edit `raw/` when translating.
 - `wiki/` — LLM-maintained markdown. All edits here. Categories live in `index.md`, not in the filesystem.
   - `home.md` — human entry point. Narrative overview, current state of thinking. **Always include visuals** — inline SVG concept maps showing how ideas connect, diagrams of key frameworks, or relationship graphs. The home page should feel rich and visual, not just a wall of text.
   - `index.md` — agent catalog. Flat list of every page with a one-line summary, grouped by category.
@@ -16,11 +17,13 @@ A personal wiki maintained by an LLM agent, following the [llm-wiki pattern](llm
   - `site/build.js` — the wiki compiler (markdown to HTML).
   - `site/style.css` — the wiki theme.
 
+- `wikiwise.json` — project configuration. `translation.enabled` controls whether ingest should translate non-target-language raw sources before creating source summaries.
+
 ## Conventions
 
 - Link with Obsidian-style `[[wikilinks]]`. Bare filename, no path.
 - Every claim should cite a source: `([[source-slug]])`.
-- Source-summary pages start with a frontmatter block: `type`, `date`, `author`, `url`, `raw` (path into `raw/`).
+- Source-summary pages start with a frontmatter block: `type`, `date`, `author`, `url`, `raw` (path into `raw/`), and `translation` when a translated file exists.
 - Log entries prefix: `## [YYYY-MM-DD HH:MM] <op> | <title>` (local time).
 
 ## Images
@@ -68,7 +71,7 @@ This forces a full recompile of every page and refreshes the current view. The a
 
 ## Workflows
 
-**Ingest a new source.** Read it. Create/update the source-summary page at `wiki/sources/<slug>.md`. Then do the hard part: propagate claims into existing concept/entity pages — and add backlinks FROM those pages TO the new source and any new concept pages. Don't just create pages; stitch them into the web. Update `index.md`. Append to `log.md`. Update `home.md` if the new source shifts the narrative.
+**Ingest a new source.** Read it. If `wikiwise.json` enables translation and the raw source is not already in the target language, translate the full article to `translation/<slug>.md` before summarizing. Create/update the source-summary page at `wiki/sources/<slug>.md`, including `translation: translation/<slug>.md` when available. Then do the hard part: propagate claims into existing concept/entity pages — and add backlinks FROM those pages TO the new source and any new concept pages. Don't just create pages; stitch them into the web. Update `index.md`. Append to `log.md`. Update `home.md` if the new source shifts the narrative.
 
 **Keep `home.md` alive.** Update `home.md` as soon as the first few sources are ingested — don't wait until the wiki is "done." Every time new sources change the picture, revise `home.md` to reflect the current state of thinking. The home page is the wiki's front door; a stale home page makes the whole wiki feel abandoned.
 

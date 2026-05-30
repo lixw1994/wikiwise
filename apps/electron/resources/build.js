@@ -1037,8 +1037,9 @@ function buildSlugSet(filePaths) {
 function slugFromPath(filePath) {
   var filename = filePath.split('/').pop();
   var slug = filename.replace(/\.md$/i, '').toLowerCase().replace(/ /g, '-');
-  // Namespace raw files to avoid collisions with wiki pages
+  // Namespace supporting files to avoid collisions with wiki pages
   if (isRawPath(filePath)) slug = 'raw-' + slug;
+  if (isTranslationPath(filePath)) slug = 'translation-' + slug;
   return slug;
 }
 
@@ -1046,6 +1047,11 @@ function isRawPath(filePath) {
   // Match /raw/ as a directory segment, but only within the wiki project
   var parts = filePath.split('/');
   return parts.indexOf('raw') !== -1 && parts.indexOf('raw') >= parts.length - 2;
+}
+
+function isTranslationPath(filePath) {
+  var parts = filePath.split('/');
+  return parts.indexOf('translation') !== -1 && parts.indexOf('translation') >= parts.length - 2;
 }
 
 function extractTitle(source) {
@@ -1126,6 +1132,10 @@ function buildInfoboxRow(key, value) {
     var rawFilename = value.replace(/^raw\//, '');
     var rawSlug = 'raw-' + rawFilename.replace(/\.md$/i, '').toLowerCase().replace(/ /g, '-');
     cellHtml = '<a class="wikilink" href="' + encodeURI(rawSlug) + '.html">' + escapeHtml(value) + '</a>';
+  } else if (key === 'translation' && /^translation\/[^\/?.#]+\.md$/i.test(value)) {
+    var translationFilename = value.replace(/^translation\//, '');
+    var translationSlug = 'translation-' + translationFilename.replace(/\.md$/i, '').toLowerCase().replace(/ /g, '-');
+    cellHtml = '<a class="wikilink" href="' + encodeURI(translationSlug) + '.html">' + escapeHtml(value) + '</a>';
   } else {
     cellHtml = escapeHtml(value);
   }

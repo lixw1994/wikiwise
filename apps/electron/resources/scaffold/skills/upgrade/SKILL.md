@@ -98,7 +98,8 @@ https://raw.githubusercontent.com/TristanH/wikiwise/main/apps/electron/resources
 
 These files are tooling or agent instructions that the user doesn't customize:
 
-- `.claude/skills/*/SKILL.md` — skill definitions (overwrite entirely, also add any **new** skills that didn't exist before)
+- `.agents/skills/*/SKILL.md` — skill definitions (overwrite entirely, also add any **new** skills that didn't exist before)
+- `.claude/skills/*/SKILL.md` — mirror the same skill definitions for environments that read that directory
 - `site/build.js` — the wiki compiler
 - `site/style.css` — the wiki theme
 - `site/app.js`, `site/graph.js`, `site/map.html`, `site/map-3d.html`, `site/markdown-it.min.js` — supporting JS/HTML
@@ -107,8 +108,9 @@ These files are tooling or agent instructions that the user doesn't customize:
 
 For new skills that didn't exist when the wiki was created, create the directory and download:
 ```sh
-mkdir -p .claude/skills/new-skill-name
-fetch_file "${SCAFFOLD_BASE}/skills/new-skill-name/SKILL.md" ".claude/skills/new-skill-name/SKILL.md"
+mkdir -p .agents/skills/new-skill-name .claude/skills/new-skill-name
+fetch_file "${SCAFFOLD_BASE}/skills/new-skill-name/SKILL.md" ".agents/skills/new-skill-name/SKILL.md"
+cp ".agents/skills/new-skill-name/SKILL.md" ".claude/skills/new-skill-name/SKILL.md"
 ```
 
 ### Needs contextual merge (show diff, apply carefully)

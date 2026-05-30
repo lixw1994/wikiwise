@@ -81,7 +81,13 @@ Both skills chain into `ingest` automatically to create wiki pages from the raws
 
 **Important:** All files in `raw/` must be markdown (`.md`), never JSON. Temp JSON files from CLI queries go in `/tmp/`, not `raw/`. If you need to store structured data from Readwise, convert it to a readable markdown document before saving to `raw/`.
 
-## Step 4: Parallel ingest with subagents
+## Step 4: Translate imports if configured
+
+Read `wikiwise.json`. If `translation.enabled` is `true`, run `translate-imports` on the newly fetched raw files before ingest. This writes full translated articles to `translation/` while leaving `raw/` immutable.
+
+If translation is off, continue directly to ingest.
+
+## Step 5: Parallel ingest with subagents
 
 **This is the most important performance step.** After fetching raw files, do NOT ingest them one at a time. Use the `Agent` tool to parallelize:
 
@@ -112,7 +118,7 @@ Agent({
 
 **Why this matters:** Serial ingestion of 5 sources takes 5x as long. Parallel subagents cut wall-clock time dramatically. The dedup pass at the end is cheap.
 
-## Step 5: Update wiki infrastructure
+## Step 6: Update wiki infrastructure
 
 After all subagents complete:
 

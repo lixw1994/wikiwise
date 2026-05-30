@@ -16,6 +16,18 @@ const RESOURCE_NAMES = Object.freeze([
 ]);
 const PUBLISH_ENDPOINT = "https://publish.wiki-wise.com/_publish";
 const PUBLISH_CHECK_ENDPOINT = "https://publish.wiki-wise.com/_check";
+const TRANSLATION_LANGUAGE_OPTIONS = Object.freeze([
+  { code: "zh-Hans", name: "Simplified Chinese" },
+  { code: "zh-Hant", name: "Traditional Chinese" },
+  { code: "en", name: "English" },
+  { code: "ja", name: "Japanese" },
+  { code: "ko", name: "Korean" },
+  { code: "es", name: "Spanish" },
+  { code: "fr", name: "French" },
+  { code: "de", name: "German" },
+  { code: "pt", name: "Portuguese" },
+  { code: "it", name: "Italian" }
+]);
 
 export function getBundledResourceNames() {
   return [...RESOURCE_NAMES];
@@ -286,10 +298,13 @@ export function createWikiScaffold(options = {}) {
   for (const directoryPath of [
     wikiPath,
     path.join(wikiPath, "raw"),
+    path.join(wikiPath, "translation"),
     path.join(wikiPath, "wiki"),
     path.join(wikiPath, "wiki", "sources"),
     path.join(wikiPath, "site"),
     path.join(wikiPath, "site", "out"),
+    path.join(wikiPath, ".agents"),
+    path.join(wikiPath, ".agents", "skills"),
     path.join(wikiPath, ".claude"),
     path.join(wikiPath, ".claude", "skills")
   ]) {
@@ -322,18 +337,25 @@ export function createWikiScaffold(options = {}) {
     "ingest",
     "digest",
     "lint",
+    "translate-raw",
+    "translate-imports",
     "ingest-tweets",
     "import-readwise",
     "fetch-readwise-document",
     "fetch-readwise-highlights",
     "upgrade"
   ]) {
-    fs.cpSync(path.join(scaffoldDir, "skills", skill), path.join(wikiPath, ".claude", "skills", skill), {
+    const sourceSkillPath = path.join(scaffoldDir, "skills", skill);
+    fs.cpSync(sourceSkillPath, path.join(wikiPath, ".agents", "skills", skill), {
+      recursive: true
+    });
+    fs.cpSync(sourceSkillPath, path.join(wikiPath, ".claude", "skills", skill), {
       recursive: true
     });
   }
 
   writeTextFile(path.join(wikiPath, ".claude", "settings.json"), scaffoldSettingsJson());
+  writeTextFile(path.join(wikiPath, "wikiwise.json"), wikiwiseProjectConfigJson(options.translationTargetLanguage));
   fs.copyFileSync(
     resolveRepositoryResourcePath(repositoryRoot, "build.js", { resourceRoot }),
     path.join(wikiPath, "site", "build.js")
@@ -428,6 +450,8 @@ export function slugForPath(filePath) {
   const parts = filePath.split(path.sep);
   if (parts.includes("raw") && parts.indexOf("raw") >= parts.length - 2) {
     slug = `raw-${slug}`;
+  } else if (parts.includes("translation") && parts.indexOf("translation") >= parts.length - 2) {
+    slug = `translation-${slug}`;
   }
   return slug;
 }
@@ -742,6 +766,33 @@ function scaffoldSettingsJson() {
 `;
 }
 
+function wikiwiseProjectConfigJson(translationTargetLanguage) {
+  return `${JSON.stringify(
+    {
+      translation: normalizeTranslationConfig(translationTargetLanguage)
+    },
+    null,
+    2
+  )}\n`;
+}
+
+function normalizeTranslationConfig(translationTargetLanguage) {
+  const language = TRANSLATION_LANGUAGE_OPTIONS.find((option) => option.code === translationTargetLanguage);
+  if (!language) {
+    return {
+      enabled: false,
+      targetLanguage: null,
+      targetLanguageName: null
+    };
+  }
+
+  return {
+    enabled: true,
+    targetLanguage: language.code,
+    targetLanguageName: language.name
+  };
+}
+
 function currentISODate() {
   return new Date().toISOString().slice(0, 10);
 }
@@ -953,7 +1004,7 @@ function extension(fileName) {
 
 function sortFolders(folders) {
   const topFolders = ["wiki"];
-  const bottomFolders = ["raw", "site", "sources"];
+  const bottomFolders = ["translation", "raw", "site", "sources"];
 
   return folders.toSorted((a, b) => {
     const aTop = topFolders.indexOf(a.name);

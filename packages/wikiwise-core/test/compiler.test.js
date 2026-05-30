@@ -47,6 +47,11 @@ test("slugForPath matches native lowercase hyphen behavior", () => {
   assert.equal(slugForPath("/tmp/My Page.md"), "my-page");
 });
 
+test("slugForPath namespaces raw and translation supporting documents", () => {
+  assert.equal(slugForPath("/tmp/wiki/raw/source.md"), "raw-source");
+  assert.equal(slugForPath("/tmp/wiki/translation/source.md"), "translation-source");
+});
+
 test("WikiCompiler scans and compiles a scaffold-style wiki home page", () => {
   const root = makeWikiFixture();
   const compiler = new WikiCompiler({
@@ -106,4 +111,26 @@ test("WikiCompiler can compile all pages after progressive cache is seeded", () 
   assert.equal(freshCompiler.compileAll(), 3);
   assert.equal(fs.existsSync(path.join(root, "site", "out", "map-3d.html")), true);
   assert.equal(fs.existsSync(path.join(root, "site", "out", "second-page.html")), true);
+});
+
+test("WikiCompiler namespaces translation files away from source summaries", () => {
+  const root = makeWikiFixture();
+  fs.mkdirSync(path.join(root, "wiki", "sources"), { recursive: true });
+  fs.mkdirSync(path.join(root, "translation"), { recursive: true });
+  fs.writeFileSync(path.join(root, "wiki", "sources", "source.md"), "# Source Summary\n");
+  fs.writeFileSync(path.join(root, "translation", "source.md"), "# Translated Source\n");
+
+  const compiler = new WikiCompiler({
+    sourceDir: root,
+    repositoryRoot
+  });
+
+  assert.equal(compiler.compileAll(), 5);
+  assert.equal(fs.existsSync(path.join(root, "site", "out", "source.html")), true);
+  assert.equal(fs.existsSync(path.join(root, "site", "out", "translation-source.html")), true);
+  assert.match(fs.readFileSync(path.join(root, "site", "out", "source.html"), "utf8"), /Source Summary/);
+  assert.match(
+    fs.readFileSync(path.join(root, "site", "out", "translation-source.html"), "utf8"),
+    /Translated Source/
+  );
 });

@@ -1304,6 +1304,13 @@ body.resizing-left-sidebar * {
   line-height: 1.2;
 }
 
+.new-wiki-translation-select {
+  min-height: 26px;
+  padding: 3px 6px;
+  font-size: 13px;
+  line-height: 1.2;
+}
+
 .location-row {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto;
