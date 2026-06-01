@@ -18,6 +18,7 @@ function createEnv() {
   const memberships = new Map();
   const comments = new Map();
   const oauthStates = new Map();
+  const oauthAccounts = new Map();
   const revisions = [];
   const objects = new Map();
 
@@ -31,6 +32,7 @@ function createEnv() {
       memberships,
       comments,
       oauthStates,
+      oauthAccounts,
       revisions,
       prepare(sql) {
         return {
@@ -63,6 +65,29 @@ function createEnv() {
                     returnTo,
                     expiresAt,
                     createdAt
+                  });
+                } else if (/INSERT INTO oauth_accounts/i.test(sql)) {
+                  const [id, userId, provider, providerSubject, email] = values;
+                  oauthAccounts.set(`${provider}:${providerSubject}`, {
+                    id,
+                    userId,
+                    provider,
+                    providerSubject,
+                    email
+                  });
+                } else if (/INSERT INTO sessions/i.test(sql)) {
+                  const [id, userId, expiresAt] = values;
+                  sessions.set(id, {
+                    id,
+                    userId,
+                    expiresAt
+                  });
+                } else if (/INSERT INTO wiki_members/i.test(sql)) {
+                  const [wikiSlug, userId, role] = values;
+                  memberships.set(`${wikiSlug}:${userId}`, {
+                    wikiSlug,
+                    userId,
+                    role
                   });
                 } else if (/INSERT INTO page_revisions/i.test(sql)) {
                   revisions.push({
@@ -102,12 +127,22 @@ function createEnv() {
                     comment.status = status;
                     comment.updatedAt = updatedAt;
                   }
+                } else if (/DELETE FROM oauth_states/i.test(sql)) {
+                  oauthStates.delete(values[0]);
+                } else if (/DELETE FROM sessions/i.test(sql)) {
+                  sessions.delete(values[0]);
                 }
                 return { success: true };
               },
               async first() {
                 if (/FROM wikis/i.test(sql)) {
                   return wikis.get(values[0]) ?? null;
+                }
+                if (/FROM oauth_states/i.test(sql)) {
+                  return oauthStates.get(values[0]) ?? null;
+                }
+                if (/FROM oauth_accounts/i.test(sql)) {
+                  return oauthAccounts.get(`${values[0]}:${values[1]}`) ?? null;
                 }
                 if (/FROM sessions/i.test(sql)) {
                   const session = sessions.get(values[0]);
@@ -229,6 +264,62 @@ function addUserSession(env, options = {}) {
   }
 
   return sessionId;
+}
+
+function addOAuthState(env, options = {}) {
+  const id = options.id ?? "oauth_state_test";
+  env.DB.oauthStates.set(id, {
+    id,
+    provider: options.provider ?? "google",
+    wikiSlug: options.wikiSlug ?? "notes",
+    returnTo: options.returnTo ?? `https://${options.wikiSlug ?? "notes"}.wiki.flybullet.net/`,
+    expiresAt: options.expiresAt ?? "2999-01-01T00:00:00.000Z",
+    createdAt: options.createdAt ?? "2026-01-01T00:00:00.000Z"
+  });
+  return id;
+}
+
+function oauthEnv(overrides = {}) {
+  return {
+    GOOGLE_CLIENT_ID: "google-client",
+    GOOGLE_CLIENT_SECRET: "google-secret",
+    GOOGLE_AUTHORIZATION_URL: "https://accounts.example/google/auth",
+    GOOGLE_TOKEN_URL: "https://accounts.example/google/token",
+    GOOGLE_USERINFO_URL: "https://accounts.example/google/userinfo",
+    ...overrides
+  };
+}
+
+function mockOAuthFetch(profile, options = {}) {
+  return async (request) => {
+    const url = typeof request === "string" ? request : request.url;
+    if (url === "https://accounts.example/google/token") {
+      if (options.tokenStatus && options.tokenStatus >= 400) {
+        return new Response(options.tokenBody ?? "provider secret failure", {
+          status: options.tokenStatus
+        });
+      }
+      return Response.json({
+        access_token: options.accessToken ?? "provider-access-token",
+        token_type: "Bearer"
+      });
+    }
+    if (url === "https://accounts.example/google/userinfo") {
+      if (options.profileStatus && options.profileStatus >= 400) {
+        return new Response(options.profileBody ?? "provider profile failure", {
+          status: options.profileStatus
+        });
+      }
+      return Response.json(profile);
+    }
+    return new Response("not found", { status: 404 });
+  };
+}
+
+function sessionCookieFrom(response) {
+  const setCookie = response.headers.get("Set-Cookie") ?? "";
+  const match = setCookie.match(/wwh_session=([^;]+)/);
+  return match ? `wwh_session=${match[1]}` : "";
 }
 
 async function publish(env, body, headers = { Authorization: "Bearer secret" }) {
@@ -442,9 +533,13 @@ test("OIDC provider boundaries expose configured providers without leaking secre
     FEISHU_CLIENT_ID: "feishu-client",
     FEISHU_CLIENT_SECRET: "feishu-secret",
     FEISHU_AUTHORIZATION_URL: "https://accounts.example/feishu/auth",
+    FEISHU_TOKEN_URL: "https://accounts.example/feishu/token",
+    FEISHU_USERINFO_URL: "https://accounts.example/feishu/userinfo",
     LARK_CLIENT_ID: "lark-client",
     LARK_CLIENT_SECRET: "lark-secret",
-    LARK_AUTHORIZATION_URL: "https://accounts.example/lark/auth"
+    LARK_AUTHORIZATION_URL: "https://accounts.example/lark/auth",
+    LARK_TOKEN_URL: "https://accounts.example/lark/token",
+    LARK_USERINFO_URL: "https://accounts.example/lark/userinfo"
   };
 
   const providersResponse = await handleRequest(
@@ -468,6 +563,34 @@ test("OIDC provider boundaries expose configured providers without leaking secre
   assert.equal(location.searchParams.get("client_id"), "google-client");
   assert.equal(location.searchParams.get("redirect_uri"), "https://notes.wiki.flybullet.net/_wikiwise/auth/google/callback");
   assert.equal(location.searchParams.get("scope"), "openid profile email");
+});
+
+test("OIDC providers without callback endpoints are not advertised or started", async () => {
+  const env = {
+    ...createEnv(),
+    GOOGLE_CLIENT_ID: "google-client",
+    GOOGLE_CLIENT_SECRET: "google-secret",
+    GOOGLE_AUTHORIZATION_URL: "https://accounts.example/google/auth",
+    FEISHU_CLIENT_ID: "feishu-client",
+    FEISHU_CLIENT_SECRET: "feishu-secret",
+    FEISHU_AUTHORIZATION_URL: "https://accounts.example/feishu/auth",
+    LARK_CLIENT_ID: "lark-client",
+    LARK_CLIENT_SECRET: "lark-secret",
+    LARK_AUTHORIZATION_URL: "https://accounts.example/lark/auth"
+  };
+
+  const providersResponse = await handleRequest(
+    new Request("https://notes.wiki.flybullet.net/_wikiwise/auth/providers"),
+    env
+  );
+  assert.equal(providersResponse.status, 200);
+  assert.deepEqual((await providersResponse.json()).providers.map((provider) => provider.id), ["google"]);
+
+  const startFeishu = await handleRequest(
+    new Request("https://notes.wiki.flybullet.net/_wikiwise/auth/feishu/start"),
+    env
+  );
+  assert.equal(startFeishu.status, 404);
 });
 
 test("OIDC start stores opaque state and validates return target", async () => {
@@ -508,6 +631,331 @@ test("OIDC start stores opaque state and validates return target", async () => {
     expiresAt: env.DB.oauthStates.get(state).expiresAt,
     createdAt: env.DB.oauthStates.get(state).createdAt
   });
+});
+
+test("OAuth callback creates user, linked provider account, session cookie, and safe redirect", async () => {
+  const env = {
+    ...createEnv(),
+    ...oauthEnv()
+  };
+  env.fetch = mockOAuthFetch({
+    sub: "google-user-1",
+    name: "Li Xianwei",
+    picture: "https://cdn.example/avatar.png",
+    email: "lixianwei1994@gmail.com"
+  });
+  await publish(env, {
+    slug: "notes",
+    settings: {
+      visibility: "public",
+      authRealm: "shared",
+      comments: { policy: "login-required" }
+    },
+    files: [{ path: "index.html", data: base64("<h1>Notes</h1>") }]
+  });
+  addOAuthState(env, {
+    id: "oauth_state_success",
+    wikiSlug: "notes",
+    returnTo: "https://notes.wiki.flybullet.net/deep/page.html"
+  });
+
+  const response = await handleRequest(
+    new Request("https://notes.wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123&state=oauth_state_success"),
+    env
+  );
+
+  assert.equal(response.status, 302);
+  assert.equal(response.headers.get("Location"), "https://notes.wiki.flybullet.net/deep/page.html");
+  const setCookie = response.headers.get("Set-Cookie") ?? "";
+  assert.match(setCookie, /^wwh_session=session_/);
+  assert.match(setCookie, /HttpOnly/);
+  assert.match(setCookie, /Secure/);
+  assert.match(setCookie, /SameSite=Lax/);
+  assert.match(setCookie, /Domain=\.wiki\.flybullet\.net/);
+  assert.equal(setCookie.includes("provider-access-token"), false);
+  assert.equal(env.DB.users.size, 1);
+  assert.equal(env.DB.oauthAccounts.size, 1);
+  assert.equal(env.DB.sessions.size, 1);
+  assert.equal(env.DB.oauthStates.has("oauth_state_success"), false);
+
+  const profile = await handleRequest(new Request("https://notes.wiki.flybullet.net/_wikiwise/me", {
+    headers: { Cookie: sessionCookieFrom(response) }
+  }), env);
+  assert.equal(profile.status, 200);
+  assert.deepEqual((await profile.json()).user, {
+    id: [...env.DB.users.keys()][0],
+    displayName: "Li Xianwei",
+    avatarUrl: "https://cdn.example/avatar.png"
+  });
+});
+
+test("OAuth callback rejects invalid, expired, mismatched, and reused state", async () => {
+  const env = {
+    ...createEnv(),
+    ...oauthEnv()
+  };
+  env.fetch = mockOAuthFetch({
+    sub: "google-user-1",
+    name: "Li Xianwei",
+    email: "lixianwei1994@gmail.com"
+  });
+  await publish(env, {
+    slug: "notes",
+    settings: {
+      visibility: "public",
+      authRealm: "shared",
+      comments: { policy: "login-required" }
+    },
+    files: [{ path: "index.html", data: base64("<h1>Notes</h1>") }]
+  });
+  addOAuthState(env, {
+    id: "oauth_state_expired",
+    wikiSlug: "notes",
+    expiresAt: "2000-01-01T00:00:00.000Z"
+  });
+  addOAuthState(env, {
+    id: "oauth_state_feishu",
+    provider: "feishu",
+    wikiSlug: "notes"
+  });
+
+  for (const url of [
+    "https://notes.wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123",
+    "https://notes.wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123&state=unknown",
+    "https://notes.wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123&state=oauth_state_expired",
+    "https://notes.wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123&state=oauth_state_feishu"
+  ]) {
+    const response = await handleRequest(new Request(url), env);
+    assert.equal(response.status, 400);
+    assert.equal(response.headers.has("Set-Cookie"), false);
+  }
+  assert.equal(env.DB.users.size, 0);
+  assert.equal(env.DB.oauthAccounts.size, 0);
+  assert.equal(env.DB.sessions.size, 0);
+
+  addOAuthState(env, {
+    id: "oauth_state_reused",
+    wikiSlug: "notes"
+  });
+  const first = await handleRequest(
+    new Request("https://notes.wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123&state=oauth_state_reused"),
+    env
+  );
+  assert.equal(first.status, 302);
+
+  const second = await handleRequest(
+    new Request("https://notes.wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123&state=oauth_state_reused"),
+    env
+  );
+  assert.equal(second.status, 400);
+  assert.equal(env.DB.sessions.size, 1);
+});
+
+test("OAuth provider exchange and profile failures do not expose provider internals", async () => {
+  for (const [fetchImpl, expectedText] of [
+    [mockOAuthFetch({}, { tokenStatus: 500, tokenBody: "provider-super-secret-token-error" }), "oauth_exchange_failed"],
+    [mockOAuthFetch({ name: "Missing Subject", email: "missing@example.com" }), "oauth_profile_missing_subject"]
+  ]) {
+    const env = {
+      ...createEnv(),
+      ...oauthEnv()
+    };
+    env.fetch = fetchImpl;
+    addOAuthState(env, {
+      id: "oauth_state_failure",
+      wikiSlug: "notes"
+    });
+
+    const response = await handleRequest(
+      new Request("https://notes.wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123&state=oauth_state_failure"),
+      env
+    );
+
+    assert.equal(response.status, 502);
+    const text = await response.text();
+    assert.equal(text, expectedText);
+    assert.equal(text.includes("provider-super-secret"), false);
+    assert.equal(env.DB.users.size, 0);
+    assert.equal(env.DB.sessions.size, 0);
+  }
+});
+
+test("session lifecycle covers profile access, expired sessions, and logout", async () => {
+  const env = createEnv();
+  await publish(env, {
+    slug: "notes",
+    settings: {
+      visibility: "public",
+      authRealm: "shared",
+      comments: { policy: "login-required" }
+    },
+    files: [{ path: "index.html", data: base64("<h1>Notes</h1>") }]
+  });
+  const activeSession = addUserSession(env, { sessionId: "session-active" });
+  const expiredSession = addUserSession(env, {
+    sessionId: "session-expired",
+    userId: "user-expired",
+    expiresAt: "2000-01-01T00:00:00.000Z"
+  });
+
+  const signedIn = await handleRequest(new Request("https://notes.wiki.flybullet.net/_wikiwise/me", {
+    headers: { Cookie: `wwh_session=${activeSession}` }
+  }), env);
+  assert.equal(signedIn.status, 200);
+
+  const expired = await handleRequest(new Request("https://notes.wiki.flybullet.net/_wikiwise/me", {
+    headers: { Cookie: `wwh_session=${expiredSession}` }
+  }), env);
+  assert.equal(expired.status, 401);
+
+  const unknown = await handleRequest(new Request("https://notes.wiki.flybullet.net/_wikiwise/me", {
+    headers: { Cookie: "wwh_session=missing" }
+  }), env);
+  assert.equal(unknown.status, 401);
+
+  const logout = await handleRequest(new Request("https://notes.wiki.flybullet.net/_wikiwise/logout", {
+    method: "POST",
+    headers: { Cookie: `wwh_session=${activeSession}` }
+  }), env);
+  assert.equal(logout.status, 204);
+  assert.equal(env.DB.sessions.has(activeSession), false);
+  assert.match(logout.headers.get("Set-Cookie") ?? "", /Max-Age=0/);
+
+  const afterLogout = await handleRequest(new Request("https://notes.wiki.flybullet.net/_wikiwise/me", {
+    headers: { Cookie: `wwh_session=${activeSession}` }
+  }), env);
+  assert.equal(afterLogout.status, 401);
+});
+
+test("private wiki owner bootstrap grants only callback wiki membership", async () => {
+  const env = {
+    ...createEnv(),
+    ...oauthEnv({ WIKIWISE_ADMIN_EMAILS: "owner@example.com" })
+  };
+  env.fetch = mockOAuthFetch({
+    sub: "owner-provider-subject",
+    name: "Owner",
+    email: "owner@example.com",
+    email_verified: true
+  });
+  for (const slug of ["private-a", "private-b"]) {
+    await publish(env, {
+      slug,
+      settings: {
+        visibility: "private",
+        authRealm: "shared",
+        comments: { policy: "members-only" }
+      },
+      files: [{ path: "index.html", data: base64(`<h1>${slug}</h1>`) }]
+    });
+  }
+  addOAuthState(env, {
+    id: "oauth_state_owner",
+    wikiSlug: "private-a"
+  });
+
+  const ownerCallback = await handleRequest(
+    new Request("https://private-a.wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123&state=oauth_state_owner"),
+    env
+  );
+  assert.equal(ownerCallback.status, 302);
+  const ownerUserId = [...env.DB.oauthAccounts.values()][0].userId;
+  assert.deepEqual(env.DB.memberships.get(`private-a:${ownerUserId}`), {
+    wikiSlug: "private-a",
+    userId: ownerUserId,
+    role: "owner"
+  });
+
+  const privateA = await handleRequest(new Request("https://private-a.wiki.flybullet.net/", {
+    headers: { Cookie: sessionCookieFrom(ownerCallback) }
+  }), env);
+  assert.equal(privateA.status, 200);
+
+  const privateB = await handleRequest(new Request("https://private-b.wiki.flybullet.net/", {
+    headers: { Cookie: sessionCookieFrom(ownerCallback) }
+  }), env);
+  assert.equal(privateB.status, 403);
+
+  const nonOwnerEnv = {
+    ...createEnv(),
+    ...oauthEnv({ WIKIWISE_ADMIN_EMAILS: "owner@example.com" })
+  };
+  nonOwnerEnv.fetch = mockOAuthFetch({
+    sub: "reader-provider-subject",
+    name: "Reader",
+    email: "reader@example.com"
+  });
+  await publish(nonOwnerEnv, {
+    slug: "private-a",
+    settings: {
+      visibility: "private",
+      authRealm: "shared",
+      comments: { policy: "members-only" }
+    },
+    files: [{ path: "index.html", data: base64("<h1>private-a</h1>") }]
+  });
+  addOAuthState(nonOwnerEnv, {
+    id: "oauth_state_reader",
+    wikiSlug: "private-a"
+  });
+
+  const readerCallback = await handleRequest(
+    new Request("https://private-a.wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123&state=oauth_state_reader"),
+    nonOwnerEnv
+  );
+  assert.equal(readerCallback.status, 302);
+  assert.equal(nonOwnerEnv.DB.memberships.size, 0);
+  const forbidden = await handleRequest(new Request("https://private-a.wiki.flybullet.net/", {
+    headers: { Cookie: sessionCookieFrom(readerCallback) }
+  }), nonOwnerEnv);
+  assert.equal(forbidden.status, 403);
+});
+
+test("private wiki owner bootstrap requires a verified provider email", async () => {
+  for (const profile of [
+    {
+      sub: "unverified-provider-subject",
+      name: "Unverified Owner",
+      email: "owner@example.com",
+      email_verified: false
+    },
+    {
+      sub: "missing-verification-provider-subject",
+      name: "Missing Verification Owner",
+      email: "owner@example.com"
+    }
+  ]) {
+    const env = {
+      ...createEnv(),
+      ...oauthEnv({ WIKIWISE_ADMIN_EMAILS: "owner@example.com" })
+    };
+    env.fetch = mockOAuthFetch(profile);
+    await publish(env, {
+      slug: "private-a",
+      settings: {
+        visibility: "private",
+        authRealm: "shared",
+        comments: { policy: "members-only" }
+      },
+      files: [{ path: "index.html", data: base64("<h1>private-a</h1>") }]
+    });
+    addOAuthState(env, {
+      id: "oauth_state_owner",
+      wikiSlug: "private-a"
+    });
+
+    const callback = await handleRequest(
+      new Request("https://private-a.wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123&state=oauth_state_owner"),
+      env
+    );
+    assert.equal(callback.status, 302);
+    assert.equal(env.DB.memberships.size, 0);
+
+    const privateRead = await handleRequest(new Request("https://private-a.wiki.flybullet.net/", {
+      headers: { Cookie: sessionCookieFrom(callback) }
+    }), env);
+    assert.equal(privateRead.status, 403);
+  }
 });
 
 test("comment policy enforcement covers disabled, login-required, and members-only", async () => {

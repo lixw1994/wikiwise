@@ -32,11 +32,26 @@ export async function handleRequest(request, env) {
     return startOidcProvider(request, env, authStartMatch[1]);
   }
 
+  const authCallbackMatch = url.pathname.match(/^\/_wikiwise\/auth\/([^/]+)\/callback$/);
+  if (authCallbackMatch) {
+    if (request.method !== "GET") {
+      return textResponse("Method not allowed", 405);
+    }
+    return completeOidcProvider(request, env, authCallbackMatch[1]);
+  }
+
   if (url.pathname === "/_wikiwise/me") {
     if (request.method !== "GET") {
       return textResponse("Method not allowed", 405);
     }
     return currentUser(request, env);
+  }
+
+  if (url.pathname === "/_wikiwise/logout") {
+    if (request.method !== "POST") {
+      return textResponse("Method not allowed", 405);
+    }
+    return logoutUser(request, env);
   }
 
   if (url.pathname === "/_wikiwise/comments") {
@@ -451,6 +466,69 @@ async function startOidcProvider(request, env, providerId) {
   });
 }
 
+async function completeOidcProvider(request, env, providerId) {
+  const provider = configuredOidcProviders(env).find((candidate) => candidate.id === providerId);
+  if (!provider) {
+    return textResponse("Provider not configured", 404);
+  }
+
+  const requestUrl = new URL(request.url);
+  const code = requestUrl.searchParams.get("code");
+  const stateId = requestUrl.searchParams.get("state");
+  if (!code || !stateId) {
+    return textResponse("invalid_oauth_state", 400);
+  }
+
+  const state = await findOAuthState(env, stateId);
+  if (!validOAuthState(state, provider.id)) {
+    return textResponse("invalid_oauth_state", 400);
+  }
+
+  let profile;
+  try {
+    const redirectUri = `${requestUrl.origin}/_wikiwise/auth/${provider.id}/callback`;
+    const tokens = await exchangeAuthorizationCode(env, provider, code, redirectUri);
+    profile = await fetchProviderProfile(env, provider, tokens);
+  } catch (error) {
+    return textResponse(error.oauthCode ?? "oauth_exchange_failed", error.status ?? 502);
+  }
+
+  const now = new Date();
+  const user = await upsertOAuthUser(env, provider, profile, now.toISOString());
+  await bootstrapOwnerMembership(env, state.wikiSlug, user.id, profile.email, profile.emailVerified);
+
+  const expiresAt = sessionExpiry(env, now);
+  const sessionId = randomId("session");
+  await insertSession(env, {
+    id: sessionId,
+    userId: user.id,
+    expiresAt: expiresAt.toISOString()
+  });
+  await deleteOAuthState(env, state.id);
+
+  return new Response(null, {
+    status: 302,
+    headers: {
+      Location: state.returnTo,
+      "Set-Cookie": sessionCookie(request, env, sessionId, expiresAt)
+    }
+  });
+}
+
+async function logoutUser(request, env) {
+  const sessionId = parseCookies(request.headers.get("Cookie") ?? "").wwh_session;
+  if (sessionId) {
+    await deleteSession(env, sessionId);
+  }
+
+  return new Response(null, {
+    status: 204,
+    headers: {
+      "Set-Cookie": expiredSessionCookie(request, env)
+    }
+  });
+}
+
 function configuredOidcProviders(env) {
   return [
     oidcProvider(env, {
@@ -459,21 +537,29 @@ function configuredOidcProviders(env) {
       clientIdKey: "GOOGLE_CLIENT_ID",
       clientSecretKey: "GOOGLE_CLIENT_SECRET",
       authorizationUrlKey: "GOOGLE_AUTHORIZATION_URL",
-      defaultAuthorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth"
+      tokenUrlKey: "GOOGLE_TOKEN_URL",
+      userInfoUrlKey: "GOOGLE_USERINFO_URL",
+      defaultAuthorizationUrl: "https://accounts.google.com/o/oauth2/v2/auth",
+      defaultTokenUrl: "https://oauth2.googleapis.com/token",
+      defaultUserInfoUrl: "https://openidconnect.googleapis.com/v1/userinfo"
     }),
     oidcProvider(env, {
       id: "feishu",
       name: "Feishu",
       clientIdKey: "FEISHU_CLIENT_ID",
       clientSecretKey: "FEISHU_CLIENT_SECRET",
-      authorizationUrlKey: "FEISHU_AUTHORIZATION_URL"
+      authorizationUrlKey: "FEISHU_AUTHORIZATION_URL",
+      tokenUrlKey: "FEISHU_TOKEN_URL",
+      userInfoUrlKey: "FEISHU_USERINFO_URL"
     }),
     oidcProvider(env, {
       id: "lark",
       name: "Lark",
       clientIdKey: "LARK_CLIENT_ID",
       clientSecretKey: "LARK_CLIENT_SECRET",
-      authorizationUrlKey: "LARK_AUTHORIZATION_URL"
+      authorizationUrlKey: "LARK_AUTHORIZATION_URL",
+      tokenUrlKey: "LARK_TOKEN_URL",
+      userInfoUrlKey: "LARK_USERINFO_URL"
     })
   ].filter(Boolean);
 }
@@ -482,15 +568,19 @@ function oidcProvider(env, options) {
   const clientId = env?.[options.clientIdKey];
   const clientSecret = env?.[options.clientSecretKey];
   const authorizationUrl = env?.[options.authorizationUrlKey] ?? options.defaultAuthorizationUrl;
+  const tokenUrl = env?.[options.tokenUrlKey] ?? options.defaultTokenUrl;
+  const userInfoUrl = env?.[options.userInfoUrlKey] ?? options.defaultUserInfoUrl;
 
-  if (!clientId || !clientSecret || !authorizationUrl) return null;
+  if (!clientId || !clientSecret || !authorizationUrl || !tokenUrl || !userInfoUrl) return null;
 
   return {
     id: options.id,
     name: options.name,
     clientId,
     clientSecret,
-    authorizationUrl
+    authorizationUrl,
+    tokenUrl,
+    userInfoUrl
   };
 }
 
@@ -509,6 +599,251 @@ function safeReturnTo(requestUrl, returnTo) {
   }
 
   return `${requestUrl.origin}/`;
+}
+
+function validOAuthState(state, providerId) {
+  return Boolean(
+    state &&
+    state.provider === providerId &&
+    state.expiresAt &&
+    Date.parse(state.expiresAt) > Date.now()
+  );
+}
+
+async function exchangeAuthorizationCode(env, provider, code, redirectUri) {
+  if (!provider.tokenUrl) {
+    throw oauthError("oauth_exchange_failed", 502);
+  }
+
+  const response = await providerFetch(env)(provider.tokenUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/x-www-form-urlencoded",
+      "Accept": "application/json"
+    },
+    body: new URLSearchParams({
+      grant_type: "authorization_code",
+      code,
+      client_id: provider.clientId,
+      client_secret: provider.clientSecret,
+      redirect_uri: redirectUri
+    })
+  });
+
+  if (!response.ok) {
+    throw oauthError("oauth_exchange_failed", 502);
+  }
+
+  const tokens = await readJsonResponse(response, "oauth_exchange_failed");
+  if (!tokens?.access_token) {
+    throw oauthError("oauth_exchange_failed", 502);
+  }
+  return tokens;
+}
+
+async function fetchProviderProfile(env, provider, tokens) {
+  if (!provider.userInfoUrl || !tokens.access_token) {
+    throw oauthError("oauth_profile_missing_subject", 502);
+  }
+
+  const response = await providerFetch(env)(provider.userInfoUrl, {
+    headers: {
+      "Accept": "application/json",
+      "Authorization": `Bearer ${tokens.access_token}`
+    }
+  });
+  if (!response.ok) {
+    throw oauthError("oauth_profile_failed", 502);
+  }
+  const claims = await readJsonResponse(response, "oauth_profile_failed");
+
+  const profile = normalizeProviderProfile(claims ?? {});
+  if (!profile.providerSubject) {
+    throw oauthError("oauth_profile_missing_subject", 502);
+  }
+  return profile;
+}
+
+async function upsertOAuthUser(env, provider, profile, updatedAt) {
+  const existingAccount = await findOAuthAccount(env, provider.id, profile.providerSubject);
+  const userId = existingAccount?.userId ?? randomId("user");
+  const user = {
+    id: userId,
+    displayName: profile.displayName,
+    avatarUrl: profile.avatarUrl,
+    updatedAt
+  };
+
+  await upsertUser(env, user);
+  await upsertOAuthAccount(env, {
+    id: existingAccount?.id ?? randomId("oauth_account"),
+    userId,
+    provider: provider.id,
+    providerSubject: profile.providerSubject,
+    email: profile.email
+  });
+
+  return user;
+}
+
+async function bootstrapOwnerMembership(env, wikiSlug, userId, email, emailVerified) {
+  const allowedEmails = adminEmails(env);
+  if (!email || emailVerified !== true || !allowedEmails.has(email)) return;
+
+  const wiki = await findWiki(env, wikiSlug);
+  if (!wiki || wiki.visibility !== "private") return;
+
+  await upsertWikiMember(env, {
+    wikiSlug,
+    userId,
+    role: "owner"
+  });
+}
+
+function normalizeProviderProfile(claims) {
+  const nested = claims?.data && typeof claims.data === "object" ? claims.data : {};
+  const providerSubject = firstString(
+    claims.sub,
+    claims.id,
+    claims.open_id,
+    claims.union_id,
+    claims.user_id,
+    nested.sub,
+    nested.id,
+    nested.open_id,
+    nested.union_id,
+    nested.user_id
+  );
+  const email = normalizeEmail(firstString(claims.email, nested.email));
+  const emailVerified = firstVerifiedBoolean(
+    claims.email_verified,
+    claims.verified_email,
+    nested.email_verified,
+    nested.verified_email
+  );
+  const displayName = firstString(
+    claims.name,
+    claims.display_name,
+    claims.username,
+    nested.name,
+    nested.display_name,
+    nested.en_name,
+    email,
+    providerSubject
+  );
+  const avatarUrl = firstString(
+    claims.picture,
+    claims.avatar_url,
+    claims.avatar,
+    nested.picture,
+    nested.avatar_url,
+    nested.avatar_thumb
+  );
+
+  return {
+    providerSubject,
+    displayName,
+    avatarUrl,
+    email,
+    emailVerified
+  };
+}
+
+function firstString(...values) {
+  for (const value of values) {
+    if (typeof value === "string" && value.trim()) {
+      return value.trim();
+    }
+  }
+  return null;
+}
+
+function normalizeEmail(email) {
+  return typeof email === "string" && email.trim()
+    ? email.trim().toLowerCase()
+    : null;
+}
+
+function firstVerifiedBoolean(...values) {
+  for (const value of values) {
+    if (value === true || value === "true") return true;
+    if (value === false || value === "false") return false;
+  }
+  return false;
+}
+
+function adminEmails(env) {
+  return new Set(
+    String(env?.WIKIWISE_ADMIN_EMAILS ?? "")
+      .split(",")
+      .map((email) => normalizeEmail(email))
+      .filter(Boolean)
+  );
+}
+
+function sessionExpiry(env, now) {
+  const configuredDays = Number(env?.WIKIWISE_SESSION_DAYS);
+  const days = Number.isFinite(configuredDays) && configuredDays > 0
+    ? Math.min(configuredDays, 365)
+    : 30;
+  return new Date(now.getTime() + days * 24 * 60 * 60 * 1000);
+}
+
+function sessionCookie(request, env, sessionId, expiresAt) {
+  const maxAge = Math.max(0, Math.floor((expiresAt.getTime() - Date.now()) / 1000));
+  return buildSessionCookie(request, env, encodeURIComponent(sessionId), {
+    maxAge,
+    expires: expiresAt.toUTCString()
+  });
+}
+
+function expiredSessionCookie(request, env) {
+  return buildSessionCookie(request, env, "", {
+    maxAge: 0,
+    expires: "Thu, 01 Jan 1970 00:00:00 GMT"
+  });
+}
+
+function buildSessionCookie(request, env, value, options) {
+  const attrs = [
+    `wwh_session=${value}`,
+    "Path=/",
+    `Max-Age=${options.maxAge}`,
+    `Expires=${options.expires}`,
+    "HttpOnly",
+    "Secure",
+    "SameSite=Lax"
+  ];
+  const domain = cookieDomainForRequest(request, env);
+  if (domain) attrs.push(`Domain=${domain}`);
+  return attrs.join("; ");
+}
+
+function cookieDomainForRequest(request, env) {
+  const publicDomain = env?.WIKIWISE_PUBLIC_DOMAIN ?? defaultPublicDomain;
+  const hostname = new URL(request.url).hostname;
+  return hostname === publicDomain || hostname.endsWith(`.${publicDomain}`)
+    ? `.${publicDomain}`
+    : null;
+}
+
+function providerFetch(env) {
+  return typeof env?.fetch === "function" ? env.fetch : fetch;
+}
+
+async function readJsonResponse(response, errorCode) {
+  try {
+    return await response.json();
+  } catch {
+    throw oauthError(errorCode, 502);
+  }
+}
+
+function oauthError(oauthCode, status) {
+  const error = new Error(oauthCode);
+  error.oauthCode = oauthCode;
+  error.status = status;
+  return error;
 }
 
 async function upsertWiki(env, wiki) {
@@ -547,6 +882,98 @@ async function insertOAuthState(env, state) {
     state.returnTo,
     state.expiresAt,
     state.createdAt
+  ).run();
+}
+
+async function findOAuthState(env, id) {
+  return env.DB.prepare(`
+    SELECT
+      id,
+      provider,
+      wiki_slug AS wikiSlug,
+      return_to AS returnTo,
+      expires_at AS expiresAt
+    FROM oauth_states
+    WHERE id = ?
+  `).bind(id).first();
+}
+
+async function deleteOAuthState(env, id) {
+  await env.DB.prepare(`
+    DELETE FROM oauth_states
+    WHERE id = ?
+  `).bind(id).run();
+}
+
+async function findOAuthAccount(env, provider, providerSubject) {
+  return env.DB.prepare(`
+    SELECT
+      id,
+      user_id AS userId,
+      provider,
+      provider_subject AS providerSubject,
+      email
+    FROM oauth_accounts
+    WHERE provider = ? AND provider_subject = ?
+  `).bind(provider, providerSubject).first();
+}
+
+async function upsertUser(env, user) {
+  await env.DB.prepare(`
+    INSERT INTO users (id, display_name, avatar_url, updated_at)
+    VALUES (?, ?, ?, ?)
+    ON CONFLICT(id) DO UPDATE SET
+      display_name = excluded.display_name,
+      avatar_url = excluded.avatar_url,
+      updated_at = excluded.updated_at
+  `).bind(
+    user.id,
+    user.displayName,
+    user.avatarUrl,
+    user.updatedAt
+  ).run();
+}
+
+async function upsertOAuthAccount(env, account) {
+  await env.DB.prepare(`
+    INSERT INTO oauth_accounts (id, user_id, provider, provider_subject, email)
+    VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(provider, provider_subject) DO UPDATE SET
+      user_id = excluded.user_id,
+      email = excluded.email
+  `).bind(
+    account.id,
+    account.userId,
+    account.provider,
+    account.providerSubject,
+    account.email
+  ).run();
+}
+
+async function insertSession(env, session) {
+  await env.DB.prepare(`
+    INSERT INTO sessions (id, user_id, expires_at)
+    VALUES (?, ?, ?)
+  `).bind(session.id, session.userId, session.expiresAt).run();
+}
+
+async function deleteSession(env, id) {
+  await env.DB.prepare(`
+    DELETE FROM sessions
+    WHERE id = ?
+  `).bind(id).run();
+}
+
+async function upsertWikiMember(env, membership) {
+  await env.DB.prepare(`
+    INSERT INTO wiki_members (wiki_slug, user_id, role)
+    VALUES (?, ?, ?)
+    ON CONFLICT(wiki_slug, user_id) DO UPDATE SET
+      role = excluded.role
+  `).bind(
+    membership.wikiSlug,
+    membership.userId,
+    membership.role
   ).run();
 }
 

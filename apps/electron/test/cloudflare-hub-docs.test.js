@@ -36,8 +36,16 @@ test("README documents manual Cloudflare setup boundaries", () => {
   assert.match(readme, /PUBLISH_TOKEN/);
   assert.match(readme, /GOOGLE_CLIENT_ID/);
   assert.match(readme, /GOOGLE_CLIENT_SECRET/);
+  assert.match(readme, /GOOGLE_TOKEN_URL/);
+  assert.match(readme, /GOOGLE_USERINFO_URL/);
   assert.match(readme, /FEISHU_CLIENT_ID/);
   assert.match(readme, /FEISHU_CLIENT_SECRET/);
+  assert.match(readme, /FEISHU_TOKEN_URL/);
+  assert.match(readme, /FEISHU_USERINFO_URL/);
+  assert.match(readme, /LARK_TOKEN_URL/);
+  assert.match(readme, /LARK_USERINFO_URL/);
+  assert.match(readme, /WIKIWISE_ADMIN_EMAILS/);
+  assert.match(readme, /WIKIWISE_SESSION_DAYS/);
   assert.match(readme, /OAuth secrets/);
   assert.match(readme, /publish\.json/);
 });

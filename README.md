@@ -90,9 +90,19 @@ then publish any number of wikis to it from the desktop app.
    `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `FEISHU_CLIENT_ID`,
    `FEISHU_CLIENT_SECRET`, and optionally `LARK_CLIENT_ID`,
    `LARK_CLIENT_SECRET`.
+9. Set OAuth callback endpoints for any provider without built-in defaults:
+   `GOOGLE_TOKEN_URL`, `GOOGLE_USERINFO_URL`, `FEISHU_TOKEN_URL`,
+   `FEISHU_USERINFO_URL`, `LARK_TOKEN_URL`, and `LARK_USERINFO_URL`.
+   Google defaults to Google's standard token and userinfo endpoints when
+   those two values are omitted.
+10. Set `WIKIWISE_ADMIN_EMAILS` to a comma-separated list of owner emails that
+    can bootstrap access to newly published private wikis. Set
+    `WIKIWISE_SESSION_DAYS` if you want a session lifetime other than the
+    default 30 days.
 
-OAuth secrets stay in Cloudflare. They should never be written into a wiki
-folder, `publish.json`, or static output.
+OAuth secrets, provider token responses, and session cookies stay in
+Cloudflare. They should never be written into a wiki folder, `publish.json`, or
+static output.
 
 ## Architecture
 
