@@ -44,6 +44,56 @@ npm run electron:package:mac
 `npm test` runs dependency-light workspace checks. `npm run electron:dev`
 requires `npm install` first so Electron can be downloaded.
 
+## Self-hosted Cloudflare Hub
+
+Wikiwise still supports the official Wikiwise hosting service. If you want to
+own the domain, identity layer, membership rules, comments, and future account
+features, you can publish to a self-hosted Cloudflare Hub instead.
+
+A Hub deployment serves published wikis at
+`https://<slug>.wiki.flybullet.net`. Static wiki files live in R2, while wiki
+metadata, sessions, memberships, page revisions, comments and annotations live
+in D1. Auth is owned by the Hub app, not Cloudflare Access, so Google and
+Feishu/Lark sign-in can produce the same user profile and comment identity
+across wikis when shared realm is selected.
+
+Each published wiki can be public or private. Private wikis require a signed-in
+member, while public wikis can still require sign-in for comments.
+
+In the Wikiwise publish dialog, choose **Cloudflare Hub** and provide:
+
+- Hub endpoint, usually `https://wiki.flybullet.net`
+- publish token
+- wiki slug
+- visibility: `public` or `private`
+- auth realm: `shared` or `per-wiki`
+- comment policy: `disabled`, `login-required`, or `members-only`
+
+`publish.json` stores the selected target and Hub settings for the project.
+It is gitignored by scaffolded wikis, but treat the publish token as a real
+secret and do not commit it.
+
+### Manual Cloudflare setup
+
+Wikiwise does not create Cloudflare resources for you yet. Set up the Hub once,
+then publish any number of wikis to it from the desktop app.
+
+1. Deploy `apps/cloudflare-hub/src/worker.js` as a Cloudflare Worker.
+2. Create a D1 database, bind it as `DB`, and apply
+   `apps/cloudflare-hub/migrations/0001_initial.sql`.
+3. Create an R2 bucket and bind it as `WIKIWISE_FILES`.
+4. Add a Worker route for `*.wiki.flybullet.net/*`.
+5. Add wildcard DNS for `*.wiki.flybullet.net` to the Worker-backed zone.
+6. Set `WIKIWISE_PUBLIC_DOMAIN=wiki.flybullet.net`.
+7. Set `WIKIWISE_PUBLISH_TOKEN` as the token the desktop app will send.
+8. For OAuth, set provider credentials as Cloudflare secrets:
+   `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `FEISHU_CLIENT_ID`,
+   `FEISHU_CLIENT_SECRET`, and optionally `LARK_CLIENT_ID`,
+   `LARK_CLIENT_SECRET`.
+
+OAuth secrets stay in Cloudflare. They should never be written into a wiki
+folder, `publish.json`, or static output.
+
 ## Architecture
 
 - **Electron** desktop app with main, preload, and renderer layers
@@ -52,6 +102,7 @@ requires `npm install` first so Electron can be downloaded.
 - **Filesystem watcher** for live recompilation and tree refreshes
 - **Electron resources** under `apps/electron/resources/` for compiler, editor, graph/map pages, KaTeX assets, icon, and scaffold templates
 - **Shared JavaScript core** under `packages/wikiwise-core/` for reusable wiki helpers
+- **Cloudflare Hub** under `apps/cloudflare-hub/` for self-hosted publish API, static serving, app-owned auth, memberships, comments, and annotations
 - Wiki scaffold includes agent skills for ingest, translation, lint, and Readwise import
 
 ## Wiki structure

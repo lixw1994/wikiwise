@@ -47,9 +47,20 @@ const chooseNewWikiLocationButton = document.querySelector("#choose-new-wiki-loc
 const cancelCreateNewButton = document.querySelector("#cancel-create-new");
 const confirmCreateNewButton = document.querySelector("#confirm-create-new");
 const publishDialog = document.querySelector("#publish-dialog");
+const publishTargetOfficialButton = document.querySelector("#publish-target-official");
+const publishTargetCloudflareHubButton = document.querySelector("#publish-target-cloudflare-hub");
+const publishOfficialFields = document.querySelector("#publish-official-fields");
+const publishHubFields = document.querySelector("#publish-hub-fields");
 const publishSubdomainInput = document.querySelector("#publish-subdomain");
 const publishAvailability = document.querySelector("#publish-availability");
 const publishAvailabilityIndicator = document.querySelector("#publish-availability-indicator");
+const publishHubEndpointInput = document.querySelector("#publish-hub-endpoint");
+const publishHubTokenInput = document.querySelector("#publish-hub-token");
+const publishHubSlugInput = document.querySelector("#publish-hub-slug");
+const publishHubUrlPreviewElement = document.querySelector("#publish-hub-url-preview");
+const publishHubVisibilitySelect = document.querySelector("#publish-hub-visibility");
+const publishHubAuthRealmSelect = document.querySelector("#publish-hub-auth-realm");
+const publishHubCommentPolicySelect = document.querySelector("#publish-hub-comment-policy");
 const cancelPublishButton = document.querySelector("#cancel-publish");
 const confirmPublishButton = document.querySelector("#confirm-publish");
 const unpublishButton = document.querySelector("#unpublish-wiki");
@@ -151,8 +162,15 @@ const state = {
   terminalResizeTimer: null,
   publishConfig: null,
   isPublishDialogOpen: false,
+  publishTarget: "official",
   publishSubdomain: "",
   publishAvailability: "unknown",
+  publishHubEndpoint: "https://hub.wiki.flybullet.net",
+  publishHubToken: "",
+  publishHubSlug: "",
+  publishHubVisibility: "public",
+  publishHubAuthRealm: "shared",
+  publishHubCommentPolicy: "login-required",
   isPublishing: false,
   isUnpublishing: false,
   publishResult: null,
@@ -711,6 +729,10 @@ function renderPublishStatus() {
 
 function publishResultMessageText(result) {
   if (!result) return "";
+
+  if (result.target === "cloudflare-hub") {
+    return `Your Cloudflare Hub wiki is live at ${result.url}\n\nA publish.json file has been saved to your project. Keep it safe — it’s your key to update this site.`;
+  }
 
   return result.isFirstPublish
     ? `Your wiki is live at ${result.url}\n\nA publish.json file has been saved to your project. Keep it safe — it’s your key to update this site.`
@@ -1699,8 +1721,56 @@ async function refreshPublishConfig() {
     projectRoot: state.currentProject.projectRoot
   });
   state.publishConfig = config;
+  applyPublishConfigDraft(config);
   renderPublishStatus();
   return config;
+}
+
+function applyPublishConfigDraft(config) {
+  state.publishTarget = config?.target ?? "official";
+
+  const hubDraft = config?.hub ?? defaultPublishHubDraft(
+    config?.suggestedSubdomain ?? config?.subdomain ?? state.publishSubdomain
+  );
+  state.publishHubEndpoint = hubDraft.endpoint;
+  state.publishHubToken = hubDraft.publishToken;
+  state.publishHubSlug = hubDraft.slug;
+  state.publishHubVisibility = hubDraft.visibility;
+  state.publishHubAuthRealm = hubDraft.authRealm;
+  state.publishHubCommentPolicy = hubDraft.commentPolicy;
+
+  if (!state.publishHubSlug && state.publishSubdomain) {
+    state.publishHubSlug = state.publishSubdomain;
+  }
+}
+
+function defaultPublishHubDraft(suggestedSlug = "") {
+  return {
+    endpoint: "https://hub.wiki.flybullet.net",
+    publishToken: "",
+    slug: suggestedSlug,
+    visibility: "public",
+    authRealm: "shared",
+    commentPolicy: "login-required"
+  };
+}
+
+function publishHubUrlPreview() {
+  if (!state.publishHubSlug) {
+    return "https://<slug>.wiki.flybullet.net";
+  }
+
+  return `https://${state.publishHubSlug}.wiki.flybullet.net`;
+}
+
+function selectPublishTarget(target) {
+  state.publishTarget = target === "cloudflare-hub" ? "cloudflare-hub" : "official";
+  if (state.publishTarget === "cloudflare-hub") {
+    state.publishAvailability = "owned";
+  } else if (!["available", "owned"].includes(state.publishAvailability)) {
+    scheduleAvailabilityCheck();
+  }
+  renderPublishDialog();
 }
 
 async function openPublishDialog() {
@@ -1709,9 +1779,13 @@ async function openPublishDialog() {
   setError(null);
   state.publishError = null;
   const config = state.publishConfig ?? (await refreshPublishConfig());
+  applyPublishConfigDraft(config);
   let shouldCheckAvailability = false;
   if (config?.published) {
     state.publishSubdomain = config.subdomain;
+    if (state.publishSubdomain === undefined) {
+      state.publishSubdomain = "";
+    }
     state.publishAvailability = "owned";
   } else if (!state.publishSubdomain) {
     state.publishSubdomain = config?.suggestedSubdomain ?? "";
@@ -1778,18 +1852,45 @@ function renderPublishDialog() {
   publishDialog.hidden = !state.isPublishDialogOpen;
   if (!state.isPublishDialogOpen) return;
 
+  const isCloudflareHub = state.publishTarget === "cloudflare-hub";
+  publishTargetOfficialButton.dataset.selected = String(!isCloudflareHub);
+  publishTargetCloudflareHubButton.dataset.selected = String(isCloudflareHub);
+  publishTargetOfficialButton.setAttribute("aria-pressed", String(!isCloudflareHub));
+  publishTargetCloudflareHubButton.setAttribute("aria-pressed", String(isCloudflareHub));
+  publishOfficialFields.hidden = isCloudflareHub;
+  publishHubFields.hidden = !isCloudflareHub;
+
   if (document.activeElement !== publishSubdomainInput) {
     publishSubdomainInput.value = state.publishSubdomain;
   }
+  if (document.activeElement !== publishHubEndpointInput) {
+    publishHubEndpointInput.value = state.publishHubEndpoint;
+  }
+  if (document.activeElement !== publishHubTokenInput) {
+    publishHubTokenInput.value = state.publishHubToken;
+  }
+  if (document.activeElement !== publishHubSlugInput) {
+    publishHubSlugInput.value = state.publishHubSlug;
+  }
+  publishHubUrlPreviewElement.textContent = publishHubUrlPreview();
+  publishHubVisibilitySelect.value = state.publishHubVisibility;
+  publishHubAuthRealmSelect.value = state.publishHubAuthRealm;
+  publishHubCommentPolicySelect.value = state.publishHubCommentPolicy;
   publishAvailability.textContent = availabilityMessage(state.publishAvailability);
   publishAvailability.dataset.state = state.publishAvailability;
   publishAvailabilityIndicator.dataset.state = state.publishAvailability;
   publishAvailabilityIndicator.textContent = availabilityIndicatorText(state.publishAvailability);
-  publishSubdomainInput.disabled = state.isPublishing || state.isUnpublishing;
+  publishSubdomainInput.disabled = state.isPublishing || state.isUnpublishing || isCloudflareHub;
+  publishHubEndpointInput.disabled = state.isPublishing || state.isUnpublishing;
+  publishHubTokenInput.disabled = state.isPublishing || state.isUnpublishing;
+  publishHubSlugInput.disabled = state.isPublishing || state.isUnpublishing;
+  publishHubVisibilitySelect.disabled = state.isPublishing || state.isUnpublishing;
+  publishHubAuthRealmSelect.disabled = state.isPublishing || state.isUnpublishing;
+  publishHubCommentPolicySelect.disabled = state.isPublishing || state.isUnpublishing;
   cancelPublishButton.disabled = state.isPublishing || state.isUnpublishing;
   confirmPublishButton.disabled = !canPublish();
   confirmPublishButton.textContent = "Publish";
-  unpublishButton.hidden = !state.publishConfig?.published;
+  unpublishButton.hidden = !state.publishConfig?.published || isCloudflareHub;
   unpublishButton.disabled = state.isPublishing || state.isUnpublishing;
   unpublishButton.textContent = "Unpublish…";
 }
@@ -1829,6 +1930,17 @@ function availabilityIndicatorText(availability) {
 }
 
 function canPublish() {
+  if (state.publishTarget === "cloudflare-hub") {
+    return Boolean(
+      state.currentProject &&
+      !state.isPublishing &&
+      !state.isUnpublishing &&
+      state.publishHubEndpoint &&
+      state.publishHubToken &&
+      state.publishHubSlug
+    );
+  }
+
   return (
     state.currentProject &&
     !state.isPublishing &&
@@ -1846,6 +1958,12 @@ function publishSubdomainCharacterCount(value) {
 }
 
 function scheduleAvailabilityCheck() {
+  if (state.publishTarget === "cloudflare-hub") {
+    state.publishAvailability = "owned";
+    renderPublishDialog();
+    return;
+  }
+
   if (state.availabilityCheckTimer) {
     clearTimeout(state.availabilityCheckTimer);
     state.availabilityCheckTimer = null;
@@ -1872,6 +1990,7 @@ function scheduleAvailabilityCheck() {
 }
 
 async function checkPublishAvailability(subdomain = state.publishSubdomain) {
+  if (state.publishTarget === "cloudflare-hub") return;
   if (!state.currentProject) return;
 
   try {
@@ -1901,10 +2020,20 @@ async function publishCurrentProject() {
   renderPublishStatus();
 
   try {
-    const result = await window.wikiwise.publishSite({
-      projectRoot: state.currentProject.projectRoot,
-      subdomain: state.publishSubdomain
-    });
+    const result = state.publishTarget === "cloudflare-hub"
+      ? await window.wikiwise.publishCloudflareHubSite({
+        projectRoot: state.currentProject.projectRoot,
+        hubEndpoint: state.publishHubEndpoint,
+        publishToken: state.publishHubToken,
+        slug: state.publishHubSlug,
+        visibility: state.publishHubVisibility,
+        authRealm: state.publishHubAuthRealm,
+        commentPolicy: state.publishHubCommentPolicy
+      })
+      : await window.wikiwise.publishSite({
+        projectRoot: state.currentProject.projectRoot,
+        subdomain: state.publishSubdomain
+      });
     state.publishResult = result;
     await refreshPublishConfig();
   } catch (error) {
@@ -2416,6 +2545,8 @@ rightSidebarResizeHandle.addEventListener("pointercancel", endRightSidebarResize
 rightTabInfoButton.addEventListener("click", () => setRightSidebarTab("info"));
 rightTabTerminalButton.addEventListener("click", () => setRightSidebarTab("terminal"));
 createNewButton.addEventListener("click", openNewWikiDialog);
+publishTargetOfficialButton.addEventListener("click", () => selectPublishTarget("official"));
+publishTargetCloudflareHubButton.addEventListener("click", () => selectPublishTarget("cloudflare-hub"));
 publishSubdomainInput.addEventListener("input", () => {
   const sanitized = sanitizePublishSubdomain(publishSubdomainInput.value);
   if (publishSubdomainInput.value !== sanitized) {
@@ -2423,6 +2554,34 @@ publishSubdomainInput.addEventListener("input", () => {
   }
   state.publishSubdomain = sanitized;
   scheduleAvailabilityCheck();
+});
+publishHubEndpointInput.addEventListener("input", () => {
+  state.publishHubEndpoint = publishHubEndpointInput.value.trim();
+  renderPublishDialog();
+});
+publishHubTokenInput.addEventListener("input", () => {
+  state.publishHubToken = publishHubTokenInput.value.trim();
+  renderPublishDialog();
+});
+publishHubSlugInput.addEventListener("input", () => {
+  const sanitized = sanitizePublishSubdomain(publishHubSlugInput.value);
+  if (publishHubSlugInput.value !== sanitized) {
+    publishHubSlugInput.value = sanitized;
+  }
+  state.publishHubSlug = sanitized;
+  renderPublishDialog();
+});
+publishHubVisibilitySelect.addEventListener("change", () => {
+  state.publishHubVisibility = publishHubVisibilitySelect.value;
+  renderPublishDialog();
+});
+publishHubAuthRealmSelect.addEventListener("change", () => {
+  state.publishHubAuthRealm = publishHubAuthRealmSelect.value;
+  renderPublishDialog();
+});
+publishHubCommentPolicySelect.addEventListener("change", () => {
+  state.publishHubCommentPolicy = publishHubCommentPolicySelect.value;
+  renderPublishDialog();
 });
 cancelPublishButton.addEventListener("click", closePublishDialog);
 confirmPublishButton.addEventListener("click", publishCurrentProject);

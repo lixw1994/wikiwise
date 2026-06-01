@@ -20,6 +20,7 @@ contextBridge.exposeInMainWorld("wikiwise", {
   getPublishConfig: (payload) => ipcRenderer.invoke("wikiwise:getPublishConfig", payload),
   checkPublishAvailability: (payload) => ipcRenderer.invoke("wikiwise:checkPublishAvailability", payload),
   publishSite: (payload) => ipcRenderer.invoke("wikiwise:publishSite", payload),
+  publishCloudflareHubSite: (payload) => ipcRenderer.invoke("wikiwise:publishCloudflareHubSite", payload),
   unpublishSite: (payload) => ipcRenderer.invoke("wikiwise:unpublishSite", payload),
   getDefaultWikiLocation: () => ipcRenderer.invoke("wikiwise:getDefaultWikiLocation"),
   chooseNewWikiLocation: () => ipcRenderer.invoke("wikiwise:chooseNewWikiLocation"),

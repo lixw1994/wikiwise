@@ -123,20 +123,87 @@ export function loadPublishConfig(projectRoot) {
 
   try {
     const config = JSON.parse(readTextFile(configPath));
-    if (
-      typeof config.subdomain !== "string" ||
-      typeof config.token !== "string" ||
-      typeof config.url !== "string"
-    ) {
-      throw new Error("Missing publish config fields");
-    }
-    return config;
+    return normalizePublishConfig(config);
   } catch {
     throw publishError(
       "corrupt_config",
       "publish.json exists but is malformed. Delete it to start fresh, or fix its contents."
     );
   }
+}
+
+function normalizePublishConfig(config) {
+  if (isOfficialPublishConfig(config)) {
+    return {
+      ...config,
+      target: "official"
+    };
+  }
+
+  if (config?.target === "cloudflare-hub" && isCloudflareHubPublishConfig(config)) {
+    return config;
+  }
+
+  throw new Error("Missing publish config fields");
+}
+
+function isOfficialPublishConfig(config) {
+  return (
+    (config?.target === undefined || config.target === "official") &&
+    typeof config.subdomain === "string" &&
+    typeof config.token === "string" &&
+    typeof config.url === "string" &&
+    (config.lastPublishedAt === undefined || typeof config.lastPublishedAt === "string")
+  );
+}
+
+function isCloudflareHubPublishConfig(config) {
+  const hub = config?.hub;
+  try {
+    normalizeCloudflareHubSettings(hub);
+    return (
+      typeof hub?.endpoint === "string" &&
+      typeof hub.publishToken === "string" &&
+      typeof hub.slug === "string" &&
+      typeof hub.url === "string" &&
+      (config.lastPublishedAt === undefined || typeof config.lastPublishedAt === "string")
+    );
+  } catch {
+    return false;
+  }
+}
+
+function normalizeCloudflareHubSettings(settings) {
+  if (
+    !["public", "private"].includes(settings?.visibility) ||
+    !["shared", "per-wiki"].includes(settings?.authRealm) ||
+    !["disabled", "login-required", "members-only"].includes(settings?.comments?.policy)
+  ) {
+    throw new Error("Invalid Cloudflare Hub settings");
+  }
+
+  return {
+    visibility: settings.visibility,
+    authRealm: settings.authRealm,
+    comments: {
+      policy: settings.comments.policy
+    }
+  };
+}
+
+function normalizeCloudflareHubEndpoint(endpoint) {
+  return String(endpoint).replace(/\/+$/, "");
+}
+
+function cloudflareHubPublishEndpoint(endpoint) {
+  return new URL("_wikiwise/publish", `${normalizeCloudflareHubEndpoint(endpoint)}/`).toString();
+}
+
+function cloudflareHubWikiUrl(endpoint, slug) {
+  const url = new URL(endpoint);
+  const baseHost = url.hostname.startsWith("hub.") ? url.hostname.slice("hub.".length) : url.hostname;
+
+  return `${url.protocol}//${slug}.${baseHost}`;
 }
 
 export function randomPublishSubdomain(wikiName = "") {
@@ -232,6 +299,98 @@ export async function publishSite(options = {}) {
     isFirstPublish,
     fileCount: result.fileCount
   };
+}
+
+export function prepareCloudflareHubPublishPayload(options = {}) {
+  if (!options.siteFolder || !options.slug || !options.settings) {
+    throw new Error("prepareCloudflareHubPublishPayload requires siteFolder, slug, and settings");
+  }
+
+  const files = preparePublishFiles(enumeratePublishFiles(path.resolve(options.siteFolder)));
+
+  return {
+    slug: String(options.slug),
+    settings: normalizeCloudflareHubSettings(options.settings),
+    files: files.map((entry) => ({
+      path: entry.relativePath,
+      data: entry.data.toString("base64")
+    }))
+  };
+}
+
+export async function publishCloudflareHubSite(options = {}) {
+  if (
+    !options.projectRoot ||
+    !options.siteFolder ||
+    !options.hubEndpoint ||
+    !options.publishToken ||
+    !options.slug ||
+    !options.settings
+  ) {
+    throw new Error(
+      "publishCloudflareHubSite requires projectRoot, siteFolder, hubEndpoint, publishToken, slug, and settings"
+    );
+  }
+
+  const projectRoot = path.resolve(options.projectRoot);
+  const hubEndpoint = normalizeCloudflareHubEndpoint(options.hubEndpoint);
+  const slug = String(options.slug);
+  const publishToken = String(options.publishToken);
+  const requestFetch = resolveFetch(options.fetch);
+  const now = options.now ?? (() => new Date());
+  const payload = prepareCloudflareHubPublishPayload({
+    siteFolder: options.siteFolder,
+    slug,
+    settings: options.settings
+  });
+
+  const response = await requestFetch(cloudflareHubPublishEndpoint(hubEndpoint), {
+    method: "PUT",
+    headers: {
+      Authorization: `Bearer ${publishToken}`,
+      "Content-Type": "application/json"
+    },
+    body: JSON.stringify(payload)
+  });
+
+  switch (response.status) {
+  case 200: {
+    const json = await responseJson(response);
+    const url = typeof json?.url === "string" ? json.url : cloudflareHubWikiUrl(hubEndpoint, slug);
+    const fileCount = Number.isFinite(Number(json?.fileCount)) ? Number(json.fileCount) : payload.files.length;
+    const config = {
+      target: "cloudflare-hub",
+      lastPublishedAt: now().toISOString(),
+      hub: {
+        endpoint: hubEndpoint,
+        publishToken,
+        slug,
+        url,
+        ...payload.settings
+      }
+    };
+
+    writeTextFile(path.join(projectRoot, "publish.json"), `${JSON.stringify(sortPublishConfig(config), null, 2)}\n`);
+
+    return {
+      target: "cloudflare-hub",
+      url,
+      fileCount
+    };
+  }
+  case 401:
+  case 403:
+    throw publishError("token_mismatch", "Token doesn't match. Check your publish.json.", response.status);
+  case 400:
+  case 422:
+    throw publishError("validation_error", await responseText(response), response.status);
+  case 413:
+    throw publishError("too_large", await responseText(response), response.status);
+  case 429:
+    throw publishError("rate_limited", "Too many publishes. Try again in a few minutes.", response.status);
+  default:
+    throw publishError("server_error", await responseText(response), response.status);
+  }
 }
 
 export async function unpublishSite(options = {}) {
@@ -926,7 +1085,35 @@ async function responseText(response) {
   return "Unknown error";
 }
 
+async function responseJson(response) {
+  if (typeof response.json !== "function") return null;
+
+  try {
+    return await response.json();
+  } catch {
+    return null;
+  }
+}
+
 function sortPublishConfig(config) {
+  if (config.target === "cloudflare-hub") {
+    return {
+      target: "cloudflare-hub",
+      lastPublishedAt: config.lastPublishedAt,
+      hub: {
+        endpoint: config.hub.endpoint,
+        publishToken: config.hub.publishToken,
+        slug: config.hub.slug,
+        url: config.hub.url,
+        visibility: config.hub.visibility,
+        authRealm: config.hub.authRealm,
+        comments: {
+          policy: config.hub.comments.policy
+        }
+      }
+    };
+  }
+
   const sorted = {
     lastPublishedAt: config.lastPublishedAt,
     subdomain: config.subdomain,

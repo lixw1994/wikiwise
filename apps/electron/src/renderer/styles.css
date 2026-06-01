@@ -1138,6 +1138,71 @@ body.resizing-left-sidebar * {
   margin-bottom: 0;
 }
 
+.publish-target-switch {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 4px;
+  border-radius: 4px;
+  padding: 3px;
+  background: var(--color-sidebar-bg);
+}
+
+.publish-target-option {
+  border: 0;
+  border-radius: 3px;
+  padding: 6px 8px;
+  background: transparent;
+  color: var(--color-muted-text);
+  font: inherit;
+}
+
+.publish-target-option[data-selected="true"] {
+  background: var(--color-field-bg);
+  color: var(--color-tab-active);
+}
+
+.publish-target-fields {
+  display: grid;
+  gap: 8px;
+}
+
+.publish-hub-fields {
+  gap: 10px;
+}
+
+.publish-field {
+  display: grid;
+  gap: 5px;
+  margin: 0;
+  color: var(--color-sidebar-text);
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.publish-field input,
+.publish-field select {
+  font-size: 13px;
+}
+
+.publish-hub-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.publish-hub-url-preview {
+  overflow: hidden;
+  margin: 0;
+  border-radius: 4px;
+  padding: 8px;
+  background: var(--color-sidebar-bg);
+  color: var(--color-tab-active);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 12px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .publish-feedback-dialog {
   width: min(420px, 100%);
 }

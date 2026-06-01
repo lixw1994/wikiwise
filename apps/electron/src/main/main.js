@@ -10,6 +10,7 @@ import {
   createWikiScaffold,
   expandTreeDirectory,
   loadPublishConfig,
+  publishCloudflareHubSite,
   publishSite,
   randomPublishSubdomain,
   readDisplayTextFile,
@@ -801,11 +802,13 @@ function getPublishConfig(payload) {
   function unpublishedPublishConfig(projectRoot) {
     const suggestedSubdomain = randomPublishSubdomain(path.basename(projectRoot));
     return {
+      target: "official",
       published: false,
       subdomain: "",
       suggestedSubdomain,
       url: "",
-      lastPublishedAt: null
+      lastPublishedAt: null,
+      hub: defaultCloudflareHubDraft(suggestedSubdomain)
     };
   }
 
@@ -820,7 +823,26 @@ function getPublishConfig(payload) {
   }
 
   if (config) {
+    if (config.target === "cloudflare-hub") {
+      return {
+        target: "cloudflare-hub",
+        published: true,
+        url: config.hub.url,
+        lastPublishedAt: config.lastPublishedAt ?? null,
+        hub: {
+          endpoint: config.hub.endpoint,
+          publishToken: config.hub.publishToken,
+          slug: config.hub.slug,
+          url: config.hub.url,
+          visibility: config.hub.visibility,
+          authRealm: config.hub.authRealm,
+          commentPolicy: config.hub.comments.policy
+        }
+      };
+    }
+
     return {
+      target: "official",
       published: true,
       subdomain: config.subdomain,
       url: config.url,
@@ -829,6 +851,18 @@ function getPublishConfig(payload) {
   }
 
   return unpublishedPublishConfig(projectRoot);
+}
+
+function defaultCloudflareHubDraft(suggestedSlug) {
+  return {
+    endpoint: "https://hub.wiki.flybullet.net",
+    publishToken: "",
+    slug: suggestedSlug,
+    url: `https://${suggestedSlug}.wiki.flybullet.net`,
+    visibility: "public",
+    authRealm: "shared",
+    commentPolicy: "login-required"
+  };
 }
 
 async function checkProjectPublishAvailability(payload) {
@@ -840,7 +874,7 @@ async function checkProjectPublishAvailability(payload) {
   const config = loadPublishConfig(projectRoot);
   return {
     availability: await checkPublishAvailability(payload.subdomain, {
-      token: config?.token
+      token: config?.target === "official" ? config.token : undefined
     })
   };
 }
@@ -848,6 +882,10 @@ async function checkProjectPublishAvailability(payload) {
 async function publishProject(payload) {
   if (!payload?.projectRoot) {
     throw new Error("publishSite requires projectRoot");
+  }
+
+  if (payload.target === "cloudflare-hub") {
+    return publishCloudflareHubProject(payload);
   }
 
   const projectRoot = assertProjectRoot(payload.projectRoot);
@@ -858,6 +896,39 @@ async function publishProject(payload) {
     projectRoot,
     siteFolder: compiler.outputDir,
     subdomain: payload.subdomain
+  });
+}
+
+async function publishCloudflareHubProject(payload) {
+  if (
+    !payload?.projectRoot ||
+    !payload?.hubEndpoint ||
+    !payload?.publishToken ||
+    !payload?.slug ||
+    !payload?.visibility ||
+    !payload?.authRealm ||
+    !payload?.commentPolicy
+  ) {
+    throw new Error("publishCloudflareHubSite requires projectRoot, Hub endpoint, publish token, slug, and settings");
+  }
+
+  const projectRoot = assertProjectRoot(payload.projectRoot);
+  const compiler = getCompiler(projectRoot);
+  compiler.compileAll();
+
+  return publishCloudflareHubSite({
+    projectRoot,
+    siteFolder: compiler.outputDir,
+    hubEndpoint: payload.hubEndpoint,
+    publishToken: payload.publishToken,
+    slug: payload.slug,
+    settings: {
+      visibility: payload.visibility,
+      authRealm: payload.authRealm,
+      comments: {
+        policy: payload.commentPolicy
+      }
+    }
   });
 }
 
@@ -1527,6 +1598,9 @@ ipcMain.handle("wikiwise:checkPublishAvailability", (_event, payload) => {
 ipcMain.handle("wikiwise:publishSite", (_event, payload) => {
   return publishProject(payload);
 });
+ipcMain.handle("wikiwise:publishCloudflareHubSite", (_event, payload) => {
+  return publishCloudflareHubProject(payload);
+});
 ipcMain.handle("wikiwise:unpublishSite", (_event, payload) => {
   return unpublishProject(payload);
 });
@@ -1636,6 +1710,7 @@ export {
   openExternalUrl,
   openGeneratedPage,
   openExistingProject,
+  publishCloudflareHubProject,
   publishProject,
   readAppSettings,
   rememberProjectRoot,

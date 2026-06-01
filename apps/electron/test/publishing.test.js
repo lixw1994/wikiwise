@@ -42,6 +42,37 @@ test("main process exposes publishing IPC through core helpers", () => {
   assert.match(mainSource, /compileAll\(\)/);
 });
 
+test("main process exposes Cloudflare Hub publishing IPC through core helper", () => {
+  const mainSource = read("src/main/main.js");
+
+  assert.match(mainSource, /publishCloudflareHubSite/);
+  assert.match(mainSource, /function publishCloudflareHubProject\(payload\)/);
+  assert.match(mainSource, /wikiwise:publishCloudflareHubSite/);
+  assert.match(mainSource, /return publishCloudflareHubSite\(/);
+  assert.match(mainSource, /hubEndpoint: payload\.hubEndpoint/);
+  assert.match(mainSource, /publishToken: payload\.publishToken/);
+  assert.match(mainSource, /visibility: payload\.visibility/);
+  assert.match(mainSource, /authRealm: payload\.authRealm/);
+  assert.match(mainSource, /policy: payload\.commentPolicy/);
+});
+
+test("main process returns target-aware publish config shapes", () => {
+  const mainSource = read("src/main/main.js");
+  const getPublishConfigStart = mainSource.indexOf("function getPublishConfig(payload)");
+  const checkAvailabilityStart = mainSource.indexOf("async function checkProjectPublishAvailability", getPublishConfigStart);
+  const getPublishConfigSource = mainSource.slice(getPublishConfigStart, checkAvailabilityStart);
+
+  assert.notEqual(getPublishConfigStart, -1);
+  assert.notEqual(checkAvailabilityStart, -1);
+  assert.match(getPublishConfigSource, /target:\s*"official"/);
+  assert.match(getPublishConfigSource, /config\.target === "cloudflare-hub"/);
+  assert.match(getPublishConfigSource, /target:\s*"cloudflare-hub"/);
+  assert.match(getPublishConfigSource, /hub:\s*\{[\s\S]*endpoint:\s*config\.hub\.endpoint/);
+  assert.match(getPublishConfigSource, /visibility:\s*config\.hub\.visibility/);
+  assert.match(getPublishConfigSource, /authRealm:\s*config\.hub\.authRealm/);
+  assert.match(getPublishConfigSource, /commentPolicy:\s*config\.hub\.comments\.policy/);
+});
+
 test("main process mirrors native publish config refresh fallback", () => {
   const mainSource = read("src/main/main.js");
   const getPublishConfigSource =
@@ -77,6 +108,10 @@ test("preload exposes publishing APIs without renderer filesystem access", () =>
     /checkPublishAvailability:\s*\(payload\)\s*=>\s*ipcRenderer\.invoke\("wikiwise:checkPublishAvailability"/
   );
   assert.match(preloadSource, /publishSite:\s*\(payload\)\s*=>\s*ipcRenderer\.invoke\("wikiwise:publishSite"/);
+  assert.match(
+    preloadSource,
+    /publishCloudflareHubSite:\s*\(payload\)\s*=>\s*ipcRenderer\.invoke\("wikiwise:publishCloudflareHubSite"/
+  );
   assert.match(preloadSource, /unpublishSite:\s*\(payload\)\s*=>\s*ipcRenderer\.invoke\("wikiwise:unpublishSite"/);
 });
 
@@ -87,6 +122,13 @@ test("renderer contains native publishing state and project service refresh", ()
   assert.match(rendererSource, /isPublishDialogOpen/);
   assert.match(rendererSource, /publishSubdomain/);
   assert.match(rendererSource, /publishAvailability/);
+  assert.match(rendererSource, /publishTarget/);
+  assert.match(rendererSource, /publishHubEndpoint/);
+  assert.match(rendererSource, /publishHubToken/);
+  assert.match(rendererSource, /publishHubSlug/);
+  assert.match(rendererSource, /publishHubVisibility/);
+  assert.match(rendererSource, /publishHubAuthRealm/);
+  assert.match(rendererSource, /publishHubCommentPolicy/);
   assert.match(rendererSource, /isPublishing/);
   assert.match(rendererSource, /publishResult/);
   assert.match(rendererSource, /publishError/);
@@ -107,9 +149,82 @@ test("renderer contains native publishing state and project service refresh", ()
   assert.match(rendererSource, /wikiwise\.getPublishConfig/);
   assert.match(rendererSource, /wikiwise\.checkPublishAvailability/);
   assert.match(rendererSource, /wikiwise\.publishSite/);
+  assert.match(rendererSource, /wikiwise\.publishCloudflareHubSite/);
   assert.match(rendererSource, /wikiwise\.unpublishSite/);
   assert.match(rendererSource, /wikiwise\.openExternalUrl/);
   assert.doesNotMatch(rendererSource, /window\.confirm/);
+});
+
+test("renderer exposes Cloudflare Hub target controls and URL preview", () => {
+  const htmlSource = read("src/renderer/index.html");
+  const normalizedHtml = normalized(htmlSource);
+  const rendererSource = read("src/renderer/renderer.js");
+
+  for (const id of [
+    "publish-target-official",
+    "publish-target-cloudflare-hub",
+    "publish-hub-endpoint",
+    "publish-hub-token",
+    "publish-hub-slug",
+    "publish-hub-visibility",
+    "publish-hub-auth-realm",
+    "publish-hub-comment-policy",
+    "publish-hub-url-preview"
+  ]) {
+    assert.match(htmlSource, new RegExp(`id="${id}"`));
+  }
+
+  assert.match(normalizedHtml, /<option value="public">Public<\/option>/);
+  assert.match(normalizedHtml, /<option value="private">Private<\/option>/);
+  assert.match(normalizedHtml, /<option value="shared">Shared<\/option>/);
+  assert.match(normalizedHtml, /<option value="per-wiki">Per-wiki<\/option>/);
+  assert.match(normalizedHtml, /<option value="disabled">Disabled<\/option>/);
+  assert.match(normalizedHtml, /<option value="login-required">Login required<\/option>/);
+  assert.match(normalizedHtml, /<option value="members-only">Members only<\/option>/);
+  assert.match(rendererSource, /function publishHubUrlPreview\(\)/);
+  assert.match(rendererSource, /https:\/\/\$\{state\.publishHubSlug\}\.wiki\.flybullet\.net/);
+});
+
+test("renderer resets Cloudflare Hub draft when project config has no Hub settings", () => {
+  const rendererSource = read("src/renderer/renderer.js");
+  const applyDraftSource = rendererSource.match(
+    /function applyPublishConfigDraft\(config\) \{([\s\S]*?)\n\}\n\nfunction publishHubUrlPreview/
+  )?.[1] ?? "";
+
+  assert.notEqual(applyDraftSource, "");
+  assert.match(rendererSource, /function defaultPublishHubDraft\(suggestedSlug/);
+  assert.match(applyDraftSource, /const hubDraft = config\?\.hub \?\?/);
+  assert.match(applyDraftSource, /config\?\.suggestedSubdomain \?\? config\?\.subdomain \?\? state\.publishSubdomain/);
+  assert.match(applyDraftSource, /state\.publishHubToken = hubDraft\.publishToken/);
+  assert.doesNotMatch(applyDraftSource, /state\.publishHubToken = config\.hub\.publishToken \?\? state\.publishHubToken/);
+});
+
+test("renderer routes official and Cloudflare Hub publish requests separately", () => {
+  const rendererSource = read("src/renderer/renderer.js");
+  const publishBody = rendererSource.match(
+    /async function publishCurrentProject\(\) \{([\s\S]*?)\n\}\n\nfunction openUnpublishConfirmation/
+  )?.[1] ?? "";
+
+  assert.notEqual(publishBody, "");
+  assert.match(publishBody, /state\.publishTarget === "cloudflare-hub"/);
+  assert.match(publishBody, /await window\.wikiwise\.publishCloudflareHubSite\(\{/);
+  assert.match(publishBody, /hubEndpoint:\s*state\.publishHubEndpoint/);
+  assert.match(publishBody, /publishToken:\s*state\.publishHubToken/);
+  assert.match(publishBody, /slug:\s*state\.publishHubSlug/);
+  assert.match(publishBody, /visibility:\s*state\.publishHubVisibility/);
+  assert.match(publishBody, /authRealm:\s*state\.publishHubAuthRealm/);
+  assert.match(publishBody, /commentPolicy:\s*state\.publishHubCommentPolicy/);
+  assert.match(publishBody, /await window\.wikiwise\.publishSite\(\{/);
+  assert.match(publishBody, /subdomain:\s*state\.publishSubdomain/);
+});
+
+test("renderer shows Cloudflare Hub publish feedback through existing surface", () => {
+  const rendererSource = read("src/renderer/renderer.js");
+
+  assert.match(rendererSource, /result\.target === "cloudflare-hub"/);
+  assert.match(rendererSource, /Your Cloudflare Hub wiki is live at \$\{result\.url\}/);
+  assert.match(rendererSource, /Updated \$\{result\.url\}/);
+  assert.match(rendererSource, /state\.publishError = error instanceof Error \? error\.message : String\(error\)/);
 });
 
 test("renderer mirrors native publish toolbar help text", () => {

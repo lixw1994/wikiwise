@@ -4,6 +4,7 @@ import os from "node:os";
 import path from "node:path";
 import test from "node:test";
 import { fileURLToPath } from "node:url";
+import * as core from "../src/index.js";
 import {
   checkPublishAvailability,
   loadPublishConfig,
@@ -44,7 +45,7 @@ function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 }
 
-test("loadPublishConfig returns native publish config and rejects malformed JSON", () => {
+test("loadPublishConfig returns target-aware official publish config and rejects malformed JSON", () => {
   const root = tempRoot("wikiwise-publish-config-");
 
   assert.equal(loadPublishConfig(root), null);
@@ -57,9 +58,52 @@ test("loadPublishConfig returns native publish config and rejects malformed JSON
   };
   writeFile(path.join(root, "publish.json"), JSON.stringify(config));
 
-  assert.deepEqual(loadPublishConfig(root), config);
+  assert.deepEqual(loadPublishConfig(root), {
+    ...config,
+    target: "official"
+  });
 
   writeFile(path.join(root, "publish.json"), "{not-json");
+  assert.throws(() => loadPublishConfig(root), { code: "corrupt_config" });
+});
+
+test("loadPublishConfig returns Cloudflare Hub publish config and validates required fields", () => {
+  const root = tempRoot("wikiwise-cloudflare-hub-config-");
+  const config = {
+    target: "cloudflare-hub",
+    lastPublishedAt: "2026-05-31T10:30:00.000Z",
+    hub: {
+      endpoint: "https://hub.wiki.flybullet.net",
+      publishToken: "wwh_token",
+      slug: "notes",
+      url: "https://notes.wiki.flybullet.net",
+      visibility: "private",
+      authRealm: "shared",
+      comments: {
+        policy: "members-only"
+      }
+    }
+  };
+
+  writeFile(path.join(root, "publish.json"), JSON.stringify(config));
+
+  assert.deepEqual(loadPublishConfig(root), config);
+
+  writeFile(path.join(root, "publish.json"), JSON.stringify({
+    target: "cloudflare-hub",
+    hub: {
+      endpoint: "https://hub.wiki.flybullet.net",
+      publishToken: "wwh_token",
+      slug: "notes",
+      url: "https://notes.wiki.flybullet.net",
+      visibility: "secret",
+      authRealm: "shared",
+      comments: {
+        policy: "members-only"
+      }
+    }
+  }));
+
   assert.throws(() => loadPublishConfig(root), { code: "corrupt_config" });
 });
 
@@ -209,6 +253,167 @@ test("publishSite uploads native payload, rewrites root home, and saves publish 
     token: "ww_testtoken",
     url: "https://my-wiki-abc123.wiki-wise.com"
   });
+});
+
+test("prepareCloudflareHubPublishPayload rewrites root home and excludes secret-like settings", () => {
+  const projectRoot = tempRoot("wikiwise-cloudflare-payload-");
+  const siteFolder = path.join(projectRoot, "site", "out");
+
+  writeFile(path.join(siteFolder, "home.html"), '<a href="index.html">Index</a>');
+  writeFile(path.join(siteFolder, "index.html"), '<a href="home.html">Home</a>');
+  writeFile(path.join(siteFolder, "about.html"), '<a href="index.html#all">All</a>');
+
+  const payload = core.prepareCloudflareHubPublishPayload({
+    siteFolder,
+    slug: "notes",
+    settings: {
+      visibility: "private",
+      authRealm: "shared",
+      comments: {
+        policy: "members-only"
+      },
+      oauth: {
+        clientSecret: "should-not-ship"
+      },
+      clientSecret: "should-not-ship",
+      sessionSecret: "should-not-ship",
+      secrets: {
+        anything: "should-not-ship"
+      }
+    }
+  });
+
+  assert.equal(payload.slug, "notes");
+  assert.deepEqual(payload.settings, {
+    visibility: "private",
+    authRealm: "shared",
+    comments: {
+      policy: "members-only"
+    }
+  });
+
+  const byPath = new Map(payload.files.map((entry) => [entry.path, entry.data]));
+  assert.deepEqual([...byPath.keys()].sort(), ["about.html", "catalog.html", "home.html", "index.html"]);
+  assert.equal(Buffer.from(byPath.get("index.html"), "base64").toString("utf8"), '<a href="catalog.html">Index</a>');
+  assert.equal(Buffer.from(byPath.get("about.html"), "base64").toString("utf8"), '<a href="catalog.html#all">All</a>');
+
+  const serialized = JSON.stringify(payload);
+  assert.doesNotMatch(serialized, /should-not-ship/);
+  assert.doesNotMatch(serialized, /clientSecret/);
+  assert.doesNotMatch(serialized, /sessionSecret/);
+  assert.doesNotMatch(serialized, /secrets/);
+});
+
+test("publishCloudflareHubSite uploads Hub payload and saves target-aware config", async () => {
+  const projectRoot = tempRoot("wikiwise-cloudflare-publish-");
+  const siteFolder = path.join(projectRoot, "site", "out");
+  const now = new Date("2026-05-31T10:30:00.000Z");
+  let request;
+
+  writeFile(path.join(siteFolder, "home.html"), '<a href="index.html">Index</a>');
+  writeFile(path.join(siteFolder, "index.html"), '<a href="home.html">Home</a>');
+  writeFile(path.join(siteFolder, "about.html"), '<a href="index.html#all">All</a>');
+
+  const result = await core.publishCloudflareHubSite({
+    projectRoot,
+    siteFolder,
+    hubEndpoint: "https://hub.wiki.flybullet.net/",
+    publishToken: "wwh_token",
+    slug: "notes",
+    settings: {
+      visibility: "public",
+      authRealm: "shared",
+      comments: {
+        policy: "login-required"
+      }
+    },
+    fetch: async (url, init) => {
+      request = { url: String(url), init };
+      return response(200, { fileCount: 4 });
+    },
+    now: () => now
+  });
+
+  assert.equal(request.url, "https://hub.wiki.flybullet.net/_wikiwise/publish");
+  assert.equal(request.init.method, "PUT");
+  assert.equal(request.init.headers.Authorization, "Bearer wwh_token");
+  assert.equal(request.init.headers["Content-Type"], "application/json");
+
+  const payload = JSON.parse(request.init.body);
+  assert.equal(payload.slug, "notes");
+  assert.deepEqual(payload.settings, {
+    visibility: "public",
+    authRealm: "shared",
+    comments: {
+      policy: "login-required"
+    }
+  });
+  assert.deepEqual(payload.files.map((entry) => entry.path).sort(), [
+    "about.html",
+    "catalog.html",
+    "home.html",
+    "index.html"
+  ]);
+
+  assert.deepEqual(JSON.parse(fs.readFileSync(path.join(projectRoot, "publish.json"), "utf8")), {
+    target: "cloudflare-hub",
+    lastPublishedAt: now.toISOString(),
+    hub: {
+      endpoint: "https://hub.wiki.flybullet.net",
+      publishToken: "wwh_token",
+      slug: "notes",
+      url: "https://notes.wiki.flybullet.net",
+      visibility: "public",
+      authRealm: "shared",
+      comments: {
+        policy: "login-required"
+      }
+    }
+  });
+
+  assert.deepEqual(result, {
+    target: "cloudflare-hub",
+    url: "https://notes.wiki.flybullet.net",
+    fileCount: 4
+  });
+});
+
+test("publishCloudflareHubSite maps Hub publish error status codes", async () => {
+  for (const [status, code] of [
+    [401, "token_mismatch"],
+    [403, "token_mismatch"],
+    [400, "validation_error"],
+    [422, "validation_error"],
+    [413, "too_large"],
+    [429, "rate_limited"],
+    [500, "server_error"]
+  ]) {
+    const projectRoot = tempRoot(`wikiwise-cloudflare-publish-${code}-`);
+    const siteFolder = path.join(projectRoot, "site", "out");
+    writeFile(path.join(siteFolder, "home.html"), "<h1>Home</h1>");
+
+    await assert.rejects(
+      () =>
+        core.publishCloudflareHubSite({
+          projectRoot,
+          siteFolder,
+          hubEndpoint: "https://hub.wiki.flybullet.net",
+          publishToken: "wwh_token",
+          slug: "notes",
+          settings: {
+            visibility: "private",
+            authRealm: "per-wiki",
+            comments: {
+              policy: "members-only"
+            }
+          },
+          fetch: async () => response(status, "failed")
+        }),
+      { code }
+    );
+
+    assert.equal(fs.existsSync(path.join(projectRoot, "publish.json")), false);
+  }
 });
 
 test("publishSite retries first-publish subdomain conflicts with native suffix-only candidate", async () => {

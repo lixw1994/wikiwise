@@ -68,6 +68,39 @@ These are abbreviated versions. Read the full skill files for details.
 4. Save to `raw/tweets_<topic>_<date>.md`
 5. Chain into ingest — source-summary uses `type: tweets` and synthesizes the discourse
 
+## Publishing
+
+Publishing is normally initiated from the WikiWise app. As the wiki agent, keep
+the content and build output healthy, but treat publish credentials as user-owned
+secrets.
+
+**Official hosting:** existing official Wikiwise publishing uses
+`wiki-wise.com` and is configured by the app.
+
+**Cloudflare Hub:** self-hosted publishing uses `publish.json` with
+`target: "cloudflare-hub"`. The app sends the compiled site to the configured
+Hub endpoint, which serves it at `https://<slug>.wiki.flybullet.net`.
+
+Hub settings you may help the user reason about:
+
+- `visibility`: `public` means anyone can read the wiki; `private` requires a
+  signed-in member.
+- `auth realm`: `shared` reuses one profile and comment identity across Hub
+  wikis; `per-wiki` scopes identity to this wiki.
+- `comment policy`: `disabled`, `login-required`, or `members-only`.
+
+Publishing guardrails:
+
+- Do not commit real publish tokens. `publish.json` may contain the Hub publish
+  token and should remain local.
+- Do not move OAuth secrets into this wiki. Google, Feishu/Lark, and other
+  provider secrets belong in the Cloudflare Hub environment.
+- Do not edit `site/out/` by hand. Rebuild from markdown and project resources,
+  then publish through the app.
+- If the user asks to switch between `public` and `private`, or between shared
+  and per-wiki auth, confirm the intended audience and comment identity model
+  before changing settings.
+
 ## Running your agent
 
 WikiWise includes a built-in terminal in the right sidebar. You can also run any agent in an external terminal pointed at this folder.

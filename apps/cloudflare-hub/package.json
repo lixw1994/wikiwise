@@ -1,0 +1,10 @@
+{
+  "name": "@wikiwise/cloudflare-hub",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "main": "src/worker.js",
+  "scripts": {
+    "test": "node --test test/worker.test.js"
+  }
+}
