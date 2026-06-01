@@ -219,6 +219,12 @@ The core package SHALL unpublish a wiki using the native delete contract.
 ### Requirement: Progressive Cache Full Compile Compatibility
 The core compiler SHALL complete full generated output after progressive scan or page compilation has seeded cache entries with deferred HTML.
 
+#### Scenario: Full compile follows progressive scan
+- **WHEN** a project has been scanned progressively and at least one markdown page has been compiled on demand
+- **AND** a fresh compiler instance performs a full compile for the same project
+- **THEN** full compilation succeeds without treating deferred HTML cache entries as rendered pages
+- **AND** generated map output such as `map-3d.html` exists in the output directory
+
 ### Requirement: Target-Aware Publish Config
 
 The core package SHALL support publish configuration that distinguishes official Wikiwise publishing from Cloudflare Hub publishing.
@@ -266,12 +272,6 @@ The core package SHALL expose helpers for publishing compiled wiki output to a C
 
 - **WHEN** the Hub returns auth, validation, payload-size, rate-limit, or server errors
 - **THEN** the helper rejects with stable error codes suitable for Electron error feedback
-
-#### Scenario: Full compile follows progressive scan
-- **WHEN** a project has been scanned progressively and at least one markdown page has been compiled on demand
-- **AND** a fresh compiler instance performs a full compile for the same project
-- **THEN** full compilation succeeds without treating deferred HTML cache entries as rendered pages
-- **AND** generated map output such as `map-3d.html` exists in the output directory
 
 ### Requirement: Native-Compatible Directions Frontmatter Parsing
 The core document-info helper SHALL extract directions using the same exact frontmatter semantics as the native right sidebar.
