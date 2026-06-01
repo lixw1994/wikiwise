@@ -374,7 +374,137 @@ test("publish endpoint stores valid publish and serves public wiki root", async 
   const served = await handleRequest(new Request("https://notes.wiki.flybullet.net/"), env);
   assert.equal(served.status, 200);
   assert.equal(served.headers.get("Content-Type"), "text/html; charset=utf-8");
-  assert.equal(await served.text(), "<h1>Home</h1>");
+  const servedHtml = await served.text();
+  assert.match(servedHtml, /<h1>Home<\/h1>/);
+  assert.match(servedHtml, /\/_wikiwise\/client\.js/);
+});
+
+test("Hub reader runtime assets are served without secrets or session data", async () => {
+  const env = {
+    ...createEnv(),
+    ...oauthEnv()
+  };
+  await publish(env, {
+    slug: "notes",
+    settings: {
+      visibility: "public",
+      authRealm: "shared",
+      comments: { policy: "login-required" }
+    },
+    files: [{ path: "index.html", data: base64("<h1>Home</h1>") }]
+  });
+
+  const scriptResponse = await handleRequest(new Request("https://notes.wiki.flybullet.net/_wikiwise/client.js"), env);
+  assert.equal(scriptResponse.status, 200);
+  assert.equal(scriptResponse.headers.get("Content-Type"), "application/javascript; charset=utf-8");
+  assert.match(scriptResponse.headers.get("Cache-Control") ?? "", /public/);
+  const script = await scriptResponse.text();
+  assert.match(script, /wikiwise-hub-account/);
+  assert.match(script, /\/_wikiwise\/me/);
+  assert.equal(script.includes("google-secret"), false);
+  assert.equal(script.includes("session-"), false);
+  assert.equal(script.includes("provider-access-token"), false);
+
+  const styleResponse = await handleRequest(new Request("https://notes.wiki.flybullet.net/_wikiwise/client.css"), env);
+  assert.equal(styleResponse.status, 200);
+  assert.equal(styleResponse.headers.get("Content-Type"), "text/css; charset=utf-8");
+  assert.match(styleResponse.headers.get("Cache-Control") ?? "", /public/);
+  const style = await styleResponse.text();
+  assert.match(style, /\.wikiwise-hub-/);
+  assert.equal(style.includes("google-secret"), false);
+});
+
+test("Hub injects reader runtime into HTML pages without changing assets or APIs", async () => {
+  const env = createEnv();
+  await publish(env, {
+    slug: "notes",
+    settings: {
+      visibility: "public",
+      authRealm: "shared",
+      comments: { policy: "login-required" }
+    },
+    files: [
+      {
+        path: "index.html",
+        data: base64("<!doctype html><html><head><title>Notes</title></head><body><h1>Home</h1></body></html>")
+      },
+      { path: "style.css", data: base64(".note{color:red}") }
+    ]
+  });
+
+  const page = await handleRequest(new Request("https://notes.wiki.flybullet.net/"), env);
+  assert.equal(page.status, 200);
+  const html = await page.text();
+  assert.match(html, /<h1>Home<\/h1>/);
+  assert.match(html, /<link rel="stylesheet" href="\/_wikiwise\/client\.css">/);
+  assert.match(html, /<script src="\/_wikiwise\/client\.js" defer><\/script>/);
+
+  const asset = await handleRequest(new Request("https://notes.wiki.flybullet.net/style.css"), env);
+  assert.equal(asset.status, 200);
+  assert.equal(await asset.text(), ".note{color:red}");
+
+  const providers = await handleRequest(new Request("https://notes.wiki.flybullet.net/_wikiwise/auth/providers"), env);
+  assert.equal(providers.status, 200);
+  assert.equal(providers.headers.get("Content-Type"), "application/json; charset=utf-8");
+  assert.equal((await providers.text()).includes("/_wikiwise/client.js"), false);
+});
+
+test("private wiki reads return Hub sign-in pages without protected content", async () => {
+  const env = {
+    ...createEnv(),
+    ...oauthEnv()
+  };
+  await publish(env, {
+    slug: "private-notes",
+    settings: {
+      visibility: "private",
+      authRealm: "shared",
+      comments: { policy: "members-only" }
+    },
+    files: [{ path: "index.html", data: base64("<h1>Private plans</h1>") }]
+  });
+
+  const anonymous = await handleRequest(new Request("https://private-notes.wiki.flybullet.net/"), env);
+  assert.equal(anonymous.status, 401);
+  assert.equal(anonymous.headers.get("Content-Type"), "text/html; charset=utf-8");
+  const anonymousHtml = await anonymous.text();
+  assert.match(anonymousHtml, /Sign in to private-notes/);
+  assert.match(anonymousHtml, /\/_wikiwise\/auth\/google\/start\?returnTo=/);
+  assert.equal(anonymousHtml.includes("Private plans"), false);
+
+  const sessionId = addUserSession(env);
+  const forbidden = await handleRequest(new Request("https://private-notes.wiki.flybullet.net/", {
+    headers: { Cookie: `wwh_session=${sessionId}` }
+  }), env);
+  assert.equal(forbidden.status, 403);
+  assert.equal(forbidden.headers.get("Content-Type"), "text/html; charset=utf-8");
+  const forbiddenHtml = await forbidden.text();
+  assert.match(forbiddenHtml, /Access required/);
+  assert.equal(forbiddenHtml.includes("Private plans"), false);
+});
+
+test("Hub reader runtime source includes account and comments behavior", async () => {
+  const env = createEnv();
+  await publish(env, {
+    slug: "notes",
+    settings: {
+      visibility: "public",
+      authRealm: "shared",
+      comments: { policy: "login-required" }
+    },
+    files: [{ path: "index.html", data: base64("<h1>Home</h1>") }]
+  });
+
+  const response = await handleRequest(new Request("https://notes.wiki.flybullet.net/_wikiwise/client.js"), env);
+  const source = await response.text();
+  assert.match(source, /\/_wikiwise\/auth\/providers/);
+  assert.match(source, /\/_wikiwise\/logout/);
+  assert.match(source, /wikiwise-hub-account/);
+  assert.match(source, /wikiwise-hub-comments/);
+  assert.match(source, /\/_wikiwise\/comments/);
+  assert.match(source, /parentCommentId/);
+  assert.match(source, /pagePath/);
+  assert.match(source, /commentPolicy/);
 });
 
 test("public and private wiki reads follow session membership access checks", async () => {
@@ -404,11 +534,15 @@ test("public and private wiki reads follow session membership access checks", as
 
   const publicRead = await handleRequest(new Request("https://public-notes.wiki.flybullet.net/"), env);
   assert.equal(publicRead.status, 200);
-  assert.equal(await publicRead.text(), "<h1>Public</h1>");
+  const publicHtml = await publicRead.text();
+  assert.match(publicHtml, /<h1>Public<\/h1>/);
+  assert.match(publicHtml, /\/_wikiwise\/client\.js/);
 
   const anonymousPrivateRead = await handleRequest(new Request("https://private-notes.wiki.flybullet.net/"), env);
   assert.equal(anonymousPrivateRead.status, 401);
-  assert.equal(await anonymousPrivateRead.text(), "Sign in required");
+  const privateSignInHtml = await anonymousPrivateRead.text();
+  assert.match(privateSignInHtml, /Sign in to private-notes/);
+  assert.equal(privateSignInHtml.includes("<h1>Private</h1>"), false);
 
   const sessionId = addUserSession(env, { memberOf: ["private-notes"] });
   const authorizedPrivateRead = await handleRequest(
@@ -420,7 +554,9 @@ test("public and private wiki reads follow session membership access checks", as
     env
   );
   assert.equal(authorizedPrivateRead.status, 200);
-  assert.equal(await authorizedPrivateRead.text(), "<h1>Private</h1>");
+  const authorizedPrivateHtml = await authorizedPrivateRead.text();
+  assert.match(authorizedPrivateHtml, /<h1>Private<\/h1>/);
+  assert.match(authorizedPrivateHtml, /\/_wikiwise\/client\.js/);
 });
 
 test("shared realm profile is reused while per-wiki membership gates private access", async () => {
@@ -468,13 +604,15 @@ test("shared realm profile is reused while per-wiki membership gates private acc
     headers: sessionCookie
   }), env);
   assert.equal(memberRead.status, 200);
-  assert.equal(await memberRead.text(), "<h1>private-a</h1>");
+  const memberHtml = await memberRead.text();
+  assert.match(memberHtml, /<h1>private-a<\/h1>/);
+  assert.match(memberHtml, /\/_wikiwise\/client\.js/);
 
   const nonMemberRead = await handleRequest(new Request("https://private-b.wiki.flybullet.net/", {
     headers: sessionCookie
   }), env);
   assert.equal(nonMemberRead.status, 403);
-  assert.equal(await nonMemberRead.text(), "Forbidden");
+  assert.match(await nonMemberRead.text(), /Access required/);
 });
 
 test("per-wiki realm scopes visible profile and comment identity per wiki", async () => {

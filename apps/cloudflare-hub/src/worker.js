@@ -17,6 +17,20 @@ export async function handleRequest(request, env) {
     return publishWiki(request, env);
   }
 
+  if (url.pathname === "/_wikiwise/client.js") {
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      return textResponse("Method not allowed", 405);
+    }
+    return runtimeAssetResponse(request, readerClientScript, "application/javascript; charset=utf-8");
+  }
+
+  if (url.pathname === "/_wikiwise/client.css") {
+    if (request.method !== "GET" && request.method !== "HEAD") {
+      return textResponse("Method not allowed", 405);
+    }
+    return runtimeAssetResponse(request, readerClientStyles, "text/css; charset=utf-8");
+  }
+
   if (url.pathname === "/_wikiwise/auth/providers") {
     if (request.method !== "GET") {
       return textResponse("Method not allowed", 405);
@@ -145,14 +159,18 @@ async function serveWikiFile(request, env) {
   if (!wiki) {
     return textResponse("Wiki not found", 404);
   }
-  const access = await authorizeWikiRead(request, env, wiki);
-  if (!access.ok) {
-    return textResponse(access.message, access.status);
-  }
 
   const filePath = requestPathToFilePath(url.pathname);
   if (!filePath) {
     return textResponse("Not found", 404);
+  }
+
+  const access = await authorizeWikiRead(request, env, wiki);
+  if (!access.ok) {
+    if (filePath.endsWith(".html")) {
+      return privateAccessResponse(request, env, wiki, access);
+    }
+    return textResponse(access.message, access.status);
   }
 
   const object = await getWikiFile(env, slug, filePath);
@@ -168,6 +186,10 @@ async function serveWikiFile(request, env) {
   }
 
   const body = typeof object.arrayBuffer === "function" ? await object.arrayBuffer() : object.body;
+  if (shouldInjectReaderRuntime(headers.get("Content-Type"), filePath)) {
+    return new Response(injectReaderRuntime(decodeUtf8(body)), { status: 200, headers });
+  }
+
   return new Response(body, { status: 200, headers });
 }
 
@@ -199,7 +221,8 @@ async function currentUser(request, env) {
     wiki: {
       slug: wiki.slug,
       visibility: wiki.visibility,
-      authRealm: wiki.authRealm
+      authRealm: wiki.authRealm,
+      commentPolicy: wiki.commentPolicy
     },
     identityScope: wiki.authRealm === "shared" ? "shared" : `wiki:${wiki.slug}`,
     membership: membership
@@ -228,8 +251,12 @@ async function listPageComments(request, env) {
   }
 
   const comments = await findCommentsForPage(env, wiki.slug, pagePath);
+  const commentAccess = await describeCommentWriteAccess(request, env, wiki);
   return jsonResponse({
-    comments: orderThreadedComments(comments).map(serializeComment)
+    comments: orderThreadedComments(comments).map(serializeComment),
+    commentPolicy: wiki.commentPolicy,
+    canComment: commentAccess.ok,
+    commentMessage: commentAccess.ok ? null : commentAccess.message
   });
 }
 
@@ -312,6 +339,19 @@ async function authorizeWikiRead(request, env, wiki) {
 }
 
 async function authorizeCommentWrite(request, env, wiki) {
+  const access = await describeCommentWriteAccess(request, env, wiki);
+  if (!access.ok) {
+    return access;
+  }
+
+  return {
+    ok: true,
+    session: access.session,
+    membership: access.membership
+  };
+}
+
+async function describeCommentWriteAccess(request, env, wiki) {
   if (wiki.commentPolicy === "disabled") {
     return { ok: false, status: 403, message: "Comments disabled" };
   }
@@ -1281,6 +1321,145 @@ function contentTypeForPath(filePath) {
   return "application/octet-stream";
 }
 
+function runtimeAssetResponse(request, body, contentType) {
+  const headers = new Headers({
+    "Content-Type": contentType,
+    "Cache-Control": "public, max-age=300"
+  });
+
+  return new Response(request.method === "HEAD" ? null : body, {
+    status: 200,
+    headers
+  });
+}
+
+function shouldInjectReaderRuntime(contentType, filePath) {
+  return filePath.endsWith(".html") && String(contentType).includes("text/html");
+}
+
+function injectReaderRuntime(html) {
+  const stylesheet = '<link rel="stylesheet" href="/_wikiwise/client.css">';
+  const script = '<script src="/_wikiwise/client.js" defer></script>';
+  let output = html;
+
+  if (!output.includes('/_wikiwise/client.css')) {
+    output = insertBeforeClosingTag(output, "head", stylesheet);
+  }
+  if (!output.includes('/_wikiwise/client.js')) {
+    output = insertBeforeClosingTag(output, "body", script);
+  }
+
+  return output;
+}
+
+function insertBeforeClosingTag(html, tagName, markup) {
+  const pattern = new RegExp(`</${tagName}>`, "i");
+  const match = pattern.exec(html);
+  if (!match) {
+    return `${html}\n${markup}`;
+  }
+
+  return `${html.slice(0, match.index)}${markup}\n${html.slice(match.index)}`;
+}
+
+function privateAccessResponse(request, env, wiki, access) {
+  const body = request.method === "HEAD" ? null : renderPrivateAccessPage(request, env, wiki, access);
+  return htmlResponse(body, access.status);
+}
+
+function renderPrivateAccessPage(request, env, wiki, access) {
+  const requestUrl = new URL(request.url);
+  const returnTo = safeReturnTo(requestUrl, requestUrl.toString());
+  const providers = configuredOidcProviders(env);
+  const isSignIn = access.status === 401;
+  const title = isSignIn ? `Sign in to ${wiki.slug}` : "Access required";
+  const message = isSignIn
+    ? "Choose a sign-in provider to continue reading this private wiki."
+    : "Your account is signed in, but it does not have access to this private wiki.";
+  const providerLinks = providers.map((provider) => {
+    const href = `/_wikiwise/auth/${encodeURIComponent(provider.id)}/start?returnTo=${encodeURIComponent(returnTo)}`;
+    return `<a class="wikiwise-hub-auth-link" href="${escapeAttribute(href)}">${escapeHtml(provider.name)}</a>`;
+  }).join("");
+  const providerContent = providerLinks ||
+    '<p class="wikiwise-hub-muted">No sign-in providers are configured for this Hub.</p>';
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>${escapeHtml(title)}</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      color: #18212f;
+      background: #f6f7f9;
+      font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main {
+      width: min(420px, calc(100vw - 32px));
+      padding: 28px;
+      border: 1px solid #d8dde6;
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 12px 36px rgba(24, 33, 47, 0.08);
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: 24px;
+      line-height: 1.2;
+    }
+    p {
+      margin: 0 0 18px;
+      color: #4c5a6d;
+    }
+    .wikiwise-hub-auth-actions {
+      display: grid;
+      gap: 10px;
+    }
+    .wikiwise-hub-auth-link {
+      display: block;
+      padding: 10px 12px;
+      border: 1px solid #c9d2df;
+      border-radius: 6px;
+      color: #172033;
+      text-align: center;
+      text-decoration: none;
+      background: #fff;
+    }
+    .wikiwise-hub-auth-link:hover {
+      border-color: #8292a8;
+      background: #f9fafb;
+    }
+    .wikiwise-hub-muted {
+      margin-bottom: 0;
+      color: #6d7888;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>${escapeHtml(title)}</h1>
+    <p>${escapeHtml(message)}</p>
+    <div class="wikiwise-hub-auth-actions">${providerContent}</div>
+  </main>
+</body>
+</html>`;
+}
+
+function htmlResponse(body, status = 200) {
+  return new Response(body, {
+    status,
+    headers: {
+      "Content-Type": "text/html; charset=utf-8"
+    }
+  });
+}
+
 function jsonResponse(body, status = 200) {
   return new Response(JSON.stringify(body), {
     status,
@@ -1298,3 +1477,360 @@ function textResponse(body, status = 200) {
     }
   });
 }
+
+function escapeHtml(value) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;");
+}
+
+function escapeAttribute(value) {
+  return escapeHtml(value);
+}
+
+const readerClientStyles = `
+.wikiwise-hub-account {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  margin: 16px auto 0;
+  width: min(100%, 1040px);
+  color: #2d3748;
+  font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.wikiwise-hub-account a,
+.wikiwise-hub-account button,
+.wikiwise-hub-comment-composer button,
+.wikiwise-hub-comment-reply {
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #1f2937;
+  background: #fff;
+  cursor: pointer;
+  font: inherit;
+  text-decoration: none;
+}
+
+.wikiwise-hub-account a,
+.wikiwise-hub-account button {
+  padding: 6px 10px;
+}
+
+.wikiwise-hub-profile {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.wikiwise-hub-profile img {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+}
+
+.wikiwise-hub-comments {
+  margin: 40px 0 0;
+  padding-top: 24px;
+  border-top: 1px solid #e2e8f0;
+  color: #243044;
+  font: 15px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+.wikiwise-hub-comments h2 {
+  margin: 0 0 16px;
+  font-size: 20px;
+}
+
+.wikiwise-hub-comment {
+  margin: 0 0 14px;
+  padding: 12px;
+  border: 1px solid #e2e8f0;
+  border-radius: 8px;
+  background: #fff;
+}
+
+.wikiwise-hub-comment-meta {
+  margin-bottom: 6px;
+  color: #64748b;
+  font-size: 13px;
+}
+
+.wikiwise-hub-comment-body {
+  white-space: pre-wrap;
+}
+
+.wikiwise-hub-comment-composer {
+  display: grid;
+  gap: 8px;
+  margin-top: 16px;
+}
+
+.wikiwise-hub-comment-composer textarea {
+  min-height: 92px;
+  resize: vertical;
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font: inherit;
+}
+
+.wikiwise-hub-comment-composer button,
+.wikiwise-hub-comment-reply {
+  justify-self: start;
+  padding: 6px 10px;
+}
+
+.wikiwise-hub-muted,
+.wikiwise-hub-error {
+  color: #64748b;
+}
+
+.wikiwise-hub-error {
+  color: #b42318;
+}
+`.trim();
+
+const readerClientScript = `
+(() => {
+  const accountClass = "wikiwise-hub-account";
+  const commentsClass = "wikiwise-hub-comments";
+
+  document.addEventListener("DOMContentLoaded", () => {
+    bootWikiwiseHubReader().catch((error) => {
+      console.warn("Wikiwise Hub reader failed", error);
+    });
+  });
+
+  async function bootWikiwiseHubReader() {
+    const accountRoot = ensureAccountRoot();
+    const commentsRoot = ensureCommentsRoot();
+    const providersResult = await fetchJson("/_wikiwise/auth/providers");
+    const profileResult = await fetchJson("/_wikiwise/me");
+    const providers = providersResult.ok ? providersResult.data.providers || [] : [];
+    const profile = profileResult.ok ? profileResult.data : null;
+
+    renderAccountSurface(accountRoot, profile, providers);
+    await renderCommentsSurface(commentsRoot, profile);
+  }
+
+  function ensureAccountRoot() {
+    let root = document.querySelector("." + accountClass);
+    if (root) return root;
+
+    root = document.createElement("div");
+    root.className = accountClass;
+    const masthead = document.querySelector(".masthead") || document.querySelector("header") || document.body;
+    masthead.appendChild(root);
+    return root;
+  }
+
+  function ensureCommentsRoot() {
+    let root = document.querySelector("." + commentsClass);
+    if (root) return root;
+
+    root = document.createElement("section");
+    root.className = commentsClass;
+    root.id = "wikiwise-hub-comments";
+    root.setAttribute("aria-label", "Comments");
+    const article = document.querySelector(".article") || document.querySelector("article") || document.querySelector("main") || document.body;
+    article.appendChild(root);
+    return root;
+  }
+
+  function renderAccountSurface(root, profile, providers) {
+    root.replaceChildren();
+    if (profile && profile.user) {
+      const identity = document.createElement("span");
+      identity.className = "wikiwise-hub-profile";
+      if (profile.user.avatarUrl) {
+        const avatar = document.createElement("img");
+        avatar.src = profile.user.avatarUrl;
+        avatar.alt = "";
+        identity.appendChild(avatar);
+      }
+      const name = document.createElement("span");
+      name.textContent = profile.user.displayName || "Signed in";
+      identity.appendChild(name);
+
+      const logout = document.createElement("button");
+      logout.type = "button";
+      logout.textContent = "Log out";
+      logout.addEventListener("click", async () => {
+        await fetch("/_wikiwise/logout", {
+          method: "POST",
+          credentials: "same-origin"
+        });
+        window.location.reload();
+      });
+
+      root.append(identity, logout);
+      return;
+    }
+
+    if (!providers.length) {
+      const unavailable = document.createElement("span");
+      unavailable.className = "wikiwise-hub-muted";
+      unavailable.textContent = "Sign-in unavailable";
+      root.appendChild(unavailable);
+      return;
+    }
+
+    for (const provider of providers) {
+      const link = document.createElement("a");
+      link.href = "/_wikiwise/auth/" + encodeURIComponent(provider.id) + "/start?returnTo=" + encodeURIComponent(window.location.href);
+      link.textContent = "Sign in with " + provider.name;
+      root.appendChild(link);
+    }
+  }
+
+  async function renderCommentsSurface(root, profile) {
+    root.replaceChildren();
+    const title = document.createElement("h2");
+    title.textContent = "Comments";
+    root.appendChild(title);
+
+    const pagePath = currentPagePath();
+    const commentsResult = await fetchJson("/_wikiwise/comments?pagePath=" + encodeURIComponent(pagePath));
+    if (!commentsResult.ok) {
+      appendStatus(root, commentsResult.error || "Comments unavailable", "wikiwise-hub-error");
+      return;
+    }
+
+    const data = commentsResult.data;
+    const commentPolicy = data.commentPolicy;
+    const comments = data.comments || [];
+    if (!comments.length) {
+      appendStatus(root, "No comments yet.", "wikiwise-hub-muted");
+    }
+
+    const depths = new Map();
+    for (const comment of comments) {
+      const depth = comment.parentCommentId ? (depths.get(comment.parentCommentId) || 0) + 1 : 0;
+      depths.set(comment.id, depth);
+      root.appendChild(renderComment(comment, depth, data.canComment, pagePath, root, profile));
+    }
+
+    if (data.canComment) {
+      root.appendChild(renderComposer(pagePath, null, root));
+    } else {
+      const message = commentPolicy === "disabled"
+        ? "Comments are disabled."
+        : data.commentMessage || "Sign in to comment.";
+      appendStatus(root, message, "wikiwise-hub-muted");
+    }
+  }
+
+  function renderComment(comment, depth, canReply, pagePath, commentsRoot) {
+    const item = document.createElement("article");
+    item.className = "wikiwise-hub-comment";
+    item.style.marginLeft = Math.min(depth, 4) * 18 + "px";
+
+    const meta = document.createElement("div");
+    meta.className = "wikiwise-hub-comment-meta";
+    meta.textContent = comment.userId + " · " + new Date(comment.createdAt).toLocaleString();
+
+    const body = document.createElement("div");
+    body.className = "wikiwise-hub-comment-body";
+    body.textContent = comment.body;
+    item.append(meta, body);
+
+    if (canReply) {
+      const reply = document.createElement("button");
+      reply.type = "button";
+      reply.className = "wikiwise-hub-comment-reply";
+      reply.textContent = "Reply";
+      reply.addEventListener("click", () => {
+        const existing = item.querySelector(".wikiwise-hub-comment-composer");
+        if (existing) {
+          existing.remove();
+          return;
+        }
+        item.appendChild(renderComposer(pagePath, comment.id, commentsRoot));
+      });
+      item.appendChild(reply);
+    }
+
+    return item;
+  }
+
+  function renderComposer(pagePath, parentCommentId, commentsRoot) {
+    const form = document.createElement("form");
+    form.className = "wikiwise-hub-comment-composer";
+
+    const textarea = document.createElement("textarea");
+    textarea.name = "body";
+    textarea.required = true;
+    textarea.placeholder = parentCommentId ? "Write a reply..." : "Write a comment...";
+
+    const button = document.createElement("button");
+    button.type = "submit";
+    button.textContent = parentCommentId ? "Post reply" : "Post comment";
+
+    form.append(textarea, button);
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const body = textarea.value.trim();
+      if (!body) return;
+
+      button.disabled = true;
+      const result = await fetchJson("/_wikiwise/comments", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          pagePath,
+          parentCommentId,
+          body
+        })
+      });
+      button.disabled = false;
+
+      if (!result.ok) {
+        appendStatus(form, result.error || "Unable to post comment.", "wikiwise-hub-error");
+        return;
+      }
+      await renderCommentsSurface(commentsRoot, null);
+    });
+
+    return form;
+  }
+
+  async function fetchJson(path, options) {
+    const response = await fetch(path, {
+      credentials: "same-origin",
+      ...(options || {})
+    });
+    if (!response.ok) {
+      const error = await response.text().catch(() => "");
+      return {
+        ok: false,
+        status: response.status,
+        error: error || response.statusText
+      };
+    }
+    return {
+      ok: true,
+      status: response.status,
+      data: await response.json()
+    };
+  }
+
+  function currentPagePath() {
+    const path = decodeURIComponent(window.location.pathname.replace(/^\\/+/, ""));
+    return path || "index.html";
+  }
+
+  function appendStatus(root, message, className) {
+    const status = document.createElement("p");
+    status.className = className;
+    status.textContent = message;
+    root.appendChild(status);
+  }
+})();
+`.trim();

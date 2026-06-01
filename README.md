@@ -60,6 +60,13 @@ across wikis when shared realm is selected.
 Each published wiki can be public or private. Private wikis require a signed-in
 member, while public wikis can still require sign-in for comments.
 
+When the Hub serves a wiki page, it injects a small same-origin reader runtime
+from `/_wikiwise/client.js` and `/_wikiwise/client.css`. That runtime adds the
+account control and page comment surface without requiring those files to be
+published with each wiki. If a private wiki page is requested before access is
+granted, the Hub returns a sign-in or access-required page instead of protected
+wiki HTML.
+
 In the Wikiwise publish dialog, choose **Cloudflare Hub** and provide:
 
 - Hub endpoint, usually `https://wiki.flybullet.net`
