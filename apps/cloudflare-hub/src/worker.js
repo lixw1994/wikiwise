@@ -251,9 +251,10 @@ async function listPageComments(request, env) {
   }
 
   const comments = await findCommentsForPage(env, wiki.slug, pagePath);
+  const authors = await authorProfilesForComments(env, comments);
   const commentAccess = await describeCommentWriteAccess(request, env, wiki);
   return jsonResponse({
-    comments: orderThreadedComments(comments).map(serializeComment),
+    comments: orderThreadedComments(comments).map((comment) => serializeComment(comment, authors.get(comment.userId))),
     commentPolicy: wiki.commentPolicy,
     canComment: commentAccess.ok,
     commentMessage: commentAccess.ok ? null : commentAccess.message
@@ -316,7 +317,7 @@ async function createPageComment(request, env) {
   await insertComment(env, comment);
 
   return jsonResponse({
-    comment: serializeComment(comment)
+    comment: serializeComment(comment, publicAuthorProfile(identity))
   }, 201);
 }
 
@@ -400,6 +401,25 @@ async function ensureCommentIdentityUser(env, wiki, identity, updatedAt) {
     identity.avatarUrl,
     updatedAt
   ).run();
+}
+
+async function authorProfilesForComments(env, comments) {
+  const authors = new Map();
+  for (const comment of comments) {
+    if (authors.has(comment.userId)) continue;
+    const user = await findUser(env, comment.userId);
+    authors.set(comment.userId, publicAuthorProfile(user, comment.userId));
+  }
+  return authors;
+}
+
+function publicAuthorProfile(identity, fallbackId = null) {
+  const id = identity?.id ?? fallbackId;
+  return {
+    id,
+    displayName: identity?.displayName || "Unknown author",
+    avatarUrl: identity?.avatarUrl ?? null
+  };
 }
 
 async function resolveSession(request, env) {
@@ -974,6 +994,17 @@ async function upsertUser(env, user) {
   ).run();
 }
 
+async function findUser(env, id) {
+  return env.DB.prepare(`
+    SELECT
+      id,
+      display_name AS displayName,
+      avatar_url AS avatarUrl
+    FROM users
+    WHERE id = ?
+  `).bind(id).first();
+}
+
 async function upsertOAuthAccount(env, account) {
   await env.DB.prepare(`
     INSERT INTO oauth_accounts (id, user_id, provider, provider_subject, email)
@@ -1219,11 +1250,12 @@ function normalizeAnchor(anchor) {
   };
 }
 
-function serializeComment(comment) {
+function serializeComment(comment, author = null) {
   return {
     id: comment.id,
     pagePath: comment.pagePath,
     userId: comment.userId,
+    author: publicAuthorProfile(author, comment.userId),
     parentCommentId: comment.parentCommentId ?? null,
     body: comment.body,
     anchor: parseAnchorJson(comment.anchorJson),
@@ -1555,9 +1587,23 @@ const readerClientStyles = `
 }
 
 .wikiwise-hub-comment-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
   margin-bottom: 6px;
   color: #64748b;
   font-size: 13px;
+}
+
+.wikiwise-hub-comment-meta img {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+}
+
+.wikiwise-hub-comment-author {
+  color: #1f2937;
+  font-weight: 600;
 }
 
 .wikiwise-hub-comment-body {
@@ -1732,7 +1778,19 @@ const readerClientScript = `
 
     const meta = document.createElement("div");
     meta.className = "wikiwise-hub-comment-meta";
-    meta.textContent = comment.userId + " · " + new Date(comment.createdAt).toLocaleString();
+    const author = comment.author || {};
+    if (author.avatarUrl) {
+      const avatar = document.createElement("img");
+      avatar.src = author.avatarUrl;
+      avatar.alt = "";
+      meta.appendChild(avatar);
+    }
+    const name = document.createElement("span");
+    name.className = "wikiwise-hub-comment-author";
+    name.textContent = author.displayName || author.id || "Unknown author";
+    const time = document.createElement("span");
+    time.textContent = "· " + new Date(comment.createdAt).toLocaleString();
+    meta.append(name, time);
 
     const body = document.createElement("div");
     body.className = "wikiwise-hub-comment-body";

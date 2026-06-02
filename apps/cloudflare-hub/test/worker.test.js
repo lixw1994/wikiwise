@@ -158,6 +158,15 @@ function createEnv() {
                     expiresAt: session.expiresAt
                   };
                 }
+                if (/FROM users/i.test(sql)) {
+                  const user = users.get(values[0]);
+                  if (!user) return null;
+                  return {
+                    id: user.id,
+                    displayName: user.displayName,
+                    avatarUrl: user.avatarUrl ?? null
+                  };
+                }
                 if (/FROM wiki_members/i.test(sql)) {
                   return memberships.get(`${values[0]}:${values[1]}`) ?? null;
                 }
@@ -505,6 +514,8 @@ test("Hub reader runtime source includes account and comments behavior", async (
   assert.match(source, /parentCommentId/);
   assert.match(source, /pagePath/);
   assert.match(source, /commentPolicy/);
+  assert.match(source, /comment\.author/);
+  assert.doesNotMatch(source, /comment\.userId\s*\+/);
 });
 
 test("public and private wiki reads follow session membership access checks", async () => {
@@ -1183,6 +1194,108 @@ test("page-level threaded comments can be created and listed", async () => {
     { body: "Top level", parentCommentId: null },
     { body: "Reply", parentCommentId: topLevelJson.comment.id }
   ]);
+});
+
+test("created and listed comments include public author profiles", async () => {
+  const env = createEnv();
+  const sessionId = addUserSession(env, {
+    displayName: "Ada Lovelace",
+    avatarUrl: "https://cdn.example/ada.png"
+  });
+  env.DB.users.get("user-1").email = "ada@example.com";
+  env.DB.users.get("user-1").providerSubject = "provider-secret-subject";
+  await publish(env, {
+    slug: "profiles",
+    settings: {
+      visibility: "public",
+      authRealm: "shared",
+      comments: { policy: "login-required" }
+    },
+    files: [{ path: "index.html", data: base64("<h1>Profiles</h1>") }]
+  });
+
+  const created = await postComment(env, "profiles", {
+    pagePath: "index.html",
+    body: "Readable identity"
+  }, sessionId);
+  assert.equal(created.status, 201);
+  const createdComment = (await created.json()).comment;
+  assert.equal(createdComment.userId, "user-1");
+  assert.deepEqual(createdComment.author, {
+    id: "user-1",
+    displayName: "Ada Lovelace",
+    avatarUrl: "https://cdn.example/ada.png"
+  });
+
+  const listed = await listComments(env, "profiles");
+  assert.equal(listed.status, 200);
+  const listedComment = (await listed.json()).comments[0];
+  assert.deepEqual(listedComment.author, createdComment.author);
+  const serialized = JSON.stringify(listedComment);
+  assert.equal(serialized.includes("ada@example.com"), false);
+  assert.equal(serialized.includes("provider-secret-subject"), false);
+  assert.equal(serialized.includes(sessionId), false);
+});
+
+test("comment authors follow shared and per-wiki realm identity scopes", async () => {
+  const env = createEnv();
+  const sessionId = addUserSession(env, {
+    displayName: "Grace Hopper",
+    avatarUrl: "https://cdn.example/grace.png"
+  });
+
+  for (const slug of ["shared-author-a", "shared-author-b"]) {
+    await publish(env, {
+      slug,
+      settings: {
+        visibility: "public",
+        authRealm: "shared",
+        comments: { policy: "login-required" }
+      },
+      files: [{ path: "index.html", data: base64(`<h1>${slug}</h1>`) }]
+    });
+    const response = await postComment(env, slug, {
+      pagePath: "index.html",
+      body: slug
+    }, sessionId);
+    assert.equal(response.status, 201);
+  }
+
+  const sharedA = (await (await listComments(env, "shared-author-a")).json()).comments[0].author;
+  const sharedB = (await (await listComments(env, "shared-author-b")).json()).comments[0].author;
+  assert.deepEqual(sharedA, sharedB);
+  assert.deepEqual(sharedA, {
+    id: "user-1",
+    displayName: "Grace Hopper",
+    avatarUrl: "https://cdn.example/grace.png"
+  });
+
+  for (const slug of ["wiki-author-a", "wiki-author-b"]) {
+    await publish(env, {
+      slug,
+      settings: {
+        visibility: "public",
+        authRealm: "per-wiki",
+        comments: { policy: "login-required" }
+      },
+      files: [{ path: "index.html", data: base64(`<h1>${slug}</h1>`) }]
+    });
+    const response = await postComment(env, slug, {
+      pagePath: "index.html",
+      body: slug
+    }, sessionId);
+    assert.equal(response.status, 201);
+  }
+
+  const perWikiA = (await (await listComments(env, "wiki-author-a")).json()).comments[0].author;
+  const perWikiB = (await (await listComments(env, "wiki-author-b")).json()).comments[0].author;
+  assert.notEqual(perWikiA.id, perWikiB.id);
+  assert.equal(perWikiA.id, "wiki:wiki-author-a:user-1");
+  assert.equal(perWikiB.id, "wiki:wiki-author-b:user-1");
+  assert.equal(perWikiA.displayName, "Grace Hopper");
+  assert.equal(perWikiB.displayName, "Grace Hopper");
+  assert.equal(perWikiA.avatarUrl, "https://cdn.example/grace.png");
+  assert.equal(perWikiB.avatarUrl, "https://cdn.example/grace.png");
 });
 
 test("annotation comments preserve anchor data and threaded replies", async () => {

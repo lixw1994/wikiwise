@@ -249,6 +249,7 @@ The Cloudflare Hub reader runtime SHALL provide a page-level comments surface ba
 - **WHEN** the reader runtime loads on a wiki page
 - **THEN** it requests comments for the current page path
 - **AND** it renders returned comments in parent-child order
+- **AND** it displays reader-facing author names and avatars when provided
 
 #### Scenario: Visitor can write a comment
 
@@ -282,13 +283,14 @@ The Cloudflare Hub SHALL return a Hub-owned sign-in page for protected wiki cont
 
 ### Requirement: Threaded Comments
 
-The Hub SHALL support page-level threaded comments for published wikis.
+The Hub SHALL support page-level threaded comments for published wikis and SHALL include reader-facing author profiles with serialized comments.
 
 #### Scenario: User writes a top-level comment
 
 - **WHEN** comments are enabled for a wiki page
 - **AND** the current user satisfies the wiki comment policy
 - **THEN** the user can create a top-level comment associated with that wiki page
+- **AND** the created comment response includes an `author` profile with public display fields
 
 #### Scenario: User replies to a comment
 
@@ -300,6 +302,25 @@ The Hub SHALL support page-level threaded comments for published wikis.
 
 - **WHEN** a wiki comment policy is `disabled`, `login-required`, or `members-only`
 - **THEN** the Hub enforces that policy before accepting comment writes
+
+#### Scenario: Comments are listed with author profiles
+
+- **WHEN** comments are listed for a wiki page
+- **THEN** each serialized comment includes an `author` object
+- **AND** the `author` object includes only public identity fields needed for reader display
+- **AND** provider tokens, provider subjects, emails, session ids, and membership internals are not included
+
+#### Scenario: Shared realm author is reused across wikis
+
+- **WHEN** the same shared-realm user comments on multiple Hub wikis
+- **THEN** serialized comments use the same `author.id`
+- **AND** the author display name and avatar are consistent across those wikis
+
+#### Scenario: Per-wiki author is scoped to the wiki
+
+- **WHEN** the same signed-in user comments on multiple per-wiki realm wikis
+- **THEN** serialized comments use different wiki-scoped `author.id` values
+- **AND** each author retains the signed-in user's display name and avatar for reader display
 
 ### Requirement: Annotation Comments
 
