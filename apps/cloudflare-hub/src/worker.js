@@ -78,6 +78,40 @@ export async function handleRequest(request, env) {
     return textResponse("Method not allowed", 405);
   }
 
+  if (url.pathname === "/_wikiwise/admin/invitations") {
+    if (request.method === "POST") {
+      return createWikiInvitation(request, env);
+    }
+    if (request.method === "GET") {
+      return listWikiInvitations(request, env);
+    }
+    return textResponse("Method not allowed", 405);
+  }
+
+  const adminInvitationMatch = url.pathname.match(/^\/_wikiwise\/admin\/invitations\/([^/]+)$/);
+  if (adminInvitationMatch) {
+    if (request.method === "DELETE") {
+      return revokeWikiInvitation(request, env, decodeURIComponent(adminInvitationMatch[1]));
+    }
+    return textResponse("Method not allowed", 405);
+  }
+
+  const acceptInvitationMatch = url.pathname.match(/^\/_wikiwise\/invitations\/([^/]+)\/accept$/);
+  if (acceptInvitationMatch) {
+    if (request.method === "POST") {
+      return acceptWikiInvitation(request, env, decodeURIComponent(acceptInvitationMatch[1]));
+    }
+    return textResponse("Method not allowed", 405);
+  }
+
+  const invitationPageMatch = url.pathname.match(/^\/_wikiwise\/invitations\/([^/]+)$/);
+  if (invitationPageMatch) {
+    if (request.method === "GET") {
+      return showWikiInvitation(request, env, decodeURIComponent(invitationPageMatch[1]));
+    }
+    return textResponse("Method not allowed", 405);
+  }
+
   if (request.method !== "GET" && request.method !== "HEAD") {
     return textResponse("Method not allowed", 405);
   }
@@ -319,6 +353,218 @@ async function createPageComment(request, env) {
   return jsonResponse({
     comment: serializeComment(comment, publicAuthorProfile(identity))
   }, 201);
+}
+
+async function createWikiInvitation(request, env) {
+  const wiki = await wikiFromRequestHost(request, env);
+  if (!wiki) {
+    return textResponse("Wiki not found", 404);
+  }
+
+  const ownership = await authorizeWikiOwner(request, env, wiki);
+  if (!ownership.ok) {
+    return textResponse(ownership.message, ownership.status);
+  }
+
+  let payload;
+  try {
+    payload = await request.json();
+  } catch {
+    return jsonResponse({ error: "invalid_json" }, 400);
+  }
+
+  const expiresInDays = normalizeInvitationDays(payload?.expiresInDays);
+  if (!expiresInDays) {
+    return jsonResponse({ error: "invalid_expiration" }, 422);
+  }
+
+  const now = new Date();
+  const token = randomId("invite_token");
+  const invitation = {
+    id: randomId("invite"),
+    wikiSlug: wiki.slug,
+    tokenHash: await hashInvitationToken(token),
+    createdByUserId: ownership.session.userId,
+    role: "member",
+    status: "pending",
+    expiresAt: new Date(now.getTime() + expiresInDays * 24 * 60 * 60 * 1000).toISOString(),
+    acceptedByUserId: null,
+    acceptedAt: null,
+    createdAt: now.toISOString(),
+    updatedAt: now.toISOString()
+  };
+
+  await insertWikiInvitation(env, invitation);
+
+  return jsonResponse({
+    invitation: serializeInvitation(invitation),
+    inviteUrl: invitationUrlForRequest(request, token)
+  }, 201);
+}
+
+async function listWikiInvitations(request, env) {
+  const wiki = await wikiFromRequestHost(request, env);
+  if (!wiki) {
+    return textResponse("Wiki not found", 404);
+  }
+
+  const ownership = await authorizeWikiOwner(request, env, wiki);
+  if (!ownership.ok) {
+    return textResponse(ownership.message, ownership.status);
+  }
+
+  const invitations = await findInvitationsForWiki(env, wiki.slug);
+  return jsonResponse({
+    invitations: invitations.map((invitation) => serializeInvitation(invitation))
+  });
+}
+
+async function revokeWikiInvitation(request, env, invitationId) {
+  const wiki = await wikiFromRequestHost(request, env);
+  if (!wiki) {
+    return textResponse("Wiki not found", 404);
+  }
+
+  const ownership = await authorizeWikiOwner(request, env, wiki);
+  if (!ownership.ok) {
+    return textResponse(ownership.message, ownership.status);
+  }
+
+  const invitation = await findInvitationForWiki(env, wiki.slug, invitationId);
+  if (!invitation) {
+    return textResponse("Invitation not found", 404);
+  }
+
+  if (invitation.status === "pending") {
+    await updateWikiInvitationStatus(env, invitation.id, "revoked", new Date().toISOString());
+  }
+
+  return new Response(null, { status: 204 });
+}
+
+async function showWikiInvitation(request, env, token) {
+  const lookup = await lookupInvitationFromRequest(request, env, token);
+  if (!lookup.ok) {
+    return lookup.response;
+  }
+
+  if (!isPendingInvitation(lookup.invitation)) {
+    return textResponse("Invitation expired", 410);
+  }
+
+  const session = await resolveSession(request, env);
+  if (!session) {
+    return htmlResponse(renderInvitationSignInPage(request, env, lookup.wiki), 401);
+  }
+
+  return htmlResponse(renderInvitationAcceptPage(lookup.wiki, token));
+}
+
+async function acceptWikiInvitation(request, env, token) {
+  const lookup = await lookupInvitationFromRequest(request, env, token);
+  if (!lookup.ok) {
+    return lookup.response;
+  }
+
+  const session = await resolveSession(request, env);
+  if (!session) {
+    return textResponse("Sign in required", 401);
+  }
+
+  if (!isPendingInvitation(lookup.invitation)) {
+    return textResponse("Invitation expired", 410);
+  }
+
+  const now = new Date().toISOString();
+  const accepted = await acceptInvitationRecord(env, lookup.invitation.id, session.userId, now);
+  if (!accepted) {
+    return textResponse("Invitation expired", 410);
+  }
+
+  let membership = await findWikiMember(env, lookup.invitation.wikiSlug, session.userId);
+  if (!membership) {
+    membership = {
+      wikiSlug: lookup.invitation.wikiSlug,
+      userId: session.userId,
+      role: "member"
+    };
+    await upsertWikiMember(env, membership);
+  }
+
+  const acceptedInvitation = {
+    ...lookup.invitation,
+    status: "accepted",
+    acceptedByUserId: session.userId,
+    acceptedAt: now,
+    updatedAt: now
+  };
+
+  return jsonResponse({
+    ok: true,
+    membership: {
+      wikiSlug: membership.wikiSlug,
+      role: membership.role
+    },
+    invitation: serializeInvitation(acceptedInvitation)
+  });
+}
+
+async function lookupInvitationFromRequest(request, env, token) {
+  const wiki = await wikiFromRequestHost(request, env);
+  if (!wiki) {
+    return { ok: false, response: textResponse("Wiki not found", 404) };
+  }
+
+  const invitation = await findInvitationByTokenHash(env, await hashInvitationToken(token));
+  if (!invitation || invitation.wikiSlug !== wiki.slug) {
+    return { ok: false, response: textResponse("Invitation not found", 404) };
+  }
+
+  return {
+    ok: true,
+    wiki,
+    invitation
+  };
+}
+
+async function authorizeWikiOwner(request, env, wiki) {
+  const session = await resolveSession(request, env);
+  if (!session) {
+    return { ok: false, status: 401, message: "Sign in required" };
+  }
+
+  const membership = await findWikiMember(env, wiki.slug, session.userId);
+  if (!membership || membership.role !== "owner") {
+    return { ok: false, status: 403, message: "Forbidden" };
+  }
+
+  return { ok: true, session, membership };
+}
+
+function normalizeInvitationDays(value) {
+  if (value === undefined || value === null) return 7;
+  const days = Number(value);
+  if (!Number.isFinite(days) || days <= 0) return null;
+  return Math.min(90, Math.floor(days));
+}
+
+function isPendingInvitation(invitation) {
+  return invitation.status === "pending" &&
+    invitation.expiresAt &&
+    Date.parse(invitation.expiresAt) > Date.now();
+}
+
+function invitationUrlForRequest(request, token) {
+  const url = new URL(request.url);
+  return `${url.origin}/_wikiwise/invitations/${encodeURIComponent(token)}`;
+}
+
+async function hashInvitationToken(token) {
+  const data = new TextEncoder().encode(token);
+  const digest = await globalThis.crypto.subtle.digest("SHA-256", data);
+  return [...new Uint8Array(digest)]
+    .map((byte) => byte.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 async function authorizeWikiRead(request, env, wiki) {
@@ -1048,6 +1294,114 @@ async function upsertWikiMember(env, membership) {
   ).run();
 }
 
+async function insertWikiInvitation(env, invitation) {
+  await env.DB.prepare(`
+    INSERT INTO wiki_invitations (
+      id,
+      wiki_slug,
+      token_hash,
+      created_by_user_id,
+      role,
+      status,
+      expires_at,
+      accepted_by_user_id,
+      accepted_at,
+      created_at,
+      updated_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+  `).bind(
+    invitation.id,
+    invitation.wikiSlug,
+    invitation.tokenHash,
+    invitation.createdByUserId,
+    invitation.role,
+    invitation.status,
+    invitation.expiresAt,
+    invitation.acceptedByUserId,
+    invitation.acceptedAt,
+    invitation.createdAt,
+    invitation.updatedAt
+  ).run();
+}
+
+async function findInvitationByTokenHash(env, tokenHash) {
+  return env.DB.prepare(`
+    SELECT
+      id,
+      wiki_slug AS wikiSlug,
+      token_hash AS tokenHash,
+      created_by_user_id AS createdByUserId,
+      role,
+      status,
+      expires_at AS expiresAt,
+      accepted_by_user_id AS acceptedByUserId,
+      accepted_at AS acceptedAt,
+      created_at AS createdAt,
+      updated_at AS updatedAt
+    FROM wiki_invitations
+    WHERE token_hash = ?
+  `).bind(tokenHash).first();
+}
+
+async function findInvitationForWiki(env, slug, id) {
+  return env.DB.prepare(`
+    SELECT
+      id,
+      wiki_slug AS wikiSlug,
+      token_hash AS tokenHash,
+      created_by_user_id AS createdByUserId,
+      role,
+      status,
+      expires_at AS expiresAt,
+      accepted_by_user_id AS acceptedByUserId,
+      accepted_at AS acceptedAt,
+      created_at AS createdAt,
+      updated_at AS updatedAt
+    FROM wiki_invitations
+    WHERE wiki_slug = ? AND id = ?
+  `).bind(slug, id).first();
+}
+
+async function findInvitationsForWiki(env, slug) {
+  const result = await env.DB.prepare(`
+    SELECT
+      id,
+      wiki_slug AS wikiSlug,
+      token_hash AS tokenHash,
+      created_by_user_id AS createdByUserId,
+      role,
+      status,
+      expires_at AS expiresAt,
+      accepted_by_user_id AS acceptedByUserId,
+      accepted_at AS acceptedAt,
+      created_at AS createdAt,
+      updated_at AS updatedAt
+    FROM wiki_invitations
+    WHERE wiki_slug = ?
+    ORDER BY created_at DESC, id DESC
+  `).bind(slug).all();
+
+  return result.results ?? [];
+}
+
+async function updateWikiInvitationStatus(env, id, status, updatedAt) {
+  await env.DB.prepare(`
+    UPDATE wiki_invitations
+    SET status = ?, updated_at = ?
+    WHERE id = ?
+  `).bind(status, updatedAt, id).run();
+}
+
+async function acceptInvitationRecord(env, id, acceptedByUserId, acceptedAt) {
+  const result = await env.DB.prepare(`
+    UPDATE wiki_invitations
+    SET status = ?, accepted_by_user_id = ?, accepted_at = ?, updated_at = ?
+    WHERE id = ? AND status = 'pending'
+  `).bind("accepted", acceptedByUserId, acceptedAt, acceptedAt, id).run();
+  return result.meta?.changes !== 0;
+}
+
 async function findWiki(env, slug) {
   return env.DB.prepare(`
     SELECT
@@ -1262,6 +1616,19 @@ function serializeComment(comment, author = null) {
     status: comment.status,
     createdAt: comment.createdAt,
     updatedAt: comment.updatedAt
+  };
+}
+
+function serializeInvitation(invitation) {
+  return {
+    id: invitation.id,
+    wikiSlug: invitation.wikiSlug,
+    role: invitation.role,
+    status: invitation.status,
+    expiresAt: invitation.expiresAt,
+    acceptedAt: invitation.acceptedAt ?? null,
+    createdAt: invitation.createdAt,
+    updatedAt: invitation.updatedAt
   };
 }
 
@@ -1483,6 +1850,144 @@ function renderPrivateAccessPage(request, env, wiki, access) {
 </html>`;
 }
 
+function renderInvitationSignInPage(request, env, wiki) {
+  const requestUrl = new URL(request.url);
+  const returnTo = safeReturnTo(requestUrl, requestUrl.toString());
+  const providers = configuredOidcProviders(env);
+  const providerLinks = providers.map((provider) => {
+    const href = `/_wikiwise/auth/${encodeURIComponent(provider.id)}/start?returnTo=${encodeURIComponent(returnTo)}`;
+    return `<a class="wikiwise-hub-auth-link" href="${escapeAttribute(href)}">${escapeHtml(provider.name)}</a>`;
+  }).join("");
+  const providerContent = providerLinks ||
+    '<p class="wikiwise-hub-muted">No sign-in providers are configured for this Hub.</p>';
+
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Sign in to accept invitation</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      color: #18212f;
+      background: #f6f7f9;
+      font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main {
+      width: min(420px, calc(100vw - 32px));
+      padding: 28px;
+      border: 1px solid #d8dde6;
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 12px 36px rgba(24, 33, 47, 0.08);
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: 24px;
+      line-height: 1.2;
+    }
+    p {
+      margin: 0 0 18px;
+      color: #4c5a6d;
+    }
+    .wikiwise-hub-auth-actions {
+      display: grid;
+      gap: 10px;
+    }
+    .wikiwise-hub-auth-link {
+      display: block;
+      padding: 10px 12px;
+      border: 1px solid #c9d2df;
+      border-radius: 6px;
+      color: #172033;
+      text-align: center;
+      text-decoration: none;
+      background: #fff;
+    }
+    .wikiwise-hub-auth-link:hover {
+      border-color: #8292a8;
+      background: #f9fafb;
+    }
+    .wikiwise-hub-muted {
+      margin-bottom: 0;
+      color: #6d7888;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Sign in to accept invitation</h1>
+    <p>Sign in to join ${escapeHtml(wiki.slug)}.</p>
+    <div class="wikiwise-hub-auth-actions">${providerContent}</div>
+  </main>
+</body>
+</html>`;
+}
+
+function renderInvitationAcceptPage(wiki, token) {
+  const action = `/_wikiwise/invitations/${encodeURIComponent(token)}/accept`;
+  return `<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex">
+  <title>Accept invitation</title>
+  <style>
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: grid;
+      place-items: center;
+      color: #18212f;
+      background: #f6f7f9;
+      font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    main {
+      width: min(420px, calc(100vw - 32px));
+      padding: 28px;
+      border: 1px solid #d8dde6;
+      border-radius: 8px;
+      background: #fff;
+      box-shadow: 0 12px 36px rgba(24, 33, 47, 0.08);
+    }
+    h1 {
+      margin: 0 0 10px;
+      font-size: 24px;
+      line-height: 1.2;
+    }
+    p {
+      margin: 0 0 18px;
+      color: #4c5a6d;
+    }
+    button {
+      padding: 10px 12px;
+      border: 1px solid #172033;
+      border-radius: 6px;
+      color: #fff;
+      background: #172033;
+      cursor: pointer;
+      font: inherit;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1>Accept invitation</h1>
+    <p>You are accepting membership for ${escapeHtml(wiki.slug)}.</p>
+    <form method="post" action="${escapeAttribute(action)}">
+      <button type="submit">Accept invitation</button>
+    </form>
+  </main>
+</body>
+</html>`;
+}
+
 function htmlResponse(body, status = 200) {
   return new Response(body, {
     status,
@@ -1527,6 +2032,7 @@ const readerClientStyles = `
 .wikiwise-hub-account {
   display: flex;
   align-items: center;
+  flex-wrap: wrap;
   justify-content: flex-end;
   gap: 8px;
   margin: 16px auto 0;
@@ -1563,6 +2069,28 @@ const readerClientStyles = `
   width: 24px;
   height: 24px;
   border-radius: 50%;
+}
+
+.wikiwise-hub-invitation-control {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: min(100%, 560px);
+}
+
+.wikiwise-hub-invitation-control input {
+  width: min(48vw, 360px);
+  min-width: 220px;
+  padding: 6px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #243044;
+  background: #f8fafc;
+  font: inherit;
+}
+
+.wikiwise-hub-invitation-status {
+  color: #64748b;
 }
 
 .wikiwise-hub-comments {
@@ -1714,7 +2242,11 @@ const readerClientScript = `
         window.location.reload();
       });
 
-      root.append(identity, logout);
+      root.appendChild(identity);
+      if (profile.membership && profile.membership.role === "owner") {
+        root.appendChild(createOwnerInvitationControl());
+      }
+      root.appendChild(logout);
       return;
     }
 
@@ -1732,6 +2264,54 @@ const readerClientScript = `
       link.textContent = "Sign in with " + provider.name;
       root.appendChild(link);
     }
+  }
+
+  function createOwnerInvitationControl() {
+    const control = document.createElement("span");
+    control.className = "wikiwise-hub-invitation-control";
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = "Create invite";
+
+    const field = document.createElement("input");
+    field.type = "text";
+    field.readOnly = true;
+    field.hidden = true;
+    field.setAttribute("aria-label", "Invitation link");
+
+    const status = document.createElement("span");
+    status.className = "wikiwise-hub-invitation-status";
+
+    button.addEventListener("click", async () => {
+      button.disabled = true;
+      status.textContent = "";
+      const result = await fetchJson("/_wikiwise/admin/invitations", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({})
+      });
+      button.disabled = false;
+
+      if (!result.ok) {
+        field.hidden = true;
+        status.className = "wikiwise-hub-error";
+        status.textContent = result.error || "Unable to create invite.";
+        return;
+      }
+
+      field.hidden = false;
+      field.value = result.data.inviteUrl || "";
+      field.focus();
+      field.select();
+      status.className = "wikiwise-hub-invitation-status";
+      status.textContent = "Invite link ready";
+    });
+
+    control.append(button, field, status);
+    return control;
   }
 
   async function renderCommentsSurface(root, profile) {

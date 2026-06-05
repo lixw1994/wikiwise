@@ -17,6 +17,7 @@ function createEnv() {
   const sessions = new Map();
   const memberships = new Map();
   const comments = new Map();
+  const invitations = new Map();
   const oauthStates = new Map();
   const oauthAccounts = new Map();
   const revisions = [];
@@ -31,6 +32,7 @@ function createEnv() {
       sessions,
       memberships,
       comments,
+      invitations,
       oauthStates,
       oauthAccounts,
       revisions,
@@ -89,6 +91,33 @@ function createEnv() {
                     userId,
                     role
                   });
+                } else if (/INSERT INTO wiki_invitations/i.test(sql)) {
+                  const [
+                    id,
+                    wikiSlug,
+                    tokenHash,
+                    createdByUserId,
+                    role,
+                    status,
+                    expiresAt,
+                    acceptedByUserId,
+                    acceptedAt,
+                    createdAt,
+                    updatedAt
+                  ] = values;
+                  invitations.set(id, {
+                    id,
+                    wikiSlug,
+                    tokenHash,
+                    createdByUserId,
+                    role,
+                    status,
+                    expiresAt,
+                    acceptedByUserId,
+                    acceptedAt,
+                    createdAt,
+                    updatedAt
+                  });
                 } else if (/INSERT INTO page_revisions/i.test(sql)) {
                   revisions.push({
                     slug: values[0],
@@ -126,6 +155,30 @@ function createEnv() {
                   if (comment) {
                     comment.status = status;
                     comment.updatedAt = updatedAt;
+                  }
+                } else if (/UPDATE wiki_invitations/i.test(sql) && /accepted_by_user_id/i.test(sql)) {
+                  const [status, acceptedByUserId, acceptedAt, updatedAt, id] = values;
+                  const invitation = invitations.get(id);
+                  if (invitation?.status === "pending") {
+                    invitation.status = status;
+                    invitation.acceptedByUserId = acceptedByUserId;
+                    invitation.acceptedAt = acceptedAt;
+                    invitation.updatedAt = updatedAt;
+                    return {
+                      success: true,
+                      meta: { changes: 1 }
+                    };
+                  }
+                  return {
+                    success: true,
+                    meta: { changes: 0 }
+                  };
+                } else if (/UPDATE wiki_invitations/i.test(sql)) {
+                  const [status, updatedAt, id] = values;
+                  const invitation = invitations.get(id);
+                  if (invitation) {
+                    invitation.status = status;
+                    invitation.updatedAt = updatedAt;
                   }
                 } else if (/DELETE FROM oauth_states/i.test(sql)) {
                   oauthStates.delete(values[0]);
@@ -170,12 +223,31 @@ function createEnv() {
                 if (/FROM wiki_members/i.test(sql)) {
                   return memberships.get(`${values[0]}:${values[1]}`) ?? null;
                 }
+                if (/FROM wiki_invitations/i.test(sql)) {
+                  if (/token_hash\s*=\s*\?/i.test(sql)) {
+                    return [...invitations.values()].find((invitation) => invitation.tokenHash === values[0]) ?? null;
+                  }
+                  if (/wiki_slug\s*=\s*\?\s+AND\s+id\s*=\s*\?/i.test(sql)) {
+                    return [...invitations.values()].find((invitation) => (
+                      invitation.wikiSlug === values[0] &&
+                      invitation.id === values[1]
+                    )) ?? null;
+                  }
+                  return invitations.get(values[0]) ?? null;
+                }
                 if (/FROM comments/i.test(sql)) {
                   return comments.get(values[0]) ?? null;
                 }
                 return null;
               },
               async all() {
+                if (/FROM wiki_invitations/i.test(sql)) {
+                  return {
+                    results: [...invitations.values()]
+                      .filter((invitation) => invitation.wikiSlug === values[0])
+                      .sort((left, right) => right.createdAt.localeCompare(left.createdAt) || right.id.localeCompare(left.id))
+                  };
+                }
                 if (/FROM comments/i.test(sql)) {
                   return {
                     results: [...comments.values()]
@@ -250,6 +322,66 @@ async function listComments(env, slug, pagePath = "index.html", sessionId = null
   );
 }
 
+async function createInvitation(env, slug, sessionId, body = {}) {
+  return handleRequest(
+    new Request(`https://${slug}.wiki.flybullet.net/_wikiwise/admin/invitations`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(sessionId ? { Cookie: `wwh_session=${sessionId}` } : {})
+      },
+      body: JSON.stringify(body)
+    }),
+    env
+  );
+}
+
+async function listInvitations(env, slug, sessionId) {
+  return handleRequest(
+    new Request(`https://${slug}.wiki.flybullet.net/_wikiwise/admin/invitations`, {
+      headers: {
+        ...(sessionId ? { Cookie: `wwh_session=${sessionId}` } : {})
+      }
+    }),
+    env
+  );
+}
+
+async function revokeInvitation(env, slug, invitationId, sessionId) {
+  return handleRequest(
+    new Request(`https://${slug}.wiki.flybullet.net/_wikiwise/admin/invitations/${invitationId}`, {
+      method: "DELETE",
+      headers: {
+        ...(sessionId ? { Cookie: `wwh_session=${sessionId}` } : {})
+      }
+    }),
+    env
+  );
+}
+
+async function acceptInvitation(env, slug, token, sessionId) {
+  return handleRequest(
+    new Request(`https://${slug}.wiki.flybullet.net/_wikiwise/invitations/${token}/accept`, {
+      method: "POST",
+      headers: {
+        ...(sessionId ? { Cookie: `wwh_session=${sessionId}` } : {})
+      }
+    }),
+    env
+  );
+}
+
+async function invitationPage(env, slug, token, sessionId = null) {
+  return handleRequest(
+    new Request(`https://${slug}.wiki.flybullet.net/_wikiwise/invitations/${token}`, {
+      headers: {
+        ...(sessionId ? { Cookie: `wwh_session=${sessionId}` } : {})
+      }
+    }),
+    env
+  );
+}
+
 function addUserSession(env, options = {}) {
   const userId = options.userId ?? "user-1";
   const sessionId = options.sessionId ?? "session-1";
@@ -272,6 +404,17 @@ function addUserSession(env, options = {}) {
     });
   }
 
+  return sessionId;
+}
+
+function addOwnerSession(env, slug, options = {}) {
+  const sessionId = addUserSession(env, options);
+  const userId = options.userId ?? "user-1";
+  env.DB.memberships.set(`${slug}:${userId}`, {
+    wikiSlug: slug,
+    userId,
+    role: "owner"
+  });
   return sessionId;
 }
 
@@ -516,6 +659,9 @@ test("Hub reader runtime source includes account and comments behavior", async (
   assert.match(source, /commentPolicy/);
   assert.match(source, /comment\.author/);
   assert.doesNotMatch(source, /comment\.userId\s*\+/);
+  assert.match(source, /\/_wikiwise\/admin\/invitations/);
+  assert.match(source, /membership\.role === "owner"/);
+  assert.doesNotMatch(source, /tokenHash/);
 });
 
 test("public and private wiki reads follow session membership access checks", async () => {
@@ -1107,6 +1253,182 @@ test("private wiki owner bootstrap requires a verified provider email", async ()
   }
 });
 
+test("wiki owners can create list and revoke invitation links without exposing token hashes", async () => {
+  const env = createEnv();
+  await publish(env, {
+    slug: "private-invite",
+    settings: {
+      visibility: "private",
+      authRealm: "shared",
+      comments: { policy: "members-only" }
+    },
+    files: [{ path: "index.html", data: base64("<h1>Private Invite</h1>") }]
+  });
+  const ownerSession = addOwnerSession(env, "private-invite");
+
+  const created = await createInvitation(env, "private-invite", ownerSession, {
+    expiresInDays: 14
+  });
+  assert.equal(created.status, 201);
+  const createdJson = await created.json();
+  assert.match(createdJson.inviteUrl, /^https:\/\/private-invite\.wiki\.flybullet\.net\/_wikiwise\/invitations\/invite_token_/);
+  assert.equal(createdJson.invitation.wikiSlug, "private-invite");
+  assert.equal(createdJson.invitation.status, "pending");
+  assert.equal(createdJson.invitation.role, "member");
+  assert.equal("tokenHash" in createdJson.invitation, false);
+
+  const token = createdJson.inviteUrl.split("/").at(-1);
+  const stored = env.DB.invitations.get(createdJson.invitation.id);
+  assert.equal(stored.tokenHash.includes(token), false);
+  assert.equal(stored.wikiSlug, "private-invite");
+
+  const listed = await listInvitations(env, "private-invite", ownerSession);
+  assert.equal(listed.status, 200);
+  const listedJson = await listed.json();
+  assert.equal(listedJson.invitations.length, 1);
+  assert.equal(listedJson.invitations[0].id, createdJson.invitation.id);
+  assert.equal(JSON.stringify(listedJson).includes("tokenHash"), false);
+  assert.equal(JSON.stringify(listedJson).includes(token), false);
+
+  const revoked = await revokeInvitation(env, "private-invite", createdJson.invitation.id, ownerSession);
+  assert.equal(revoked.status, 204);
+  assert.equal(env.DB.invitations.get(createdJson.invitation.id).status, "revoked");
+
+  const readerSession = addUserSession(env, {
+    sessionId: "session-reader",
+    userId: "user-reader"
+  });
+  const acceptRevoked = await acceptInvitation(env, "private-invite", token, readerSession);
+  assert.equal(acceptRevoked.status, 410);
+  assert.equal(env.DB.memberships.has("private-invite:user-reader"), false);
+});
+
+test("invitation owner APIs reject anonymous non-member and non-owner callers", async () => {
+  const env = createEnv();
+  await publish(env, {
+    slug: "invite-auth",
+    settings: {
+      visibility: "private",
+      authRealm: "shared",
+      comments: { policy: "members-only" }
+    },
+    files: [{ path: "index.html", data: base64("<h1>Invite Auth</h1>") }]
+  });
+  const memberSession = addUserSession(env, {
+    sessionId: "session-member",
+    userId: "user-member",
+    memberOf: ["invite-auth"]
+  });
+  const nonMemberSession = addUserSession(env, {
+    sessionId: "session-outsider",
+    userId: "user-outsider"
+  });
+
+  const anonymous = await createInvitation(env, "invite-auth", null);
+  assert.equal(anonymous.status, 401);
+
+  const nonMember = await createInvitation(env, "invite-auth", nonMemberSession);
+  assert.equal(nonMember.status, 403);
+
+  const member = await createInvitation(env, "invite-auth", memberSession);
+  assert.equal(member.status, 403);
+  assert.equal(env.DB.invitations.size, 0);
+});
+
+test("signed-in invitees can accept valid invitations for one wiki only", async () => {
+  const env = {
+    ...createEnv(),
+    ...oauthEnv()
+  };
+  for (const slug of ["invite-a", "invite-b"]) {
+    await publish(env, {
+      slug,
+      settings: {
+        visibility: "private",
+        authRealm: "shared",
+        comments: { policy: "members-only" }
+      },
+      files: [{ path: "index.html", data: base64(`<h1>${slug}</h1>`) }]
+    });
+  }
+  const ownerSession = addOwnerSession(env, "invite-a");
+  const created = await createInvitation(env, "invite-a", ownerSession);
+  assert.equal(created.status, 201);
+  const inviteUrl = (await created.json()).inviteUrl;
+  const token = inviteUrl.split("/").at(-1);
+
+  const signedOutPage = await invitationPage(env, "invite-a", token);
+  assert.equal(signedOutPage.status, 401);
+  const signedOutHtml = await signedOutPage.text();
+  assert.match(signedOutHtml, /Sign in to accept invitation/);
+  assert.match(signedOutHtml, /\/_wikiwise\/auth\/google\/start\?returnTo=/);
+  assert.equal(signedOutHtml.includes("<h1>invite-a</h1>"), false);
+
+  const readerSession = addUserSession(env, {
+    sessionId: "session-reader",
+    userId: "user-reader",
+    displayName: "Invited Reader"
+  });
+  const accepted = await acceptInvitation(env, "invite-a", token, readerSession);
+  assert.equal(accepted.status, 200);
+  const acceptedJson = await accepted.json();
+  assert.equal(acceptedJson.membership.role, "member");
+  assert.deepEqual(env.DB.memberships.get("invite-a:user-reader"), {
+    wikiSlug: "invite-a",
+    userId: "user-reader",
+    role: "member"
+  });
+  assert.equal(env.DB.invitations.get(acceptedJson.invitation.id).status, "accepted");
+
+  const inviteARead = await handleRequest(new Request("https://invite-a.wiki.flybullet.net/", {
+    headers: { Cookie: `wwh_session=${readerSession}` }
+  }), env);
+  assert.equal(inviteARead.status, 200);
+
+  const inviteBRead = await handleRequest(new Request("https://invite-b.wiki.flybullet.net/", {
+    headers: { Cookie: `wwh_session=${readerSession}` }
+  }), env);
+  assert.equal(inviteBRead.status, 403);
+
+  const secondReaderSession = addUserSession(env, {
+    sessionId: "session-second-reader",
+    userId: "user-second-reader"
+  });
+  const acceptedAgain = await acceptInvitation(env, "invite-a", token, secondReaderSession);
+  assert.equal(acceptedAgain.status, 410);
+  assert.equal(env.DB.memberships.has("invite-a:user-second-reader"), false);
+
+  const unknown = await acceptInvitation(env, "invite-a", "invite_token_unknown", secondReaderSession);
+  assert.equal(unknown.status, 404);
+});
+
+test("expired invitations cannot be accepted", async () => {
+  const env = createEnv();
+  await publish(env, {
+    slug: "expired-invite",
+    settings: {
+      visibility: "private",
+      authRealm: "shared",
+      comments: { policy: "members-only" }
+    },
+    files: [{ path: "index.html", data: base64("<h1>Expired Invite</h1>") }]
+  });
+  const ownerSession = addOwnerSession(env, "expired-invite");
+  const created = await createInvitation(env, "expired-invite", ownerSession);
+  assert.equal(created.status, 201);
+  const token = (await created.json()).inviteUrl.split("/").at(-1);
+  const invitation = [...env.DB.invitations.values()][0];
+  invitation.expiresAt = "2000-01-01T00:00:00.000Z";
+
+  const readerSession = addUserSession(env, {
+    sessionId: "session-reader",
+    userId: "user-reader"
+  });
+  const expired = await acceptInvitation(env, "expired-invite", token, readerSession);
+  assert.equal(expired.status, 410);
+  assert.equal(env.DB.memberships.has("expired-invite:user-reader"), false);
+});
+
 test("comment policy enforcement covers disabled, login-required, and members-only", async () => {
   const env = createEnv();
   const sessionId = addUserSession(env, { memberOf: ["members-wiki"] });
@@ -1478,8 +1800,12 @@ test("unknown wiki slug returns not found without exposing another wiki's files"
   assert.equal(await response.text(), "Wiki not found");
 });
 
-test("migration creates Hub wiki, auth, membership, comment, and revision tables", () => {
-  const migration = fs.readFileSync(path.join(packageRoot, "migrations", "0001_initial.sql"), "utf8");
+test("migrations create Hub wiki, auth, membership, invitation, comment, and revision tables", () => {
+  const migration = fs.readdirSync(path.join(packageRoot, "migrations"))
+    .filter((fileName) => fileName.endsWith(".sql"))
+    .sort()
+    .map((fileName) => fs.readFileSync(path.join(packageRoot, "migrations", fileName), "utf8"))
+    .join("\n");
 
   for (const tableName of [
     "wikis",
@@ -1488,9 +1814,12 @@ test("migration creates Hub wiki, auth, membership, comment, and revision tables
     "oauth_states",
     "sessions",
     "wiki_members",
+    "wiki_invitations",
     "comments",
     "page_revisions"
   ]) {
     assert.match(migration, new RegExp(`CREATE TABLE IF NOT EXISTS ${tableName}`));
   }
+  assert.match(migration, /idx_wiki_invitations_wiki_slug/);
+  assert.match(migration, /idx_wiki_invitations_token_hash/);
 });
