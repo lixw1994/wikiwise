@@ -180,6 +180,12 @@ function createEnv() {
                     invitation.status = status;
                     invitation.updatedAt = updatedAt;
                   }
+                } else if (/DELETE FROM wiki_members/i.test(sql)) {
+                  const [wikiSlug, userId] = values;
+                  const membership = memberships.get(`${wikiSlug}:${userId}`);
+                  if (membership?.role === "member") {
+                    memberships.delete(`${wikiSlug}:${userId}`);
+                  }
                 } else if (/DELETE FROM oauth_states/i.test(sql)) {
                   oauthStates.delete(values[0]);
                 } else if (/DELETE FROM sessions/i.test(sql)) {
@@ -241,6 +247,28 @@ function createEnv() {
                 return null;
               },
               async all() {
+                if (/FROM wiki_members/i.test(sql)) {
+                  return {
+                    results: [...memberships.values()]
+                      .filter((membership) => membership.wikiSlug === values[0])
+                      .map((membership) => {
+                        const user = users.get(membership.userId) ?? {};
+                        return {
+                          wikiSlug: membership.wikiSlug,
+                          userId: membership.userId,
+                          role: membership.role,
+                          joinedAt: membership.createdAt ?? null,
+                          displayName: user.displayName,
+                          avatarUrl: user.avatarUrl ?? null
+                        };
+                      })
+                      .sort((left, right) => (
+                        right.role.localeCompare(left.role) ||
+                        String(left.displayName ?? "").localeCompare(String(right.displayName ?? "")) ||
+                        left.userId.localeCompare(right.userId)
+                      ))
+                  };
+                }
                 if (/FROM wiki_invitations/i.test(sql)) {
                   return {
                     results: [...invitations.values()]
@@ -339,6 +367,29 @@ async function createInvitation(env, slug, sessionId, body = {}) {
 async function listInvitations(env, slug, sessionId) {
   return handleRequest(
     new Request(`https://${slug}.wiki.flybullet.net/_wikiwise/admin/invitations`, {
+      headers: {
+        ...(sessionId ? { Cookie: `wwh_session=${sessionId}` } : {})
+      }
+    }),
+    env
+  );
+}
+
+async function listMembers(env, slug, sessionId) {
+  return handleRequest(
+    new Request(`https://${slug}.wiki.flybullet.net/_wikiwise/admin/members`, {
+      headers: {
+        ...(sessionId ? { Cookie: `wwh_session=${sessionId}` } : {})
+      }
+    }),
+    env
+  );
+}
+
+async function removeMember(env, slug, userId, sessionId) {
+  return handleRequest(
+    new Request(`https://${slug}.wiki.flybullet.net/_wikiwise/admin/members/${encodeURIComponent(userId)}`, {
+      method: "DELETE",
       headers: {
         ...(sessionId ? { Cookie: `wwh_session=${sessionId}` } : {})
       }
@@ -660,8 +711,10 @@ test("Hub reader runtime source includes account and comments behavior", async (
   assert.match(source, /comment\.author/);
   assert.doesNotMatch(source, /comment\.userId\s*\+/);
   assert.match(source, /\/_wikiwise\/admin\/invitations/);
+  assert.match(source, /\/_wikiwise\/admin\/members/);
   assert.match(source, /membership\.role === "owner"/);
   assert.doesNotMatch(source, /tokenHash/);
+  assert.doesNotMatch(source, /providerSubject/);
 });
 
 test("public and private wiki reads follow session membership access checks", async () => {
@@ -1427,6 +1480,159 @@ test("expired invitations cannot be accepted", async () => {
   const expired = await acceptInvitation(env, "expired-invite", token, readerSession);
   assert.equal(expired.status, 410);
   assert.equal(env.DB.memberships.has("expired-invite:user-reader"), false);
+});
+
+test("wiki owners can list members without exposing private identity internals", async () => {
+  const env = createEnv();
+  await publish(env, {
+    slug: "member-list",
+    settings: {
+      visibility: "private",
+      authRealm: "shared",
+      comments: { policy: "members-only" }
+    },
+    files: [{ path: "index.html", data: base64("<h1>Members</h1>") }]
+  });
+  await publish(env, {
+    slug: "other-members",
+    settings: {
+      visibility: "private",
+      authRealm: "shared",
+      comments: { policy: "members-only" }
+    },
+    files: [{ path: "index.html", data: base64("<h1>Other Members</h1>") }]
+  });
+  const ownerSession = addOwnerSession(env, "member-list", {
+    sessionId: "session-owner",
+    userId: "user-owner",
+    displayName: "Owner",
+    avatarUrl: "https://cdn.example/owner.png"
+  });
+  addUserSession(env, {
+    sessionId: "session-reader",
+    userId: "user-reader",
+    displayName: "Reader",
+    avatarUrl: "https://cdn.example/reader.png",
+    memberOf: ["member-list"]
+  });
+  addUserSession(env, {
+    sessionId: "session-other",
+    userId: "user-other",
+    displayName: "Other Wiki Reader",
+    memberOf: ["other-members"]
+  });
+  env.DB.users.get("user-reader").email = "reader@example.com";
+  env.DB.users.get("user-reader").providerSubject = "provider-secret-subject";
+  env.DB.sessions.get("session-reader").providerAccessToken = "provider-access-token";
+  env.DB.invitations.set("invite-secret", {
+    id: "invite-secret",
+    wikiSlug: "member-list",
+    tokenHash: "hashed-invite-token",
+    status: "accepted"
+  });
+
+  const listed = await listMembers(env, "member-list", ownerSession);
+  assert.equal(listed.status, 200);
+  const listedJson = await listed.json();
+  assert.equal(listedJson.members.length, 2);
+  assert.deepEqual(listedJson.members.map((member) => member.user.id).sort(), ["user-owner", "user-reader"]);
+  assert.deepEqual(listedJson.members.find((member) => member.user.id === "user-reader").user, {
+    id: "user-reader",
+    displayName: "Reader",
+    avatarUrl: "https://cdn.example/reader.png"
+  });
+  assert.equal(listedJson.members.find((member) => member.user.id === "user-reader").role, "member");
+  assert.equal(JSON.stringify(listedJson).includes("user-other"), false);
+  assert.equal(JSON.stringify(listedJson).includes("reader@example.com"), false);
+  assert.equal(JSON.stringify(listedJson).includes("provider-secret"), false);
+  assert.equal(JSON.stringify(listedJson).includes("provider-access-token"), false);
+  assert.equal(JSON.stringify(listedJson).includes("session-reader"), false);
+  assert.equal(JSON.stringify(listedJson).includes("tokenHash"), false);
+  assert.equal(JSON.stringify(listedJson).includes("hashed-invite-token"), false);
+});
+
+test("member management APIs reject anonymous non-member and non-owner callers", async () => {
+  const env = createEnv();
+  await publish(env, {
+    slug: "member-auth",
+    settings: {
+      visibility: "private",
+      authRealm: "shared",
+      comments: { policy: "members-only" }
+    },
+    files: [{ path: "index.html", data: base64("<h1>Member Auth</h1>") }]
+  });
+  const memberSession = addUserSession(env, {
+    sessionId: "session-member",
+    userId: "user-member",
+    memberOf: ["member-auth"]
+  });
+  const nonMemberSession = addUserSession(env, {
+    sessionId: "session-outsider",
+    userId: "user-outsider"
+  });
+
+  assert.equal((await listMembers(env, "member-auth", null)).status, 401);
+  assert.equal((await listMembers(env, "member-auth", nonMemberSession)).status, 403);
+  assert.equal((await listMembers(env, "member-auth", memberSession)).status, 403);
+  assert.equal((await removeMember(env, "member-auth", "user-member", null)).status, 401);
+  assert.equal((await removeMember(env, "member-auth", "user-member", nonMemberSession)).status, 403);
+  assert.equal((await removeMember(env, "member-auth", "user-member", memberSession)).status, 403);
+  assert.equal(env.DB.memberships.has("member-auth:user-member"), true);
+});
+
+test("wiki owners can remove member access for one wiki but cannot remove owners", async () => {
+  const env = createEnv();
+  for (const slug of ["member-remove", "member-other"]) {
+    await publish(env, {
+      slug,
+      settings: {
+        visibility: "private",
+        authRealm: "shared",
+        comments: { policy: "members-only" }
+      },
+      files: [{ path: "index.html", data: base64(`<h1>${slug}</h1>`) }]
+    });
+  }
+  const ownerSession = addOwnerSession(env, "member-remove", {
+    sessionId: "session-owner",
+    userId: "user-owner"
+  });
+  const readerSession = addUserSession(env, {
+    sessionId: "session-reader",
+    userId: "user-reader",
+    memberOf: ["member-remove", "member-other"]
+  });
+
+  const removed = await removeMember(env, "member-remove", "user-reader", ownerSession);
+  assert.equal(removed.status, 204);
+  assert.equal(env.DB.memberships.has("member-remove:user-reader"), false);
+  const removedAgain = await removeMember(env, "member-remove", "user-reader", ownerSession);
+  assert.equal(removedAgain.status, 204);
+  assert.equal(env.DB.memberships.has("member-remove:user-reader"), false);
+  assert.deepEqual(env.DB.memberships.get("member-other:user-reader"), {
+    wikiSlug: "member-other",
+    userId: "user-reader",
+    role: "member"
+  });
+
+  const removedRead = await handleRequest(new Request("https://member-remove.wiki.flybullet.net/", {
+    headers: { Cookie: `wwh_session=${readerSession}` }
+  }), env);
+  assert.equal(removedRead.status, 403);
+
+  const otherRead = await handleRequest(new Request("https://member-other.wiki.flybullet.net/", {
+    headers: { Cookie: `wwh_session=${readerSession}` }
+  }), env);
+  assert.equal(otherRead.status, 200);
+
+  const removeOwner = await removeMember(env, "member-remove", "user-owner", ownerSession);
+  assert.equal(removeOwner.status, 403);
+  assert.deepEqual(env.DB.memberships.get("member-remove:user-owner"), {
+    wikiSlug: "member-remove",
+    userId: "user-owner",
+    role: "owner"
+  });
 });
 
 test("comment policy enforcement covers disabled, login-required, and members-only", async () => {

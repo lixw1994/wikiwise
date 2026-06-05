@@ -67,6 +67,12 @@ published with each wiki. If a private wiki page is requested before access is
 granted, the Hub returns a sign-in or access-required page instead of protected
 wiki HTML.
 
+Owners can bootstrap private wiki access from `WIKIWISE_ADMIN_EMAILS`, create
+single-use invitation links from the injected reader controls, and review or
+remove wiki members from the same owner-only surface. Member management is
+scoped to the current wiki; removing a member from one wiki does not remove
+their access to another wiki.
+
 In the Wikiwise publish dialog, choose **Cloudflare Hub** and provide:
 
 - Hub endpoint, usually `https://wiki.flybullet.net`
@@ -86,8 +92,8 @@ Wikiwise does not create Cloudflare resources for you yet. Set up the Hub once,
 then publish any number of wikis to it from the desktop app.
 
 1. Deploy `apps/cloudflare-hub/src/worker.js` as a Cloudflare Worker.
-2. Create a D1 database, bind it as `DB`, and apply
-   `apps/cloudflare-hub/migrations/0001_initial.sql`.
+2. Create a D1 database, bind it as `DB`, and apply all SQL files in
+   `apps/cloudflare-hub/migrations/` in filename order.
 3. Create an R2 bucket and bind it as `WIKIWISE_FILES`.
 4. Add a Worker route for `*.wiki.flybullet.net/*`.
 5. Add wildcard DNS for `*.wiki.flybullet.net` to the Worker-backed zone.

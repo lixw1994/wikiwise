@@ -88,6 +88,21 @@ export async function handleRequest(request, env) {
     return textResponse("Method not allowed", 405);
   }
 
+  if (url.pathname === "/_wikiwise/admin/members") {
+    if (request.method === "GET") {
+      return listWikiMembers(request, env);
+    }
+    return textResponse("Method not allowed", 405);
+  }
+
+  const adminMemberMatch = url.pathname.match(/^\/_wikiwise\/admin\/members\/([^/]+)$/);
+  if (adminMemberMatch) {
+    if (request.method === "DELETE") {
+      return removeWikiMember(request, env, decodeURIComponent(adminMemberMatch[1]));
+    }
+    return textResponse("Method not allowed", 405);
+  }
+
   const adminInvitationMatch = url.pathname.match(/^\/_wikiwise\/admin\/invitations\/([^/]+)$/);
   if (adminInvitationMatch) {
     if (request.method === "DELETE") {
@@ -442,6 +457,46 @@ async function revokeWikiInvitation(request, env, invitationId) {
   return new Response(null, { status: 204 });
 }
 
+async function listWikiMembers(request, env) {
+  const wiki = await wikiFromRequestHost(request, env);
+  if (!wiki) {
+    return textResponse("Wiki not found", 404);
+  }
+
+  const ownership = await authorizeWikiOwner(request, env, wiki);
+  if (!ownership.ok) {
+    return textResponse(ownership.message, ownership.status);
+  }
+
+  const members = await findMembersForWiki(env, wiki.slug);
+  return jsonResponse({
+    members: members.map((member) => serializeMember(member))
+  });
+}
+
+async function removeWikiMember(request, env, userId) {
+  const wiki = await wikiFromRequestHost(request, env);
+  if (!wiki) {
+    return textResponse("Wiki not found", 404);
+  }
+
+  const ownership = await authorizeWikiOwner(request, env, wiki);
+  if (!ownership.ok) {
+    return textResponse(ownership.message, ownership.status);
+  }
+
+  const membership = await findWikiMember(env, wiki.slug, userId);
+  if (!membership) {
+    return new Response(null, { status: 204 });
+  }
+  if (membership.role !== "member") {
+    return textResponse("Cannot remove owner", 403);
+  }
+
+  await deleteWikiMember(env, wiki.slug, userId);
+  return new Response(null, { status: 204 });
+}
+
 async function showWikiInvitation(request, env, token) {
   const lookup = await lookupInvitationFromRequest(request, env, token);
   if (!lookup.ok) {
@@ -698,6 +753,31 @@ async function findWikiMember(env, slug, userId) {
     FROM wiki_members
     WHERE wiki_slug = ? AND user_id = ?
   `).bind(slug, userId).first();
+}
+
+async function findMembersForWiki(env, slug) {
+  const result = await env.DB.prepare(`
+    SELECT
+      wiki_members.wiki_slug AS wikiSlug,
+      wiki_members.user_id AS userId,
+      wiki_members.role,
+      wiki_members.created_at AS joinedAt,
+      users.display_name AS displayName,
+      users.avatar_url AS avatarUrl
+    FROM wiki_members
+    JOIN users ON users.id = wiki_members.user_id
+    WHERE wiki_members.wiki_slug = ?
+    ORDER BY wiki_members.role DESC, users.display_name ASC, users.id ASC
+  `).bind(slug).all();
+
+  return result.results ?? [];
+}
+
+async function deleteWikiMember(env, slug, userId) {
+  await env.DB.prepare(`
+    DELETE FROM wiki_members
+    WHERE wiki_slug = ? AND user_id = ? AND role = 'member'
+  `).bind(slug, userId).run();
 }
 
 function validatePublishPayload(payload) {
@@ -1632,6 +1712,19 @@ function serializeInvitation(invitation) {
   };
 }
 
+function serializeMember(member) {
+  return {
+    wikiSlug: member.wikiSlug,
+    role: member.role,
+    joinedAt: member.joinedAt ?? null,
+    user: {
+      id: member.userId,
+      displayName: member.displayName || "Unknown member",
+      avatarUrl: member.avatarUrl ?? null
+    }
+  };
+}
+
 function orderThreadedComments(comments) {
   const byParent = new Map();
   for (const comment of comments) {
@@ -2093,6 +2186,55 @@ const readerClientStyles = `
   color: #64748b;
 }
 
+.wikiwise-hub-members-control {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+
+.wikiwise-hub-members-panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  z-index: 2147483647;
+  width: min(340px, calc(100vw - 32px));
+  max-height: 360px;
+  overflow: auto;
+  padding: 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  background: #fff;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, 0.16);
+}
+
+.wikiwise-hub-member-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 0;
+  border-top: 1px solid #edf2f7;
+}
+
+.wikiwise-hub-member-row:first-child {
+  border-top: 0;
+}
+
+.wikiwise-hub-member-name {
+  display: block;
+  overflow: hidden;
+  color: #1f2937;
+  font-weight: 600;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.wikiwise-hub-member-role {
+  display: block;
+  color: #64748b;
+  font-size: 12px;
+}
+
 .wikiwise-hub-comments {
   margin: 40px 0 0;
   padding-top: 24px;
@@ -2245,6 +2387,7 @@ const readerClientScript = `
       root.appendChild(identity);
       if (profile.membership && profile.membership.role === "owner") {
         root.appendChild(createOwnerInvitationControl());
+        root.appendChild(createOwnerMembersControl());
       }
       root.appendChild(logout);
       return;
@@ -2312,6 +2455,87 @@ const readerClientScript = `
 
     control.append(button, field, status);
     return control;
+  }
+
+  function createOwnerMembersControl() {
+    const control = document.createElement("span");
+    control.className = "wikiwise-hub-members-control";
+
+    const button = document.createElement("button");
+    button.type = "button";
+    button.textContent = "Members";
+
+    const panel = document.createElement("div");
+    panel.className = "wikiwise-hub-members-panel";
+    panel.hidden = true;
+
+    button.addEventListener("click", async () => {
+      panel.hidden = !panel.hidden;
+      if (!panel.hidden) {
+        await refreshOwnerMembers(panel);
+      }
+    });
+
+    control.append(button, panel);
+    return control;
+  }
+
+  async function refreshOwnerMembers(panel) {
+    panel.replaceChildren();
+    appendStatus(panel, "Loading members...", "wikiwise-hub-muted");
+    const result = await fetchJson("/_wikiwise/admin/members");
+    panel.replaceChildren();
+
+    if (!result.ok) {
+      appendStatus(panel, result.error || "Unable to load members.", "wikiwise-hub-error");
+      return;
+    }
+
+    const members = result.data.members || [];
+    if (!members.length) {
+      appendStatus(panel, "No members yet.", "wikiwise-hub-muted");
+      return;
+    }
+
+    for (const member of members) {
+      panel.appendChild(renderOwnerMemberRow(member, panel));
+    }
+  }
+
+  function renderOwnerMemberRow(member, panel) {
+    const row = document.createElement("div");
+    row.className = "wikiwise-hub-member-row";
+
+    const details = document.createElement("span");
+    const name = document.createElement("span");
+    name.className = "wikiwise-hub-member-name";
+    name.textContent = member.user && member.user.displayName ? member.user.displayName : "Unknown member";
+    const role = document.createElement("span");
+    role.className = "wikiwise-hub-member-role";
+    role.textContent = member.role || "member";
+    details.append(name, role);
+    row.appendChild(details);
+
+    if (member.role === "member" && member.user && member.user.id) {
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.textContent = "Remove";
+      remove.addEventListener("click", async () => {
+        remove.disabled = true;
+        const result = await fetchJson("/_wikiwise/admin/members/" + encodeURIComponent(member.user.id), {
+          method: "DELETE"
+        });
+        if (!result.ok) {
+          remove.disabled = false;
+          appendStatus(panel, result.error || "Unable to remove member.", "wikiwise-hub-error");
+          return;
+        }
+        await refreshOwnerMembers(panel);
+      });
+      row.appendChild(remove);
+    }
+
+    return row;
   }
 
   async function renderCommentsSurface(root, profile) {
@@ -2450,6 +2674,13 @@ const readerClientScript = `
         ok: false,
         status: response.status,
         error: error || response.statusText
+      };
+    }
+    if (response.status === 204) {
+      return {
+        ok: true,
+        status: response.status,
+        data: null
       };
     }
     return {
