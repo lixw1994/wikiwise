@@ -350,6 +350,31 @@ async function listComments(env, slug, pagePath = "index.html", sessionId = null
   );
 }
 
+async function listAdminComments(env, slug, sessionId, pagePath = "index.html") {
+  return handleRequest(
+    new Request(`https://${slug}.wiki.flybullet.net/_wikiwise/admin/comments?pagePath=${encodeURIComponent(pagePath)}`, {
+      headers: {
+        ...(sessionId ? { Cookie: `wwh_session=${sessionId}` } : {})
+      }
+    }),
+    env
+  );
+}
+
+async function moderateComment(env, slug, commentId, status, sessionId) {
+  return handleRequest(
+    new Request(`https://${slug}.wiki.flybullet.net/_wikiwise/admin/comments/${encodeURIComponent(commentId)}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...(sessionId ? { Cookie: `wwh_session=${sessionId}` } : {})
+      },
+      body: JSON.stringify({ status })
+    }),
+    env
+  );
+}
+
 async function createInvitation(env, slug, sessionId, body = {}) {
   return handleRequest(
     new Request(`https://${slug}.wiki.flybullet.net/_wikiwise/admin/invitations`, {
@@ -712,6 +737,9 @@ test("Hub reader runtime source includes account and comments behavior", async (
   assert.doesNotMatch(source, /comment\.userId\s*\+/);
   assert.match(source, /\/_wikiwise\/admin\/invitations/);
   assert.match(source, /\/_wikiwise\/admin\/members/);
+  assert.match(source, /\/_wikiwise\/admin\/comments/);
+  assert.match(source, /hideComment/);
+  assert.match(source, /restoreComment/);
   assert.match(source, /membership\.role === "owner"/);
   assert.doesNotMatch(source, /tokenHash/);
   assert.doesNotMatch(source, /providerSubject/);
@@ -1824,6 +1852,229 @@ test("comment authors follow shared and per-wiki realm identity scopes", async (
   assert.equal(perWikiB.displayName, "Grace Hopper");
   assert.equal(perWikiA.avatarUrl, "https://cdn.example/grace.png");
   assert.equal(perWikiB.avatarUrl, "https://cdn.example/grace.png");
+});
+
+test("wiki owners can list all page comments for moderation without private internals", async () => {
+  const env = createEnv();
+  await publish(env, {
+    slug: "comment-moderation-list",
+    settings: {
+      visibility: "public",
+      authRealm: "shared",
+      comments: { policy: "login-required" }
+    },
+    files: [{ path: "index.html", data: base64("<h1>Moderation List</h1>") }]
+  });
+  const ownerSession = addOwnerSession(env, "comment-moderation-list", {
+    sessionId: "session-owner",
+    userId: "user-owner"
+  });
+  const authorSession = addUserSession(env, {
+    sessionId: "session-author",
+    userId: "user-author",
+    displayName: "Comment Author",
+    avatarUrl: "https://cdn.example/author.png"
+  });
+  env.DB.users.get("user-author").email = "author@example.com";
+  env.DB.users.get("user-author").providerSubject = "provider-secret-subject";
+  env.DB.sessions.get("session-author").providerAccessToken = "provider-access-token";
+
+  const visible = await postComment(env, "comment-moderation-list", {
+    pagePath: "index.html",
+    body: "Visible moderation comment"
+  }, authorSession);
+  const hidden = await postComment(env, "comment-moderation-list", {
+    pagePath: "index.html",
+    body: "Hidden moderation comment"
+  }, authorSession);
+  const hiddenCommentId = (await hidden.json()).comment.id;
+  env.DB.comments.get(hiddenCommentId).status = "hidden";
+
+  const listed = await listAdminComments(env, "comment-moderation-list", ownerSession);
+  assert.equal(listed.status, 200);
+  const listedJson = await listed.json();
+  assert.deepEqual(listedJson.comments.map((comment) => comment.body).sort(), [
+    "Hidden moderation comment",
+    "Visible moderation comment"
+  ]);
+  assert.deepEqual(listedJson.comments.map((comment) => comment.status).sort(), [
+    "hidden",
+    "visible"
+  ]);
+  assert.deepEqual(listedJson.comments.find((comment) => comment.body === "Visible moderation comment").author, {
+    id: "user-author",
+    displayName: "Comment Author",
+    avatarUrl: "https://cdn.example/author.png"
+  });
+  assert.equal(listedJson.comments.find((comment) => comment.id === hiddenCommentId).status, "hidden");
+  assert.equal(JSON.stringify(listedJson).includes("author@example.com"), false);
+  assert.equal(JSON.stringify(listedJson).includes("provider-secret"), false);
+  assert.equal(JSON.stringify(listedJson).includes("provider-access-token"), false);
+  assert.equal(JSON.stringify(listedJson).includes("session-author"), false);
+  assert.equal((await visible.json()).comment.status, "visible");
+});
+
+test("wiki owners can hide and restore comments while preserving records", async () => {
+  const env = createEnv();
+  await publish(env, {
+    slug: "comment-moderation-toggle",
+    settings: {
+      visibility: "public",
+      authRealm: "shared",
+      comments: { policy: "login-required" }
+    },
+    files: [{ path: "index.html", data: base64("<h1>Moderation Toggle</h1>") }]
+  });
+  const ownerSession = addOwnerSession(env, "comment-moderation-toggle", {
+    sessionId: "session-owner",
+    userId: "user-owner"
+  });
+  const authorSession = addUserSession(env, {
+    sessionId: "session-author",
+    userId: "user-author"
+  });
+  const created = await postComment(env, "comment-moderation-toggle", {
+    pagePath: "index.html",
+    body: "Toggle me"
+  }, authorSession);
+  const commentId = (await created.json()).comment.id;
+
+  const hidden = await moderateComment(env, "comment-moderation-toggle", commentId, "hidden", ownerSession);
+  assert.equal(hidden.status, 200);
+  assert.equal(env.DB.comments.get(commentId).status, "hidden");
+  assert.equal(env.DB.comments.get(commentId).body, "Toggle me");
+  assert.deepEqual((await (await listComments(env, "comment-moderation-toggle")).json()).comments, []);
+  assert.equal((await (await listAdminComments(env, "comment-moderation-toggle", ownerSession)).json()).comments[0].status, "hidden");
+
+  const restored = await moderateComment(env, "comment-moderation-toggle", commentId, "visible", ownerSession);
+  assert.equal(restored.status, 200);
+  assert.equal(env.DB.comments.get(commentId).status, "visible");
+  assert.deepEqual((await (await listComments(env, "comment-moderation-toggle")).json()).comments.map((comment) => comment.body), ["Toggle me"]);
+});
+
+test("comment moderation APIs reject anonymous non-member and non-owner callers", async () => {
+  const env = createEnv();
+  await publish(env, {
+    slug: "comment-moderation-auth",
+    settings: {
+      visibility: "private",
+      authRealm: "shared",
+      comments: { policy: "members-only" }
+    },
+    files: [{ path: "index.html", data: base64("<h1>Moderation Auth</h1>") }]
+  });
+  const ownerSession = addOwnerSession(env, "comment-moderation-auth", {
+    sessionId: "session-owner",
+    userId: "user-owner"
+  });
+  const memberSession = addUserSession(env, {
+    sessionId: "session-member",
+    userId: "user-member",
+    memberOf: ["comment-moderation-auth"]
+  });
+  const nonMemberSession = addUserSession(env, {
+    sessionId: "session-outsider",
+    userId: "user-outsider"
+  });
+  const created = await postComment(env, "comment-moderation-auth", {
+    pagePath: "index.html",
+    body: "Protected comment"
+  }, memberSession);
+  const commentId = (await created.json()).comment.id;
+
+  assert.equal((await listAdminComments(env, "comment-moderation-auth", null)).status, 401);
+  assert.equal((await listAdminComments(env, "comment-moderation-auth", nonMemberSession)).status, 403);
+  assert.equal((await listAdminComments(env, "comment-moderation-auth", memberSession)).status, 403);
+  assert.equal((await moderateComment(env, "comment-moderation-auth", commentId, "hidden", null)).status, 401);
+  assert.equal((await moderateComment(env, "comment-moderation-auth", commentId, "hidden", nonMemberSession)).status, 403);
+  assert.equal((await moderateComment(env, "comment-moderation-auth", commentId, "hidden", memberSession)).status, 403);
+  assert.equal(env.DB.comments.get(commentId).status, "visible");
+  assert.equal((await moderateComment(env, "comment-moderation-auth", commentId, "hidden", ownerSession)).status, 200);
+});
+
+test("comment moderation is scoped to the current wiki", async () => {
+  const env = createEnv();
+  for (const slug of ["comment-scope-a", "comment-scope-b"]) {
+    await publish(env, {
+      slug,
+      settings: {
+        visibility: "public",
+        authRealm: "shared",
+        comments: { policy: "login-required" }
+      },
+      files: [{ path: "index.html", data: base64(`<h1>${slug}</h1>`) }]
+    });
+  }
+  const ownerA = addOwnerSession(env, "comment-scope-a", {
+    sessionId: "session-owner-a",
+    userId: "user-owner-a"
+  });
+  const authorSession = addUserSession(env, {
+    sessionId: "session-author",
+    userId: "user-author"
+  });
+  const commentA = await postComment(env, "comment-scope-a", {
+    pagePath: "index.html",
+    body: "A comment"
+  }, authorSession);
+  const commentB = await postComment(env, "comment-scope-b", {
+    pagePath: "index.html",
+    body: "B comment"
+  }, authorSession);
+  const commentAId = (await commentA.json()).comment.id;
+  const commentBId = (await commentB.json()).comment.id;
+
+  assert.equal((await moderateComment(env, "comment-scope-a", commentBId, "hidden", ownerA)).status, 404);
+  assert.equal(env.DB.comments.get(commentBId).status, "visible");
+  assert.equal((await moderateComment(env, "comment-scope-a", commentAId, "hidden", ownerA)).status, 200);
+  assert.equal(env.DB.comments.get(commentAId).status, "hidden");
+  assert.equal(env.DB.comments.get(commentBId).status, "visible");
+});
+
+test("reader comment lists exclude hidden comments and hidden-parent replies", async () => {
+  const env = createEnv();
+  await publish(env, {
+    slug: "comment-hidden-threads",
+    settings: {
+      visibility: "public",
+      authRealm: "shared",
+      comments: { policy: "login-required" }
+    },
+    files: [{ path: "index.html", data: base64("<h1>Hidden Threads</h1>") }]
+  });
+  const ownerSession = addOwnerSession(env, "comment-hidden-threads", {
+    sessionId: "session-owner",
+    userId: "user-owner"
+  });
+  const authorSession = addUserSession(env, {
+    sessionId: "session-author",
+    userId: "user-author"
+  });
+  const hiddenParent = await postComment(env, "comment-hidden-threads", {
+    pagePath: "index.html",
+    body: "Hidden parent"
+  }, authorSession);
+  const hiddenParentId = (await hiddenParent.json()).comment.id;
+  await postComment(env, "comment-hidden-threads", {
+    pagePath: "index.html",
+    parentCommentId: hiddenParentId,
+    body: "Reply below hidden"
+  }, authorSession);
+  await postComment(env, "comment-hidden-threads", {
+    pagePath: "index.html",
+    body: "Still visible"
+  }, authorSession);
+
+  assert.equal((await moderateComment(env, "comment-hidden-threads", hiddenParentId, "hidden", ownerSession)).status, 200);
+  const readerComments = (await (await listComments(env, "comment-hidden-threads")).json()).comments;
+  assert.deepEqual(readerComments.map((comment) => comment.body), ["Still visible"]);
+  const ownerComments = (await (await listAdminComments(env, "comment-hidden-threads", ownerSession)).json()).comments;
+  assert.deepEqual(ownerComments.map((comment) => comment.body).sort(), [
+    "Hidden parent",
+    "Reply below hidden",
+    "Still visible"
+  ]);
+  assert.equal(ownerComments.find((comment) => comment.body === "Reply below hidden").parentCommentId, hiddenParentId);
 });
 
 test("annotation comments preserve anchor data and threaded replies", async () => {

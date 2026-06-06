@@ -78,6 +78,21 @@ export async function handleRequest(request, env) {
     return textResponse("Method not allowed", 405);
   }
 
+  if (url.pathname === "/_wikiwise/admin/comments") {
+    if (request.method === "GET") {
+      return listAdminPageComments(request, env);
+    }
+    return textResponse("Method not allowed", 405);
+  }
+
+  const adminCommentMatch = url.pathname.match(/^\/_wikiwise\/admin\/comments\/([^/]+)$/);
+  if (adminCommentMatch) {
+    if (request.method === "PATCH") {
+      return updateAdminCommentStatus(request, env, decodeURIComponent(adminCommentMatch[1]));
+    }
+    return textResponse("Method not allowed", 405);
+  }
+
   if (url.pathname === "/_wikiwise/admin/invitations") {
     if (request.method === "POST") {
       return createWikiInvitation(request, env);
@@ -300,10 +315,11 @@ async function listPageComments(request, env) {
   }
 
   const comments = await findCommentsForPage(env, wiki.slug, pagePath);
-  const authors = await authorProfilesForComments(env, comments);
+  const visibleComments = readerVisibleComments(comments);
+  const authors = await authorProfilesForComments(env, visibleComments);
   const commentAccess = await describeCommentWriteAccess(request, env, wiki);
   return jsonResponse({
-    comments: orderThreadedComments(comments).map((comment) => serializeComment(comment, authors.get(comment.userId))),
+    comments: orderThreadedComments(visibleComments).map((comment) => serializeComment(comment, authors.get(comment.userId))),
     commentPolicy: wiki.commentPolicy,
     canComment: commentAccess.ok,
     commentMessage: commentAccess.ok ? null : commentAccess.message
@@ -368,6 +384,71 @@ async function createPageComment(request, env) {
   return jsonResponse({
     comment: serializeComment(comment, publicAuthorProfile(identity))
   }, 201);
+}
+
+async function listAdminPageComments(request, env) {
+  const url = new URL(request.url);
+  const wiki = await wikiFromRequestHost(request, env);
+  if (!wiki) {
+    return textResponse("Wiki not found", 404);
+  }
+
+  const ownership = await authorizeWikiOwner(request, env, wiki);
+  if (!ownership.ok) {
+    return textResponse(ownership.message, ownership.status);
+  }
+
+  const pagePath = url.searchParams.get("pagePath") ?? "index.html";
+  if (!safeObjectPath(pagePath)) {
+    return jsonResponse({ error: "invalid_page_path" }, 422);
+  }
+
+  const comments = await findCommentsForPage(env, wiki.slug, pagePath);
+  const authors = await authorProfilesForComments(env, comments);
+  return jsonResponse({
+    comments: orderThreadedComments(comments).map((comment) => serializeComment(comment, authors.get(comment.userId)))
+  });
+}
+
+async function updateAdminCommentStatus(request, env, commentId) {
+  const wiki = await wikiFromRequestHost(request, env);
+  if (!wiki) {
+    return textResponse("Wiki not found", 404);
+  }
+
+  const ownership = await authorizeWikiOwner(request, env, wiki);
+  if (!ownership.ok) {
+    return textResponse(ownership.message, ownership.status);
+  }
+
+  let payload;
+  try {
+    payload = await request.json();
+  } catch {
+    return jsonResponse({ error: "invalid_json" }, 400);
+  }
+
+  const status = payload?.status;
+  if (status !== "hidden" && status !== "visible") {
+    return jsonResponse({ error: "invalid_comment_status" }, 422);
+  }
+
+  const comment = await findComment(env, commentId);
+  if (!comment || comment.wikiSlug !== wiki.slug) {
+    return textResponse("Comment not found", 404);
+  }
+
+  const updatedAt = comment.status === status ? comment.updatedAt : new Date().toISOString();
+  await updateCommentStatus(env, comment, status, updatedAt);
+  const updated = {
+    ...comment,
+    status,
+    updatedAt
+  };
+  const author = publicAuthorProfile(await findUser(env, updated.userId), updated.userId);
+  return jsonResponse({
+    comment: serializeComment(updated, author)
+  });
 }
 
 async function createWikiInvitation(request, env) {
@@ -1581,6 +1662,7 @@ async function updateCommentStatus(env, comment, status, updatedAt) {
 async function updateAnnotationStatusesForPublishedFile(env, slug, pagePath, content, updatedAt) {
   const comments = await findCommentsForPage(env, slug, pagePath);
   for (const comment of comments) {
+    if (comment.status === "hidden") continue;
     if (!comment.anchorJson) continue;
 
     const anchor = parseAnchorJson(comment.anchorJson);
@@ -1723,6 +1805,27 @@ function serializeMember(member) {
       avatarUrl: member.avatarUrl ?? null
     }
   };
+}
+
+function readerVisibleComments(comments) {
+  const byId = new Map(comments.map((comment) => [comment.id, comment]));
+  const hiddenBranch = new Map();
+
+  function isHiddenBranch(comment) {
+    if (hiddenBranch.has(comment.id)) {
+      return hiddenBranch.get(comment.id);
+    }
+
+    const hidden = comment.status === "hidden" || (
+      comment.parentCommentId &&
+      byId.has(comment.parentCommentId) &&
+      isHiddenBranch(byId.get(comment.parentCommentId))
+    );
+    hiddenBranch.set(comment.id, hidden);
+    return hidden;
+  }
+
+  return comments.filter((comment) => !isHiddenBranch(comment));
 }
 
 function orderThreadedComments(comments) {
@@ -2137,6 +2240,8 @@ const readerClientStyles = `
 .wikiwise-hub-account a,
 .wikiwise-hub-account button,
 .wikiwise-hub-comment-composer button,
+.wikiwise-hub-comment-actions button,
+.wikiwise-hub-hidden-comment button,
 .wikiwise-hub-comment-reply {
   border: 1px solid #cbd5e1;
   border-radius: 6px;
@@ -2280,6 +2385,45 @@ const readerClientStyles = `
   white-space: pre-wrap;
 }
 
+.wikiwise-hub-comment-actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.wikiwise-hub-hidden-comments {
+  margin: 18px 0;
+  padding-top: 12px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.wikiwise-hub-hidden-comments h3 {
+  margin: 0 0 8px;
+  color: #475569;
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.wikiwise-hub-hidden-comment {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+  align-items: start;
+  padding: 8px 0;
+  border-top: 1px solid #f1f5f9;
+}
+
+.wikiwise-hub-hidden-comment:first-of-type {
+  border-top: 0;
+}
+
+.wikiwise-hub-hidden-comment-body {
+  overflow: hidden;
+  color: #475569;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .wikiwise-hub-comment-composer {
   display: grid;
   gap: 8px;
@@ -2296,6 +2440,8 @@ const readerClientStyles = `
 }
 
 .wikiwise-hub-comment-composer button,
+.wikiwise-hub-comment-actions button,
+.wikiwise-hub-hidden-comment button,
 .wikiwise-hub-comment-reply {
   justify-self: start;
   padding: 6px 10px;
@@ -2554,6 +2700,7 @@ const readerClientScript = `
     const data = commentsResult.data;
     const commentPolicy = data.commentPolicy;
     const comments = data.comments || [];
+    const isOwner = Boolean(profile && profile.membership && profile.membership.role === "owner");
     if (!comments.length) {
       appendStatus(root, "No comments yet.", "wikiwise-hub-muted");
     }
@@ -2562,11 +2709,15 @@ const readerClientScript = `
     for (const comment of comments) {
       const depth = comment.parentCommentId ? (depths.get(comment.parentCommentId) || 0) + 1 : 0;
       depths.set(comment.id, depth);
-      root.appendChild(renderComment(comment, depth, data.canComment, pagePath, root, profile));
+      root.appendChild(renderComment(comment, depth, data.canComment, pagePath, root, profile, isOwner));
+    }
+
+    if (isOwner) {
+      await renderHiddenComments(root, pagePath, profile);
     }
 
     if (data.canComment) {
-      root.appendChild(renderComposer(pagePath, null, root));
+      root.appendChild(renderComposer(pagePath, null, root, profile));
     } else {
       const message = commentPolicy === "disabled"
         ? "Comments are disabled."
@@ -2575,7 +2726,7 @@ const readerClientScript = `
     }
   }
 
-  function renderComment(comment, depth, canReply, pagePath, commentsRoot) {
+  function renderComment(comment, depth, canReply, pagePath, commentsRoot, profile, isOwner) {
     const item = document.createElement("article");
     item.className = "wikiwise-hub-comment";
     item.style.marginLeft = Math.min(depth, 4) * 18 + "px";
@@ -2601,6 +2752,17 @@ const readerClientScript = `
     body.textContent = comment.body;
     item.append(meta, body);
 
+    if (isOwner && comment.status !== "hidden") {
+      const actions = document.createElement("div");
+      actions.className = "wikiwise-hub-comment-actions";
+      const hide = document.createElement("button");
+      hide.type = "button";
+      hide.textContent = "Hide";
+      hide.addEventListener("click", () => hideComment(comment.id, pagePath, commentsRoot, profile, hide));
+      actions.appendChild(hide);
+      item.appendChild(actions);
+    }
+
     if (canReply) {
       const reply = document.createElement("button");
       reply.type = "button";
@@ -2612,7 +2774,7 @@ const readerClientScript = `
           existing.remove();
           return;
         }
-        item.appendChild(renderComposer(pagePath, comment.id, commentsRoot));
+        item.appendChild(renderComposer(pagePath, comment.id, commentsRoot, profile));
       });
       item.appendChild(reply);
     }
@@ -2620,7 +2782,73 @@ const readerClientScript = `
     return item;
   }
 
-  function renderComposer(pagePath, parentCommentId, commentsRoot) {
+  async function renderHiddenComments(root, pagePath, profile) {
+    const result = await fetchJson("/_wikiwise/admin/comments?pagePath=" + encodeURIComponent(pagePath));
+    if (!result.ok) {
+      appendStatus(root, result.error || "Unable to load hidden comments.", "wikiwise-hub-error");
+      return;
+    }
+
+    const hidden = (result.data.comments || []).filter((comment) => comment.status === "hidden");
+    if (!hidden.length) return;
+
+    const section = document.createElement("section");
+    section.className = "wikiwise-hub-hidden-comments";
+    const title = document.createElement("h3");
+    title.textContent = "Hidden comments";
+    section.appendChild(title);
+
+    for (const comment of hidden) {
+      section.appendChild(renderHiddenComment(comment, pagePath, root, profile));
+    }
+
+    root.appendChild(section);
+  }
+
+  function renderHiddenComment(comment, pagePath, commentsRoot, profile) {
+    const row = document.createElement("div");
+    row.className = "wikiwise-hub-hidden-comment";
+
+    const body = document.createElement("span");
+    body.className = "wikiwise-hub-hidden-comment-body";
+    body.textContent = comment.body;
+    row.appendChild(body);
+
+    const restore = document.createElement("button");
+    restore.type = "button";
+    restore.textContent = "Restore";
+    restore.addEventListener("click", () => restoreComment(comment.id, pagePath, commentsRoot, profile, restore));
+    row.appendChild(restore);
+
+    return row;
+  }
+
+  async function hideComment(commentId, pagePath, commentsRoot, profile, button) {
+    await updateCommentModeration(commentId, "hidden", pagePath, commentsRoot, profile, button);
+  }
+
+  async function restoreComment(commentId, pagePath, commentsRoot, profile, button) {
+    await updateCommentModeration(commentId, "visible", pagePath, commentsRoot, profile, button);
+  }
+
+  async function updateCommentModeration(commentId, status, pagePath, commentsRoot, profile, button) {
+    if (button) button.disabled = true;
+    const result = await fetchJson("/_wikiwise/admin/comments/" + encodeURIComponent(commentId), {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({ status })
+    });
+    if (!result.ok) {
+      if (button) button.disabled = false;
+      appendStatus(commentsRoot, result.error || "Unable to update comment.", "wikiwise-hub-error");
+      return;
+    }
+    await renderCommentsSurface(commentsRoot, profile);
+  }
+
+  function renderComposer(pagePath, parentCommentId, commentsRoot, profile) {
     const form = document.createElement("form");
     form.className = "wikiwise-hub-comment-composer";
 
@@ -2657,7 +2885,7 @@ const readerClientScript = `
         appendStatus(form, result.error || "Unable to post comment.", "wikiwise-hub-error");
         return;
       }
-      await renderCommentsSurface(commentsRoot, null);
+      await renderCommentsSurface(commentsRoot, profile);
     });
 
     return form;
