@@ -13,6 +13,7 @@
     "electron:audit:packaged": "npm --workspace @wikiwise/electron-app run audit:packaged",
     "electron:release:preflight": "bash scripts/build-release.sh --preflight",
     "electron:release:readiness": "bash scripts/build-release.sh --preflight --preflight-report apps/electron/out/release-readiness/report.json",
-    "electron:release:evidence": "bash scripts/build-release.sh --release-report apps/electron/out/release/report.json"
+    "electron:release:evidence": "bash scripts/build-release.sh --release-report apps/electron/out/release/report.json",
+    "cloudflare-hub:deploy:preflight": "npm --workspace @wikiwise/cloudflare-hub run deploy:preflight"
   }
 }

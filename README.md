@@ -129,9 +129,11 @@ Worker route, D1 binding, R2 binding, and public domain are all explicit.
    npm --workspace @wikiwise/cloudflare-hub run dev
    ```
 
-10. For production, apply migrations and deploy:
+10. For production, run the local deployment preflight, then apply migrations
+    and deploy:
 
     ```
+    npm run cloudflare-hub:deploy:preflight
     npm --workspace @wikiwise/cloudflare-hub run d1:migrate:remote
     npm --workspace @wikiwise/cloudflare-hub run deploy
     ```

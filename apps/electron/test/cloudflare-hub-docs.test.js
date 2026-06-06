@@ -58,6 +58,7 @@ test("README documents Wrangler-backed Cloudflare Hub deployment commands", () =
 
   assert.match(readme, /npm --workspace @wikiwise\/cloudflare-hub run dev/);
   assert.match(readme, /npm --workspace @wikiwise\/cloudflare-hub run d1:migrate:local/);
+  assert.match(readme, /npm run cloudflare-hub:deploy:preflight/);
   assert.match(readme, /npm --workspace @wikiwise\/cloudflare-hub run d1:migrate:remote/);
   assert.match(readme, /npm --workspace @wikiwise\/cloudflare-hub run deploy/);
   assert.match(readme, /REPLACE_WITH_D1_DATABASE_ID/);

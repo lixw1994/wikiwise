@@ -5,6 +5,7 @@ import test from "node:test";
 import { fileURLToPath } from "node:url";
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
+const repositoryRoot = path.resolve(packageRoot, "..", "..");
 
 function readPackage(relativePath) {
   return fs.readFileSync(path.join(packageRoot, relativePath), "utf8");
@@ -74,10 +75,13 @@ test("wrangler manifest keeps Hub secret values out of source control", () => {
 
 test("Hub package exposes Wrangler deployment and migration scripts", () => {
   const packageJson = readPackageJson("package.json");
+  const rootPackageJson = JSON.parse(fs.readFileSync(path.join(repositoryRoot, "package.json"), "utf8"));
 
   assert.equal(packageJson.scripts.test, "node --test test/*.test.js");
   assert.equal(packageJson.scripts.dev, "wrangler dev --config wrangler.toml");
+  assert.equal(packageJson.scripts["deploy:preflight"], "node scripts/deploy-preflight.js");
   assert.equal(packageJson.scripts.deploy, "wrangler deploy --config wrangler.toml");
+  assert.match(packageJson.devDependencies.wrangler, /^\^?\d+\.\d+\.\d+$/);
   assert.equal(
     packageJson.scripts["d1:migrate:local"],
     "wrangler d1 migrations apply wikiwise-hub --local --config wrangler.toml"
@@ -86,4 +90,20 @@ test("Hub package exposes Wrangler deployment and migration scripts", () => {
     packageJson.scripts["d1:migrate:remote"],
     "wrangler d1 migrations apply wikiwise-hub --remote --config wrangler.toml"
   );
+  assert.equal(
+    rootPackageJson.scripts["cloudflare-hub:deploy:preflight"],
+    "npm --workspace @wikiwise/cloudflare-hub run deploy:preflight"
+  );
+});
+
+test("Hub deployment preflight checks concrete Cloudflare deployment blockers", () => {
+  const source = readPackage("scripts/deploy-preflight.js");
+
+  assert.match(source, /REPLACE_WITH_D1_DATABASE_ID/);
+  assert.match(source, /wrangler d1 create wikiwise-hub/);
+  assert.match(source, /0003_user_profile_overrides\.sql/);
+  assert.match(source, /WIKIWISE_PUBLISH_TOKEN/);
+  assert.match(source, /WIKIWISE_SESSION_SECRET/);
+  assert.match(source, /WIKIWISE_ADMIN_EMAILS/);
+  assert.match(source, /wrangler.*--version/s);
 });
