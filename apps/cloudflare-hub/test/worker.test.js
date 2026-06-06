@@ -548,9 +548,12 @@ function oauthEnv(overrides = {}) {
 }
 
 function mockOAuthFetch(profile, options = {}) {
-  return async (request) => {
+  return async (request, init = {}) => {
     const url = typeof request === "string" ? request : request.url;
     if (url === "https://accounts.example/google/token") {
+      if (options.onTokenRequest) {
+        await options.onTokenRequest(request, init);
+      }
       if (options.tokenStatus && options.tokenStatus >= 400) {
         return new Response(options.tokenBody ?? "provider secret failure", {
           status: options.tokenStatus
@@ -1364,6 +1367,44 @@ test("OIDC start stores opaque state and validates return target", async () => {
   });
 });
 
+test("OIDC start uses fixed Hub auth origin while preserving wiki state", async () => {
+  const env = {
+    ...createEnv(),
+    ...oauthEnv({
+      WIKIWISE_AUTH_ORIGIN: "https://hub.wiki.flybullet.net"
+    })
+  };
+  await publish(env, {
+    slug: "notes",
+    settings: {
+      visibility: "public",
+      authRealm: "shared",
+      comments: {
+        policy: "login-required"
+      }
+    },
+    files: [{ path: "index.html", data: base64("<h1>Notes</h1>") }]
+  });
+
+  const response = await handleRequest(
+    new Request("https://notes.wiki.flybullet.net/_wikiwise/auth/google/start?returnTo=https%3A%2F%2Fnotes.wiki.flybullet.net%2Fdeep%2Fpage.html"),
+    env
+  );
+
+  assert.equal(response.status, 302);
+  const location = new URL(response.headers.get("Location"));
+  assert.equal(location.searchParams.get("redirect_uri"), "https://hub.wiki.flybullet.net/_wikiwise/auth/google/callback");
+  const state = location.searchParams.get("state");
+  assert.deepEqual(env.DB.oauthStates.get(state), {
+    id: state,
+    provider: "google",
+    wikiSlug: "notes",
+    returnTo: "https://notes.wiki.flybullet.net/deep/page.html",
+    expiresAt: env.DB.oauthStates.get(state).expiresAt,
+    createdAt: env.DB.oauthStates.get(state).createdAt
+  });
+});
+
 test("OAuth callback creates user, linked provider account, session cookie, and safe redirect", async () => {
   const env = {
     ...createEnv(),
@@ -1418,6 +1459,56 @@ test("OAuth callback creates user, linked provider account, session cookie, and 
     displayName: "Li Xianwei",
     avatarUrl: "https://cdn.example/avatar.png"
   });
+});
+
+test("OAuth callback uses fixed Hub auth origin for token exchange and shared wiki session", async () => {
+  const tokenRequests = [];
+  const env = {
+    ...createEnv(),
+    ...oauthEnv({
+      WIKIWISE_AUTH_ORIGIN: "https://hub.wiki.flybullet.net"
+    })
+  };
+  env.fetch = mockOAuthFetch({
+    sub: "google-user-fixed-origin",
+    name: "Fixed Origin User",
+    picture: "https://cdn.example/fixed-origin.png",
+    email: "fixed-origin@example.com"
+  }, {
+    async onTokenRequest(_request, init) {
+      tokenRequests.push(String(init.body));
+    }
+  });
+  await publish(env, {
+    slug: "notes",
+    settings: {
+      visibility: "public",
+      authRealm: "shared",
+      comments: { policy: "login-required" }
+    },
+    files: [{ path: "index.html", data: base64("<h1>Notes</h1>") }]
+  });
+  addOAuthState(env, {
+    id: "oauth_state_fixed_origin",
+    wikiSlug: "notes",
+    returnTo: "https://notes.wiki.flybullet.net/deep/page.html"
+  });
+
+  const response = await handleRequest(
+    new Request("https://hub.wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123&state=oauth_state_fixed_origin"),
+    env
+  );
+
+  assert.equal(response.status, 302);
+  assert.equal(response.headers.get("Location"), "https://notes.wiki.flybullet.net/deep/page.html");
+  assert.equal(new URLSearchParams(tokenRequests[0]).get("redirect_uri"), "https://hub.wiki.flybullet.net/_wikiwise/auth/google/callback");
+  assert.match(response.headers.get("Set-Cookie") ?? "", /Domain=\.wiki\.flybullet\.net/);
+
+  const profile = await handleRequest(new Request("https://notes.wiki.flybullet.net/_wikiwise/me", {
+    headers: { Cookie: sessionCookieFrom(response) }
+  }), env);
+  assert.equal(profile.status, 200);
+  assert.equal((await profile.json()).user.displayName, "Fixed Origin User");
 });
 
 test("OAuth callback rejects invalid, expired, mismatched, and reused state", async () => {

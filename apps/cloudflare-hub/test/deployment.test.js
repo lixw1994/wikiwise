@@ -38,6 +38,7 @@ test("wrangler manifest declares the Hub Worker deployment bindings", () => {
 
   const vars = findTomlBlock(manifest, /^\[vars\]$/m);
   assert.match(vars, /^WIKIWISE_PUBLIC_DOMAIN = "wiki\.flybullet\.net"$/m);
+  assert.match(vars, /^WIKIWISE_AUTH_ORIGIN = "https:\/\/hub\.wiki\.flybullet\.net"$/m);
 
   const d1 = findTomlBlock(manifest, /^\[\[d1_databases\]\]$/m);
   assert.match(d1, /^binding = "DB"$/m);

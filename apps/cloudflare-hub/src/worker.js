@@ -1066,7 +1066,7 @@ async function startOidcProvider(request, env, providerId) {
   const authUrl = new URL(provider.authorizationUrl);
   authUrl.searchParams.set("response_type", "code");
   authUrl.searchParams.set("client_id", provider.clientId);
-  authUrl.searchParams.set("redirect_uri", `${requestUrl.origin}/_wikiwise/auth/${provider.id}/callback`);
+  authUrl.searchParams.set("redirect_uri", oauthRedirectUri(requestUrl, env, provider.id));
   authUrl.searchParams.set("scope", "openid profile email");
   authUrl.searchParams.set("state", stateId);
 
@@ -1098,7 +1098,7 @@ async function completeOidcProvider(request, env, providerId) {
 
   let profile;
   try {
-    const redirectUri = `${requestUrl.origin}/_wikiwise/auth/${provider.id}/callback`;
+    const redirectUri = oauthRedirectUri(requestUrl, env, provider.id);
     const tokens = await exchangeAuthorizationCode(env, provider, code, redirectUri);
     profile = await fetchProviderProfile(env, provider, tokens);
   } catch (error) {
@@ -1211,6 +1211,24 @@ function safeReturnTo(requestUrl, returnTo) {
   }
 
   return `${requestUrl.origin}/`;
+}
+
+function oauthRedirectUri(requestUrl, env, providerId) {
+  return `${oauthCallbackOrigin(requestUrl, env)}/_wikiwise/auth/${encodeURIComponent(providerId)}/callback`;
+}
+
+function oauthCallbackOrigin(requestUrl, env) {
+  const configuredOrigin = String(env?.WIKIWISE_AUTH_ORIGIN ?? "").trim();
+  if (!configuredOrigin) {
+    return requestUrl.origin;
+  }
+
+  try {
+    const url = new URL(configuredOrigin);
+    return url.protocol === "https:" || url.protocol === "http:" ? url.origin : requestUrl.origin;
+  } catch {
+    return requestUrl.origin;
+  }
 }
 
 function validOAuthState(state, providerId) {

@@ -75,7 +75,7 @@ their access to another wiki.
 
 In the Wikiwise publish dialog, choose **Cloudflare Hub** and provide:
 
-- Hub endpoint, usually `https://wiki.flybullet.net`
+- Hub endpoint, usually `https://hub.wiki.flybullet.net`
 - publish token
 - wiki slug
 - visibility: `public` or `private`
@@ -101,8 +101,11 @@ Worker route, D1 binding, R2 binding, and public domain are all explicit.
 3. Create an R2 bucket named `wikiwise-files`. The Worker binding remains
    `WIKIWISE_FILES`.
 4. Keep or edit the Worker route `*.wiki.flybullet.net/*`, zone
-   `wiki.flybullet.net`, and `WIKIWISE_PUBLIC_DOMAIN=wiki.flybullet.net` in
-   `apps/cloudflare-hub/wrangler.toml` for your domain.
+   `wiki.flybullet.net`, `WIKIWISE_PUBLIC_DOMAIN=wiki.flybullet.net`, and
+   `WIKIWISE_AUTH_ORIGIN=https://hub.wiki.flybullet.net` in
+   `apps/cloudflare-hub/wrangler.toml` for your domain. The Hub endpoint is
+   the publishing API and fixed OAuth callback origin; published wikis still
+   serve from `https://<slug>.wiki.flybullet.net`.
 5. Add wildcard DNS for `*.wiki.flybullet.net` to the Worker-backed zone, then
    add a Worker route in the Cloudflare dashboard that maps
    `*.wiki.flybullet.net/*` in the `wiki.flybullet.net` zone to the
@@ -119,6 +122,10 @@ Worker route, D1 binding, R2 binding, and public domain are all explicit.
    `wrangler secret put FEISHU_CLIENT_SECRET`, and optionally
    `wrangler secret put LARK_CLIENT_ID` and
    `wrangler secret put LARK_CLIENT_SECRET`.
+   Register these OAuth callback URLs with the corresponding providers:
+   `https://hub.wiki.flybullet.net/_wikiwise/auth/google/callback`,
+   `https://hub.wiki.flybullet.net/_wikiwise/auth/feishu/callback`, and
+   `https://hub.wiki.flybullet.net/_wikiwise/auth/lark/callback`.
 7. If you override provider endpoints, configure `GOOGLE_TOKEN_URL`,
    `GOOGLE_USERINFO_URL`, `FEISHU_TOKEN_URL`, `FEISHU_USERINFO_URL`,
    `LARK_TOKEN_URL`, and `LARK_USERINFO_URL` as Cloudflare variables.
@@ -145,9 +152,10 @@ Worker route, D1 binding, R2 binding, and public domain are all explicit.
     ```
 
 After deployment, use the Wikiwise publish dialog with the Hub endpoint
-`https://wiki.flybullet.net`, the same publish token stored in
+`https://hub.wiki.flybullet.net`, the same publish token stored in
 `WIKIWISE_PUBLISH_TOKEN`, your wiki slug, visibility, auth realm, and comment
-policy.
+policy. If the slug is `notes`, the reader-facing URL is
+`https://notes.wiki.flybullet.net`.
 
 OAuth secrets, provider token responses, and session cookies stay in
 Cloudflare. They should never be written into a wiki folder, `publish.json`, or

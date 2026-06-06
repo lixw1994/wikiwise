@@ -8,6 +8,7 @@ routes = [
 
 [vars]
 WIKIWISE_PUBLIC_DOMAIN = "wiki.flybullet.net"
+WIKIWISE_AUTH_ORIGIN = "https://hub.wiki.flybullet.net"
 WIKIWISE_SESSION_DAYS = "30"
 
 [[d1_databases]]
