@@ -86,36 +86,65 @@ In the Wikiwise publish dialog, choose **Cloudflare Hub** and provide:
 It is gitignored by scaffolded wikis, but treat the publish token as a real
 secret and do not commit it.
 
-### Manual Cloudflare setup
+### Cloudflare setup with Wrangler
 
 Wikiwise does not create Cloudflare resources for you yet. Set up the Hub once,
-then publish any number of wikis to it from the desktop app.
+then publish any number of wikis to it from the desktop app. The Hub package
+ships with `apps/cloudflare-hub/wrangler.toml` so the Worker entrypoint,
+Worker route, D1 binding, R2 binding, and public domain are all explicit.
 
-1. Deploy `apps/cloudflare-hub/src/worker.js` as a Cloudflare Worker.
-2. Create a D1 database, bind it as `DB`, and apply all SQL files in
-   `apps/cloudflare-hub/migrations/` in filename order.
-3. Create an R2 bucket and bind it as `WIKIWISE_FILES`.
-4. Add a Worker route for `*.wiki.flybullet.net/*`.
+1. Install Wrangler and sign in to your Cloudflare account.
+2. Create a D1 database named `wikiwise-hub`, then replace
+   `REPLACE_WITH_D1_DATABASE_ID` in `apps/cloudflare-hub/wrangler.toml` with
+   that database id. The Worker binding remains `DB`, and migrations are read
+   from `apps/cloudflare-hub/migrations/`.
+3. Create an R2 bucket named `wikiwise-files`. The Worker binding remains
+   `WIKIWISE_FILES`.
+4. Keep or edit the Worker route `*.wiki.flybullet.net/*`, zone
+   `wiki.flybullet.net`, and `WIKIWISE_PUBLIC_DOMAIN=wiki.flybullet.net` in
+   `apps/cloudflare-hub/wrangler.toml` for your domain.
 5. Add wildcard DNS for `*.wiki.flybullet.net` to the Worker-backed zone.
-6. Set `WIKIWISE_PUBLIC_DOMAIN=wiki.flybullet.net`.
-7. Set `WIKIWISE_PUBLISH_TOKEN` as the token the desktop app will send.
-8. For OAuth, set provider credentials as Cloudflare secrets:
-   `GOOGLE_CLIENT_ID`, `GOOGLE_CLIENT_SECRET`, `FEISHU_CLIENT_ID`,
-   `FEISHU_CLIENT_SECRET`, and optionally `LARK_CLIENT_ID`,
-   `LARK_CLIENT_SECRET`.
-9. Set OAuth callback endpoints for any provider without built-in defaults:
-   `GOOGLE_TOKEN_URL`, `GOOGLE_USERINFO_URL`, `FEISHU_TOKEN_URL`,
-   `FEISHU_USERINFO_URL`, `LARK_TOKEN_URL`, and `LARK_USERINFO_URL`.
+6. From `apps/cloudflare-hub/`, set Cloudflare secrets for the Hub:
+   `wrangler secret put WIKIWISE_PUBLISH_TOKEN`,
+   `wrangler secret put WIKIWISE_SESSION_SECRET`,
+   `wrangler secret put GOOGLE_CLIENT_ID`,
+   `wrangler secret put GOOGLE_CLIENT_SECRET`,
+   `wrangler secret put FEISHU_CLIENT_ID`,
+   `wrangler secret put FEISHU_CLIENT_SECRET`, and optionally
+   `wrangler secret put LARK_CLIENT_ID` and
+   `wrangler secret put LARK_CLIENT_SECRET`.
+7. If you override provider endpoints, configure `GOOGLE_TOKEN_URL`,
+   `GOOGLE_USERINFO_URL`, `FEISHU_TOKEN_URL`, `FEISHU_USERINFO_URL`,
+   `LARK_TOKEN_URL`, and `LARK_USERINFO_URL` as Cloudflare variables.
    Google defaults to Google's standard token and userinfo endpoints when
    those two values are omitted.
-10. Set `WIKIWISE_ADMIN_EMAILS` to a comma-separated list of owner emails that
-    can bootstrap access to newly published private wikis. Set
-    `WIKIWISE_SESSION_DAYS` if you want a session lifetime other than the
-    default 30 days.
+8. Set `WIKIWISE_ADMIN_EMAILS` to a comma-separated list of owner emails that
+   can bootstrap access to newly published private wikis. Keep
+   `WIKIWISE_SESSION_DAYS` in `wrangler.toml`, or edit it if you want a session
+   lifetime other than the default 30 days.
+9. For local development, run:
+
+   ```
+   npm --workspace @wikiwise/cloudflare-hub run d1:migrate:local
+   npm --workspace @wikiwise/cloudflare-hub run dev
+   ```
+
+10. For production, apply migrations and deploy:
+
+    ```
+    npm --workspace @wikiwise/cloudflare-hub run d1:migrate:remote
+    npm --workspace @wikiwise/cloudflare-hub run deploy
+    ```
+
+After deployment, use the Wikiwise publish dialog with the Hub endpoint
+`https://wiki.flybullet.net`, the same publish token stored in
+`WIKIWISE_PUBLISH_TOKEN`, your wiki slug, visibility, auth realm, and comment
+policy.
 
 OAuth secrets, provider token responses, and session cookies stay in
 Cloudflare. They should never be written into a wiki folder, `publish.json`, or
-static output.
+static output. Do not commit real publish tokens, OAuth secrets, or generated
+session data.
 
 ## Architecture
 

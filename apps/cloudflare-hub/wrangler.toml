@@ -1,0 +1,21 @@
+name = "wikiwise-cloudflare-hub"
+main = "src/worker.js"
+compatibility_date = "2026-06-06"
+
+routes = [
+  { pattern = "*.wiki.flybullet.net/*", zone_name = "wiki.flybullet.net" }
+]
+
+[vars]
+WIKIWISE_PUBLIC_DOMAIN = "wiki.flybullet.net"
+WIKIWISE_SESSION_DAYS = "30"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "wikiwise-hub"
+database_id = "REPLACE_WITH_D1_DATABASE_ID"
+migrations_dir = "migrations"
+
+[[r2_buckets]]
+binding = "WIKIWISE_FILES"
+bucket_name = "wikiwise-files"
