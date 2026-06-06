@@ -13,7 +13,7 @@ WIKIWISE_SESSION_DAYS = "30"
 [[d1_databases]]
 binding = "DB"
 database_name = "wikiwise-hub"
-database_id = "REPLACE_WITH_D1_DATABASE_ID"
+database_id = "46ef8ffb-39aa-4d32-a4a8-e0551cd072a0"
 migrations_dir = "migrations"
 
 [[r2_buckets]]

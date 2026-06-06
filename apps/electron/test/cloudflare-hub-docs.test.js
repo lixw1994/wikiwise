@@ -34,6 +34,10 @@ test("README documents manual Cloudflare setup boundaries", () => {
   assert.match(readme, /D1/);
   assert.match(readme, /R2/);
   assert.match(readme, /wildcard DNS/);
+  assert.match(readme, /Cloudflare dashboard/);
+  assert.match(readme, /\*\.wiki\.flybullet\.net\/\*/);
+  assert.match(readme, /wikiwise-cloudflare-hub/);
+  assert.match(readme, /without syncing routes/);
   assert.match(readme, /wrangler secret put WIKIWISE_PUBLISH_TOKEN/);
   assert.match(readme, /WIKIWISE_SESSION_SECRET/);
   assert.match(readme, /PUBLISH_TOKEN/);

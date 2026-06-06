@@ -103,7 +103,13 @@ Worker route, D1 binding, R2 binding, and public domain are all explicit.
 4. Keep or edit the Worker route `*.wiki.flybullet.net/*`, zone
    `wiki.flybullet.net`, and `WIKIWISE_PUBLIC_DOMAIN=wiki.flybullet.net` in
    `apps/cloudflare-hub/wrangler.toml` for your domain.
-5. Add wildcard DNS for `*.wiki.flybullet.net` to the Worker-backed zone.
+5. Add wildcard DNS for `*.wiki.flybullet.net` to the Worker-backed zone, then
+   add a Worker route in the Cloudflare dashboard that maps
+   `*.wiki.flybullet.net/*` in the `wiki.flybullet.net` zone to the
+   `wikiwise-cloudflare-hub` Worker. The `routes` entry remains in
+   `wrangler.toml` as the documented target, but the package deployment script
+   deploys Worker code without syncing routes because Wrangler's account-level
+   route trigger API can fail on some accounts even when zone-level routes work.
 6. From `apps/cloudflare-hub/`, set Cloudflare secrets for the Hub:
    `wrangler secret put WIKIWISE_PUBLISH_TOKEN`,
    `wrangler secret put WIKIWISE_SESSION_SECRET`,
@@ -130,7 +136,7 @@ Worker route, D1 binding, R2 binding, and public domain are all explicit.
    ```
 
 10. For production, run the local deployment preflight, then apply migrations
-    and deploy:
+    and deploy Worker code:
 
     ```
     npm run cloudflare-hub:deploy:preflight

@@ -2,7 +2,7 @@ import assert from "node:assert/strict";
 import fs from "node:fs";
 import path from "node:path";
 import test from "node:test";
-import { fileURLToPath } from "node:url";
+import { fileURLToPath, pathToFileURL } from "node:url";
 
 const packageRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const repositoryRoot = path.resolve(packageRoot, "..", "..");
@@ -42,7 +42,7 @@ test("wrangler manifest declares the Hub Worker deployment bindings", () => {
   const d1 = findTomlBlock(manifest, /^\[\[d1_databases\]\]$/m);
   assert.match(d1, /^binding = "DB"$/m);
   assert.match(d1, /^database_name = "wikiwise-hub"$/m);
-  assert.match(d1, /^database_id = "REPLACE_WITH_D1_DATABASE_ID"$/m);
+  assert.match(d1, /^database_id = "(?:REPLACE_WITH_D1_DATABASE_ID|[0-9a-f-]{36})"$/m);
   assert.match(d1, /^migrations_dir = "migrations"$/m);
 
   const r2 = findTomlBlock(manifest, /^\[\[r2_buckets\]\]$/m);
@@ -80,7 +80,8 @@ test("Hub package exposes Wrangler deployment and migration scripts", () => {
   assert.equal(packageJson.scripts.test, "node --test test/*.test.js");
   assert.equal(packageJson.scripts.dev, "wrangler dev --config wrangler.toml");
   assert.equal(packageJson.scripts["deploy:preflight"], "node scripts/deploy-preflight.js");
-  assert.equal(packageJson.scripts.deploy, "wrangler deploy --config wrangler.toml");
+  assert.equal(packageJson.scripts.deploy, "node scripts/deploy-worker.js");
+  assert.equal(packageJson.scripts["deploy:wrangler"], "wrangler deploy --config wrangler.toml");
   assert.match(packageJson.devDependencies.wrangler, /^\^?\d+\.\d+\.\d+$/);
   assert.equal(
     packageJson.scripts["d1:migrate:local"],
@@ -106,4 +107,43 @@ test("Hub deployment preflight checks concrete Cloudflare deployment blockers", 
   assert.match(source, /WIKIWISE_SESSION_SECRET/);
   assert.match(source, /WIKIWISE_ADMIN_EMAILS/);
   assert.match(source, /wrangler.*--version/s);
+});
+
+test("Hub worker-only deploy script strips route triggers from the Wrangler deploy path", async () => {
+  const scriptUrl = pathToFileURL(path.join(packageRoot, "scripts/deploy-worker.js")).href;
+  const { createTempConfigPath, removeRouteConfig } = await import(scriptUrl);
+
+  const inlineRoutesConfig = `name = "wikiwise-cloudflare-hub"
+main = "src/worker.js"
+compatibility_date = "2026-06-06"
+
+routes = [
+  { pattern = "*.wiki.flybullet.net/*", zone_name = "wiki.flybullet.net" }
+]
+
+[vars]
+WIKIWISE_PUBLIC_DOMAIN = "wiki.flybullet.net"
+`;
+
+  const routeBlockConfig = `name = "wikiwise-cloudflare-hub"
+main = "src/worker.js"
+compatibility_date = "2026-06-06"
+
+[[routes]]
+pattern = "*.wiki.flybullet.net/*"
+zone_name = "wiki.flybullet.net"
+
+[[d1_databases]]
+binding = "DB"
+`;
+
+  for (const config of [inlineRoutesConfig, routeBlockConfig]) {
+    const output = removeRouteConfig(config);
+
+    assert.doesNotMatch(output, /^routes\s*=/m);
+    assert.doesNotMatch(output, /^\[\[routes\]\]$/m);
+    assert.match(output, /^workers_dev = false$/m);
+  }
+
+  assert.equal(createTempConfigPath(123), path.join(packageRoot, ".wrangler-worker-only-123.toml"));
 });
