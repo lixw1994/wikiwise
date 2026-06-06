@@ -454,3 +454,128 @@ Wikiwise SHALL document the self-hosted Cloudflare Hub deployment flow using the
 - **WHEN** an operator finishes deploying the Hub
 - **THEN** the documentation identifies the Hub endpoint, publish token, wiki slug, visibility, auth realm, and comment policy values needed by the Wikiwise publish dialog
 - **AND** it warns that publish tokens and OAuth secrets must not be committed to wiki project files
+
+### Requirement: Hub Membership Invitations
+
+The Cloudflare Hub SHALL let wiki owners create, list, and revoke invitation links that grant membership for the current wiki.
+
+#### Scenario: Owner creates an invitation
+
+- **WHEN** a signed-in owner requests an invitation for a wiki
+- **THEN** the Hub creates a pending invitation scoped to that wiki
+- **AND** the Hub returns a one-time invitation URL containing the raw invite token
+- **AND** the stored invitation record does not expose the raw invite token
+
+#### Scenario: Non-owner attempts to create an invitation
+
+- **WHEN** a signed-in non-owner or anonymous visitor requests an invitation
+- **THEN** the Hub rejects the request
+- **AND** no invitation is created
+
+#### Scenario: Owner lists invitations
+
+- **WHEN** a signed-in owner lists invitations for a wiki
+- **THEN** the Hub returns invitations scoped only to that wiki
+- **AND** raw tokens and token hashes are not included
+
+#### Scenario: Owner revokes an invitation
+
+- **WHEN** a signed-in owner revokes a pending invitation
+- **THEN** the Hub marks the invitation revoked
+- **AND** the invitation can no longer be accepted
+
+### Requirement: Hub Invitation Acceptance
+
+The Cloudflare Hub SHALL let signed-in visitors accept valid pending invitations and receive wiki membership.
+
+#### Scenario: Signed-out visitor opens an invitation
+
+- **WHEN** a signed-out visitor opens a valid invitation URL
+- **THEN** the Hub prompts the visitor to sign in
+- **AND** the sign-in actions return the visitor to the invitation URL
+- **AND** protected wiki content is not included in the response
+
+#### Scenario: Signed-in visitor accepts a valid invitation
+
+- **WHEN** a signed-in visitor accepts a valid pending invitation
+- **THEN** the Hub grants that user `member` membership for the invitation wiki
+- **AND** the Hub marks the invitation accepted
+- **AND** the visitor can read that private wiki after acceptance
+
+#### Scenario: Invalid invitation cannot be accepted
+
+- **WHEN** an invitation token is unknown, revoked, accepted, or expired
+- **THEN** the Hub rejects acceptance
+- **AND** no membership is granted
+
+#### Scenario: Invitation is scoped to one wiki
+
+- **WHEN** a visitor accepts an invitation for one wiki
+- **THEN** the granted membership applies only to that wiki
+- **AND** access to another private wiki is not implied
+
+### Requirement: Hub Owner Invitation Surface
+
+The Cloudflare Hub reader runtime SHALL expose a lightweight invitation control only to signed-in wiki owners.
+
+#### Scenario: Owner opens a wiki page
+
+- **WHEN** the reader runtime loads for a signed-in owner
+- **THEN** it provides an invitation action
+- **AND** created invitation links are displayed to the owner without exposing token hashes
+
+#### Scenario: Non-owner opens a wiki page
+
+- **WHEN** the reader runtime loads for an anonymous visitor, signed-in non-member, or signed-in non-owner member
+- **THEN** it does not show owner invitation controls
+
+### Requirement: Hub Member Management
+
+The Cloudflare Hub SHALL let wiki owners list and remove member access for the current wiki.
+
+#### Scenario: Owner lists wiki members
+
+- **WHEN** a signed-in owner requests members for a wiki
+- **THEN** the Hub returns memberships scoped only to that wiki
+- **AND** each listed member includes public profile fields and membership role metadata
+- **AND** provider tokens, provider subjects, emails, session ids, invitation token hashes, and invitation raw tokens are not included
+
+#### Scenario: Non-owner attempts to list wiki members
+
+- **WHEN** an anonymous visitor, signed-in non-member, or signed-in non-owner member requests members for a wiki
+- **THEN** the Hub rejects the request
+- **AND** member data is not returned
+
+#### Scenario: Owner removes a member
+
+- **WHEN** a signed-in owner removes a `member` user from a wiki
+- **THEN** the Hub removes that user's membership for the current wiki
+- **AND** the removed user can no longer read that private wiki
+- **AND** the removed user's access to other wikis is unchanged
+
+#### Scenario: Owner removal is not supported
+
+- **WHEN** a signed-in owner attempts to remove an `owner` membership
+- **THEN** the Hub rejects the request
+- **AND** the owner membership remains intact
+
+### Requirement: Hub Owner Member Surface
+
+The Cloudflare Hub reader runtime SHALL expose member management controls only to signed-in wiki owners.
+
+#### Scenario: Owner opens a wiki page
+
+- **WHEN** the reader runtime loads for a signed-in owner
+- **THEN** it provides a member management action
+- **AND** the owner can view current wiki members without leaving the wiki page
+
+#### Scenario: Owner removes a member from the runtime
+
+- **WHEN** an owner removes a listed `member` user through the reader runtime
+- **THEN** the runtime calls the owner-only member removal API
+- **AND** the member list refreshes to reflect the removal
+
+#### Scenario: Non-owner opens a wiki page
+
+- **WHEN** the reader runtime loads for an anonymous visitor, signed-in non-member, or signed-in non-owner member
+- **THEN** it does not show member management controls
