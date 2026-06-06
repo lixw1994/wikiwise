@@ -2,6 +2,8 @@ const defaultPublicDomain = "wiki.flybullet.net";
 const allowedVisibility = new Set(["public", "private"]);
 const allowedAuthRealm = new Set(["shared", "per-wiki"]);
 const allowedCommentPolicy = new Set(["disabled", "login-required", "members-only"]);
+const maxProfileDisplayNameLength = 80;
+const maxProfileAvatarUrlLength = 512;
 
 export default {
   fetch: handleRequest
@@ -55,10 +57,13 @@ export async function handleRequest(request, env) {
   }
 
   if (url.pathname === "/_wikiwise/me") {
-    if (request.method !== "GET") {
-      return textResponse("Method not allowed", 405);
+    if (request.method === "GET") {
+      return currentUser(request, env);
     }
-    return currentUser(request, env);
+    if (request.method === "PATCH") {
+      return updateCurrentUserProfile(request, env);
+    }
+    return textResponse("Method not allowed", 405);
   }
 
   if (url.pathname === "/_wikiwise/logout") {
@@ -258,29 +263,75 @@ async function serveWikiFile(request, env) {
 }
 
 async function currentUser(request, env) {
+  const context = await currentUserContext(request, env);
+  if (!context.ok) return context.response;
+
+  return jsonResponse(await currentUserPayload(env, context.wiki, context.session, context.membership));
+}
+
+async function updateCurrentUserProfile(request, env) {
+  const context = await currentUserContext(request, env);
+  if (!context.ok) return context.response;
+
+  let payload;
+  try {
+    payload = await request.json();
+  } catch {
+    return jsonResponse({ error: "invalid_json" }, 400);
+  }
+
+  const currentProfile = await userIdentityForWiki(env, context.wiki, context.session);
+  const profile = normalizeProfilePayload(payload, currentProfile);
+  if (!profile.ok) {
+    return jsonResponse({ error: "invalid_profile" }, 422);
+  }
+
+  const now = new Date().toISOString();
+  await upsertProfileOverride(env, {
+    identityId: identityIdForWiki(context.wiki, context.session.userId),
+    userId: context.session.userId,
+    wikiSlug: context.wiki.authRealm === "per-wiki" ? context.wiki.slug : null,
+    displayName: profile.displayName,
+    avatarUrl: profile.avatarUrl,
+    updatedAt: now
+  });
+
+  return jsonResponse(await currentUserPayload(env, context.wiki, context.session, context.membership));
+}
+
+async function currentUserContext(request, env) {
   const url = new URL(request.url);
   const slug = slugFromHost(env, url.hostname);
   if (!slug) {
-    return textResponse("Wiki not found", 404);
+    return { ok: false, response: textResponse("Wiki not found", 404) };
   }
 
   const wiki = await findWiki(env, slug);
   if (!wiki) {
-    return textResponse("Wiki not found", 404);
+    return { ok: false, response: textResponse("Wiki not found", 404) };
   }
 
   const session = await resolveSession(request, env);
   if (!session) {
-    return textResponse("Sign in required", 401);
+    return { ok: false, response: textResponse("Sign in required", 401) };
   }
 
   const membership = await findWikiMember(env, wiki.slug, session.userId);
   if (wiki.visibility !== "public" && !membership) {
-    return textResponse("Forbidden", 403);
+    return { ok: false, response: textResponse("Forbidden", 403) };
   }
 
-  const identity = userIdentityForWiki(wiki, session);
-  return jsonResponse({
+  return {
+    ok: true,
+    wiki,
+    session,
+    membership
+  };
+}
+
+async function currentUserPayload(env, wiki, session, membership) {
+  const identity = await userIdentityForWiki(env, wiki, session);
+  return {
     user: identity,
     wiki: {
       slug: wiki.slug,
@@ -294,7 +345,7 @@ async function currentUser(request, env) {
         role: membership.role
       }
       : null
-  });
+  };
 }
 
 async function listPageComments(request, env) {
@@ -316,7 +367,7 @@ async function listPageComments(request, env) {
 
   const comments = await findCommentsForPage(env, wiki.slug, pagePath);
   const visibleComments = readerVisibleComments(comments);
-  const authors = await authorProfilesForComments(env, visibleComments);
+  const authors = await authorProfilesForComments(env, wiki, visibleComments);
   const commentAccess = await describeCommentWriteAccess(request, env, wiki);
   return jsonResponse({
     comments: orderThreadedComments(visibleComments).map((comment) => serializeComment(comment, authors.get(comment.userId))),
@@ -363,7 +414,7 @@ async function createPageComment(request, env) {
   }
 
   const now = new Date().toISOString();
-  const identity = userIdentityForWiki(wiki, commentAccess.session);
+  const identity = await userIdentityForWiki(env, wiki, commentAccess.session);
   await ensureCommentIdentityUser(env, wiki, identity, now);
 
   const comment = {
@@ -404,7 +455,7 @@ async function listAdminPageComments(request, env) {
   }
 
   const comments = await findCommentsForPage(env, wiki.slug, pagePath);
-  const authors = await authorProfilesForComments(env, comments);
+  const authors = await authorProfilesForComments(env, wiki, comments);
   return jsonResponse({
     comments: orderThreadedComments(comments).map((comment) => serializeComment(comment, authors.get(comment.userId)))
   });
@@ -445,7 +496,7 @@ async function updateAdminCommentStatus(request, env, commentId) {
     status,
     updatedAt
   };
-  const author = publicAuthorProfile(await findUser(env, updated.userId), updated.userId);
+  const author = await publicProfileForIdentity(env, wiki, updated.userId);
   return jsonResponse({
     comment: serializeComment(updated, author)
   });
@@ -550,8 +601,17 @@ async function listWikiMembers(request, env) {
   }
 
   const members = await findMembersForWiki(env, wiki.slug);
+  const resolvedMembers = [];
+  for (const member of members) {
+    const publicProfile = await publicProfileForUser(env, wiki, member.userId, member);
+    resolvedMembers.push({
+      ...member,
+      displayName: publicProfile.displayName,
+      avatarUrl: publicProfile.avatarUrl
+    });
+  }
   return jsonResponse({
-    members: members.map((member) => serializeMember(member))
+    members: resolvedMembers.map((member) => serializeMember(member))
   });
 }
 
@@ -755,16 +815,102 @@ async function describeCommentWriteAccess(request, env, wiki) {
   return { ok: true, session, membership };
 }
 
-function userIdentityForWiki(wiki, session) {
-  const id = wiki.authRealm === "per-wiki"
-    ? `wiki:${wiki.slug}:${session.userId}`
-    : session.userId;
+function normalizeProfilePayload(payload, fallbackProfile = null) {
+  if (!payload || typeof payload !== "object" || Array.isArray(payload)) {
+    return { ok: false };
+  }
+
+  const keys = Object.keys(payload);
+  if (!keys.length || keys.some((key) => key !== "displayName" && key !== "avatarUrl")) {
+    return { ok: false };
+  }
+
+  let displayName = fallbackProfile?.displayName ?? "";
+  if ("displayName" in payload) {
+    if (typeof payload.displayName !== "string") return { ok: false };
+    displayName = payload.displayName.trim();
+  }
+  if (!displayName || displayName.length > maxProfileDisplayNameLength) {
+    return { ok: false };
+  }
+
+  let avatarUrl = fallbackProfile?.avatarUrl ?? null;
+  if ("avatarUrl" in payload) {
+    const normalizedAvatarUrl = normalizeProfileAvatarUrl(payload.avatarUrl);
+    if (normalizedAvatarUrl === false) return { ok: false };
+    avatarUrl = normalizedAvatarUrl;
+  }
 
   return {
-    id,
-    displayName: session.displayName,
-    avatarUrl: session.avatarUrl
+    ok: true,
+    displayName,
+    avatarUrl
   };
+}
+
+function normalizeProfileAvatarUrl(value) {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "string") return false;
+
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  if (trimmed.length > maxProfileAvatarUrlLength) return false;
+
+  let url;
+  try {
+    url = new URL(trimmed);
+  } catch {
+    return false;
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return false;
+  if (url.username || url.password) return false;
+
+  return url.toString();
+}
+
+async function userIdentityForWiki(env, wiki, session) {
+  return publicProfileForUser(env, wiki, session.userId, session);
+}
+
+function identityIdForWiki(wiki, userId) {
+  return wiki.authRealm === "per-wiki"
+    ? `wiki:${wiki.slug}:${userId}`
+    : userId;
+}
+
+function baseUserIdForIdentity(wiki, identityId) {
+  const prefix = `wiki:${wiki.slug}:`;
+  return wiki.authRealm === "per-wiki" && identityId.startsWith(prefix)
+    ? identityId.slice(prefix.length)
+    : identityId;
+}
+
+async function publicProfileForUser(env, wiki, userId, fallbackProfile = null) {
+  const identityId = identityIdForWiki(wiki, userId);
+  const override = await findProfileOverride(env, identityId);
+  const fallback = fallbackProfile?.displayName !== undefined
+    ? fallbackProfile
+    : await findUser(env, userId);
+
+  return publicAuthorProfile({
+    id: identityId,
+    displayName: override?.displayName ?? fallback?.displayName,
+    avatarUrl: override ? override.avatarUrl : fallback?.avatarUrl
+  }, identityId);
+}
+
+async function publicProfileForIdentity(env, wiki, identityId) {
+  const override = await findProfileOverride(env, identityId);
+  const baseUserId = baseUserIdForIdentity(wiki, identityId);
+  const baseUser = await findUser(env, baseUserId);
+  const identityUser = baseUserId === identityId ? baseUser : await findUser(env, identityId);
+  const fallback = baseUser ?? identityUser;
+
+  return publicAuthorProfile({
+    id: identityId,
+    displayName: override?.displayName ?? fallback?.displayName,
+    avatarUrl: override ? override.avatarUrl : fallback?.avatarUrl
+  }, identityId);
 }
 
 async function ensureCommentIdentityUser(env, wiki, identity, updatedAt) {
@@ -785,12 +931,11 @@ async function ensureCommentIdentityUser(env, wiki, identity, updatedAt) {
   ).run();
 }
 
-async function authorProfilesForComments(env, comments) {
+async function authorProfilesForComments(env, wiki, comments) {
   const authors = new Map();
   for (const comment of comments) {
     if (authors.has(comment.userId)) continue;
-    const user = await findUser(env, comment.userId);
-    authors.set(comment.userId, publicAuthorProfile(user, comment.userId));
+    authors.set(comment.userId, await publicProfileForIdentity(env, wiki, comment.userId));
   }
   return authors;
 }
@@ -1410,6 +1555,46 @@ async function findUser(env, id) {
     FROM users
     WHERE id = ?
   `).bind(id).first();
+}
+
+async function findProfileOverride(env, identityId) {
+  return env.DB.prepare(`
+    SELECT
+      identity_id AS identityId,
+      user_id AS userId,
+      wiki_slug AS wikiSlug,
+      display_name AS displayName,
+      avatar_url AS avatarUrl
+    FROM user_profile_overrides
+    WHERE identity_id = ?
+  `).bind(identityId).first();
+}
+
+async function upsertProfileOverride(env, profile) {
+  await env.DB.prepare(`
+    INSERT INTO user_profile_overrides (
+      identity_id,
+      user_id,
+      wiki_slug,
+      display_name,
+      avatar_url,
+      updated_at
+    )
+    VALUES (?, ?, ?, ?, ?, ?)
+    ON CONFLICT(identity_id) DO UPDATE SET
+      user_id = excluded.user_id,
+      wiki_slug = excluded.wiki_slug,
+      display_name = excluded.display_name,
+      avatar_url = excluded.avatar_url,
+      updated_at = excluded.updated_at
+  `).bind(
+    profile.identityId,
+    profile.userId,
+    profile.wikiSlug,
+    profile.displayName,
+    profile.avatarUrl,
+    profile.updatedAt
+  ).run();
 }
 
 async function upsertOAuthAccount(env, account) {
@@ -2269,6 +2454,24 @@ const readerClientStyles = `
   border-radius: 50%;
 }
 
+.wikiwise-hub-profile-control,
+.wikiwise-hub-profile-form {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.wikiwise-hub-profile-form input {
+  width: min(32vw, 220px);
+  min-width: 120px;
+  padding: 6px 8px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  color: #243044;
+  background: #fff;
+  font: inherit;
+}
+
 .wikiwise-hub-invitation-control {
   display: inline-flex;
   align-items: center;
@@ -2475,8 +2678,14 @@ const readerClientScript = `
     const profileResult = await fetchJson("/_wikiwise/me");
     const providers = providersResult.ok ? providersResult.data.providers || [] : [];
     const profile = profileResult.ok ? profileResult.data : null;
+    const readerState = {
+      accountRoot,
+      commentsRoot,
+      providers,
+      profile
+    };
 
-    renderAccountSurface(accountRoot, profile, providers);
+    renderAccountSurface(accountRoot, profile, providers, readerState);
     await renderCommentsSurface(commentsRoot, profile);
   }
 
@@ -2504,7 +2713,12 @@ const readerClientScript = `
     return root;
   }
 
-  function renderAccountSurface(root, profile, providers) {
+  function renderAccountSurface(root, profile, providers, state) {
+    const readerState = state || {};
+    readerState.accountRoot = root;
+    readerState.providers = providers;
+    readerState.profile = profile;
+
     root.replaceChildren();
     if (profile && profile.user) {
       const identity = document.createElement("span");
@@ -2531,6 +2745,7 @@ const readerClientScript = `
       });
 
       root.appendChild(identity);
+      root.appendChild(createProfileEditControl(profile, readerState));
       if (profile.membership && profile.membership.role === "owner") {
         root.appendChild(createOwnerInvitationControl());
         root.appendChild(createOwnerMembersControl());
@@ -2552,6 +2767,102 @@ const readerClientScript = `
       link.href = "/_wikiwise/auth/" + encodeURIComponent(provider.id) + "/start?returnTo=" + encodeURIComponent(window.location.href);
       link.textContent = "Sign in with " + provider.name;
       root.appendChild(link);
+    }
+  }
+
+  function createProfileEditControl(profile, state) {
+    const control = document.createElement("span");
+    control.className = "wikiwise-hub-profile-control";
+
+    const toggle = document.createElement("button");
+    toggle.type = "button";
+    toggle.textContent = "Edit profile";
+
+    const form = document.createElement("form");
+    form.className = "wikiwise-hub-profile-form";
+    form.hidden = true;
+
+    const displayName = document.createElement("input");
+    displayName.name = "displayName";
+    displayName.type = "text";
+    displayName.required = true;
+    displayName.maxLength = 80;
+    displayName.value = profile.user.displayName || "";
+    displayName.placeholder = "Display name";
+    displayName.setAttribute("aria-label", "Display name");
+
+    const avatarUrl = document.createElement("input");
+    avatarUrl.name = "avatarUrl";
+    avatarUrl.type = "url";
+    avatarUrl.maxLength = 512;
+    avatarUrl.value = profile.user.avatarUrl || "";
+    avatarUrl.placeholder = "Avatar URL";
+    avatarUrl.setAttribute("aria-label", "Avatar URL");
+
+    const save = document.createElement("button");
+    save.type = "submit";
+    save.textContent = "Save";
+
+    const status = document.createElement("span");
+    status.className = "wikiwise-hub-muted";
+
+    toggle.addEventListener("click", () => {
+      form.hidden = !form.hidden;
+      status.textContent = "";
+      if (!form.hidden) {
+        displayName.focus();
+        displayName.select();
+      }
+    });
+
+    form.addEventListener("submit", async (event) => {
+      event.preventDefault();
+      await saveProfile(profile, form, state, status, save);
+    });
+
+    form.append(displayName, avatarUrl, save);
+    control.append(toggle, form, status);
+    return control;
+  }
+
+  async function saveProfile(profile, form, state, status, button) {
+    const displayName = form.elements.displayName.value.trim();
+    const avatarUrl = form.elements.avatarUrl.value.trim();
+    const refreshMembers = Boolean(state.accountRoot && state.accountRoot.querySelector(".wikiwise-hub-members-panel:not([hidden])"));
+
+    button.disabled = true;
+    status.className = "wikiwise-hub-muted";
+    status.textContent = "";
+    const result = await fetchJson("/_wikiwise/me", {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        displayName,
+        avatarUrl: avatarUrl || null
+      })
+    });
+    button.disabled = false;
+
+    if (!result.ok) {
+      status.className = "wikiwise-hub-error";
+      status.textContent = result.error || "Unable to save profile.";
+      return;
+    }
+
+    const updatedProfile = result.data;
+    state.profile = updatedProfile;
+    renderAccountSurface(state.accountRoot, updatedProfile, state.providers || [], state);
+    if (state.commentsRoot) {
+      await renderCommentsSurface(state.commentsRoot, updatedProfile);
+    }
+    if (refreshMembers) {
+      const panel = state.accountRoot.querySelector(".wikiwise-hub-members-panel");
+      if (panel) {
+        panel.hidden = false;
+        await refreshOwnerMembers(panel);
+      }
     }
   }
 
@@ -2897,11 +3208,18 @@ const readerClientScript = `
       ...(options || {})
     });
     if (!response.ok) {
-      const error = await response.text().catch(() => "");
+      const errorText = await response.text().catch(() => "");
+      let error = errorText || response.statusText;
+      try {
+        const errorData = errorText ? JSON.parse(errorText) : null;
+        error = errorData && errorData.error ? errorData.error : error;
+      } catch {
+        // Keep the plain response text.
+      }
       return {
         ok: false,
         status: response.status,
-        error: error || response.statusText
+        error
       };
     }
     if (response.status === 204) {

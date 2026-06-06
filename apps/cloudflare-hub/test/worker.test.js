@@ -18,6 +18,7 @@ function createEnv() {
   const memberships = new Map();
   const comments = new Map();
   const invitations = new Map();
+  const profileOverrides = new Map();
   const oauthStates = new Map();
   const oauthAccounts = new Map();
   const revisions = [];
@@ -33,6 +34,7 @@ function createEnv() {
       memberships,
       comments,
       invitations,
+      profileOverrides,
       oauthStates,
       oauthAccounts,
       revisions,
@@ -116,6 +118,16 @@ function createEnv() {
                     acceptedByUserId,
                     acceptedAt,
                     createdAt,
+                    updatedAt
+                  });
+                } else if (/INSERT INTO user_profile_overrides/i.test(sql)) {
+                  const [identityId, userId, wikiSlug, displayName, avatarUrl, updatedAt] = values;
+                  profileOverrides.set(identityId, {
+                    identityId,
+                    userId,
+                    wikiSlug,
+                    displayName,
+                    avatarUrl,
                     updatedAt
                   });
                 } else if (/INSERT INTO page_revisions/i.test(sql)) {
@@ -225,6 +237,9 @@ function createEnv() {
                     displayName: user.displayName,
                     avatarUrl: user.avatarUrl ?? null
                   };
+                }
+                if (/FROM user_profile_overrides/i.test(sql)) {
+                  return profileOverrides.get(values[0]) ?? null;
                 }
                 if (/FROM wiki_members/i.test(sql)) {
                   return memberships.get(`${values[0]}:${values[1]}`) ?? null;
@@ -418,6 +433,20 @@ async function removeMember(env, slug, userId, sessionId) {
       headers: {
         ...(sessionId ? { Cookie: `wwh_session=${sessionId}` } : {})
       }
+    }),
+    env
+  );
+}
+
+async function patchProfile(env, slug, sessionId, body) {
+  return handleRequest(
+    new Request(`https://${slug}.wiki.flybullet.net/_wikiwise/me`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...(sessionId ? { Cookie: `wwh_session=${sessionId}` } : {})
+      },
+      body: JSON.stringify(body)
     }),
     env
   );
@@ -738,6 +767,11 @@ test("Hub reader runtime source includes account and comments behavior", async (
   assert.match(source, /\/_wikiwise\/admin\/invitations/);
   assert.match(source, /\/_wikiwise\/admin\/members/);
   assert.match(source, /\/_wikiwise\/admin\/comments/);
+  assert.match(source, /Edit profile/);
+  assert.match(source, /saveProfile/);
+  assert.match(source, /method: "PATCH"/);
+  assert.match(source, /displayName/);
+  assert.match(source, /avatarUrl/);
   assert.match(source, /hideComment/);
   assert.match(source, /restoreComment/);
   assert.match(source, /membership\.role === "owner"/);
@@ -898,6 +932,327 @@ test("per-wiki realm scopes visible profile and comment identity per wiki", asyn
   assert.equal(commentA.status, 201);
   assert.equal(commentB.status, 201);
   assert.notEqual((await commentA.json()).comment.userId, (await commentB.json()).comment.userId);
+});
+
+test("signed-in users can update public profile and read it from the current realm", async () => {
+  const env = createEnv();
+  await publish(env, {
+    slug: "profile-edit",
+    settings: {
+      visibility: "public",
+      authRealm: "shared",
+      comments: { policy: "login-required" }
+    },
+    files: [{ path: "index.html", data: base64("<h1>Profile Edit</h1>") }]
+  });
+  const sessionId = addUserSession(env, {
+    displayName: "Provider Name",
+    avatarUrl: "https://cdn.example/provider.png"
+  });
+
+  const updated = await patchProfile(env, "profile-edit", sessionId, {
+    displayName: "Edited Name",
+    avatarUrl: "https://cdn.example/edited.png"
+  });
+  assert.equal(updated.status, 200);
+  const updatedJson = await updated.json();
+  assert.deepEqual(updatedJson.user, {
+    id: "user-1",
+    displayName: "Edited Name",
+    avatarUrl: "https://cdn.example/edited.png"
+  });
+  assert.equal(updatedJson.identityScope, "shared");
+
+  const profile = await handleRequest(new Request("https://profile-edit.wiki.flybullet.net/_wikiwise/me", {
+    headers: { Cookie: `wwh_session=${sessionId}` }
+  }), env);
+  assert.equal(profile.status, 200);
+  assert.deepEqual((await profile.json()).user, updatedJson.user);
+});
+
+test("profile updates reject signed-out and invalid payloads without changing stored data", async () => {
+  const env = createEnv();
+  await publish(env, {
+    slug: "profile-validation",
+    settings: {
+      visibility: "public",
+      authRealm: "shared",
+      comments: { policy: "login-required" }
+    },
+    files: [{ path: "index.html", data: base64("<h1>Profile Validation</h1>") }]
+  });
+
+  const signedOut = await patchProfile(env, "profile-validation", null, {
+    displayName: "No Session",
+    avatarUrl: "https://cdn.example/no-session.png"
+  });
+  assert.equal(signedOut.status, 401);
+  assert.equal(env.DB.profileOverrides.size, 0);
+
+  const sessionId = addUserSession(env);
+  for (const invalidBody of [
+    { displayName: "   ", avatarUrl: "https://cdn.example/blank.png" },
+    { displayName: "x".repeat(81), avatarUrl: "https://cdn.example/long.png" },
+    { displayName: "Unsafe Avatar", avatarUrl: "javascript:alert(1)" },
+    { displayName: "Unsupported Field", avatarUrl: "https://cdn.example/avatar.png", email: "private@example.com" }
+  ]) {
+    const response = await patchProfile(env, "profile-validation", sessionId, invalidBody);
+    assert.equal(response.status, 422);
+    assert.deepEqual(await response.json(), { error: "invalid_profile" });
+  }
+  assert.equal(env.DB.profileOverrides.size, 0);
+});
+
+test("profile update responses do not expose private identity internals", async () => {
+  const env = createEnv();
+  await publish(env, {
+    slug: "profile-privacy",
+    settings: {
+      visibility: "public",
+      authRealm: "shared",
+      comments: { policy: "login-required" }
+    },
+    files: [{ path: "index.html", data: base64("<h1>Profile Privacy</h1>") }]
+  });
+  const sessionId = addUserSession(env);
+  env.DB.users.get("user-1").email = "reader@example.com";
+  env.DB.users.get("user-1").providerSubject = "provider-secret-subject";
+  env.DB.sessions.get(sessionId).providerAccessToken = "provider-access-token";
+  env.DB.oauthStates.set("oauth-state-secret", {
+    id: "oauth-state-secret",
+    provider: "google"
+  });
+  env.DB.invitations.set("invite-secret", {
+    id: "invite-secret",
+    wikiSlug: "profile-privacy",
+    tokenHash: "hashed-invite-token",
+    status: "pending"
+  });
+
+  const updated = await patchProfile(env, "profile-privacy", sessionId, {
+    displayName: "Privacy Safe",
+    avatarUrl: "https://cdn.example/privacy.png"
+  });
+  assert.equal(updated.status, 200);
+  const updatedSerialized = JSON.stringify(await updated.json());
+
+  const profile = await handleRequest(new Request("https://profile-privacy.wiki.flybullet.net/_wikiwise/me", {
+    headers: { Cookie: `wwh_session=${sessionId}` }
+  }), env);
+  assert.equal(profile.status, 200);
+  const readSerialized = JSON.stringify(await profile.json());
+
+  for (const serialized of [updatedSerialized, readSerialized]) {
+    assert.equal(serialized.includes("reader@example.com"), false);
+    assert.equal(serialized.includes("provider-secret-subject"), false);
+    assert.equal(serialized.includes("provider-access-token"), false);
+    assert.equal(serialized.includes("oauth-state-secret"), false);
+    assert.equal(serialized.includes(sessionId), false);
+    assert.equal(serialized.includes("hashed-invite-token"), false);
+    assert.equal(serialized.includes("tokenHash"), false);
+  }
+});
+
+test("shared realm profile updates apply across shared wikis comments and member lists", async () => {
+  const env = createEnv();
+  for (const slug of ["shared-profile-a", "shared-profile-b"]) {
+    await publish(env, {
+      slug,
+      settings: {
+        visibility: "public",
+        authRealm: "shared",
+        comments: { policy: "login-required" }
+      },
+      files: [{ path: "index.html", data: base64(`<h1>${slug}</h1>`) }]
+    });
+  }
+  const ownerSession = addOwnerSession(env, "shared-profile-a", {
+    sessionId: "session-owner",
+    userId: "user-owner",
+    displayName: "Owner"
+  });
+  env.DB.memberships.set("shared-profile-b:user-owner", {
+    wikiSlug: "shared-profile-b",
+    userId: "user-owner",
+    role: "owner"
+  });
+  const readerSession = addUserSession(env, {
+    sessionId: "session-reader",
+    userId: "user-reader",
+    displayName: "Provider Reader",
+    avatarUrl: "https://cdn.example/provider-reader.png",
+    memberOf: ["shared-profile-a", "shared-profile-b"]
+  });
+
+  const update = await patchProfile(env, "shared-profile-a", readerSession, {
+    displayName: "Shared Reader",
+    avatarUrl: "https://cdn.example/shared-reader.png"
+  });
+  assert.equal(update.status, 200);
+
+  const sharedBProfile = await handleRequest(new Request("https://shared-profile-b.wiki.flybullet.net/_wikiwise/me", {
+    headers: { Cookie: `wwh_session=${readerSession}` }
+  }), env);
+  assert.deepEqual((await sharedBProfile.json()).user, {
+    id: "user-reader",
+    displayName: "Shared Reader",
+    avatarUrl: "https://cdn.example/shared-reader.png"
+  });
+
+  const comment = await postComment(env, "shared-profile-b", {
+    pagePath: "index.html",
+    body: "Shared profile comment"
+  }, readerSession);
+  assert.equal(comment.status, 201);
+  assert.deepEqual((await comment.json()).comment.author, {
+    id: "user-reader",
+    displayName: "Shared Reader",
+    avatarUrl: "https://cdn.example/shared-reader.png"
+  });
+
+  const members = await listMembers(env, "shared-profile-a", ownerSession);
+  assert.equal(members.status, 200);
+  const reader = (await members.json()).members.find((member) => member.user.id === "user-reader");
+  assert.deepEqual(reader.user, {
+    id: "user-reader",
+    displayName: "Shared Reader",
+    avatarUrl: "https://cdn.example/shared-reader.png"
+  });
+});
+
+test("per-wiki profile updates are scoped away from other per-wiki and shared identities", async () => {
+  const env = createEnv();
+  for (const [slug, authRealm] of [
+    ["wiki-profile-a", "per-wiki"],
+    ["wiki-profile-b", "per-wiki"],
+    ["shared-profile", "shared"]
+  ]) {
+    await publish(env, {
+      slug,
+      settings: {
+        visibility: "public",
+        authRealm,
+        comments: { policy: "login-required" }
+      },
+      files: [{ path: "index.html", data: base64(`<h1>${slug}</h1>`) }]
+    });
+  }
+  const sessionId = addUserSession(env, {
+    displayName: "Provider Identity",
+    avatarUrl: "https://cdn.example/provider-identity.png"
+  });
+
+  const update = await patchProfile(env, "wiki-profile-a", sessionId, {
+    displayName: "Wiki A Identity",
+    avatarUrl: "https://cdn.example/wiki-a.png"
+  });
+  assert.equal(update.status, 200);
+
+  const profileA = await handleRequest(new Request("https://wiki-profile-a.wiki.flybullet.net/_wikiwise/me", {
+    headers: { Cookie: `wwh_session=${sessionId}` }
+  }), env);
+  const profileB = await handleRequest(new Request("https://wiki-profile-b.wiki.flybullet.net/_wikiwise/me", {
+    headers: { Cookie: `wwh_session=${sessionId}` }
+  }), env);
+  const sharedProfile = await handleRequest(new Request("https://shared-profile.wiki.flybullet.net/_wikiwise/me", {
+    headers: { Cookie: `wwh_session=${sessionId}` }
+  }), env);
+
+  assert.deepEqual((await profileA.json()).user, {
+    id: "wiki:wiki-profile-a:user-1",
+    displayName: "Wiki A Identity",
+    avatarUrl: "https://cdn.example/wiki-a.png"
+  });
+  assert.deepEqual((await profileB.json()).user, {
+    id: "wiki:wiki-profile-b:user-1",
+    displayName: "Provider Identity",
+    avatarUrl: "https://cdn.example/provider-identity.png"
+  });
+  assert.deepEqual((await sharedProfile.json()).user, {
+    id: "user-1",
+    displayName: "Provider Identity",
+    avatarUrl: "https://cdn.example/provider-identity.png"
+  });
+
+  await postComment(env, "wiki-profile-a", {
+    pagePath: "index.html",
+    body: "A"
+  }, sessionId);
+  await postComment(env, "wiki-profile-b", {
+    pagePath: "index.html",
+    body: "B"
+  }, sessionId);
+
+  const authorA = (await (await listComments(env, "wiki-profile-a")).json()).comments[0].author;
+  const authorB = (await (await listComments(env, "wiki-profile-b")).json()).comments[0].author;
+  assert.equal(authorA.displayName, "Wiki A Identity");
+  assert.equal(authorA.avatarUrl, "https://cdn.example/wiki-a.png");
+  assert.equal(authorB.displayName, "Provider Identity");
+  assert.equal(authorB.avatarUrl, "https://cdn.example/provider-identity.png");
+});
+
+test("OAuth profile refresh does not overwrite user-edited public profile settings", async () => {
+  const env = {
+    ...createEnv(),
+    ...oauthEnv()
+  };
+  await publish(env, {
+    slug: "oauth-profile-refresh",
+    settings: {
+      visibility: "public",
+      authRealm: "shared",
+      comments: { policy: "login-required" }
+    },
+    files: [{ path: "index.html", data: base64("<h1>OAuth Refresh</h1>") }]
+  });
+
+  env.fetch = mockOAuthFetch({
+    sub: "google-user-1",
+    name: "Provider Original",
+    picture: "https://cdn.example/original.png",
+    email: "reader@example.com"
+  });
+  addOAuthState(env, {
+    id: "oauth_state_first",
+    wikiSlug: "oauth-profile-refresh"
+  });
+  const firstLogin = await handleRequest(
+    new Request("https://oauth-profile-refresh.wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-1&state=oauth_state_first"),
+    env
+  );
+  assert.equal(firstLogin.status, 302);
+  const firstCookie = sessionCookieFrom(firstLogin).replace("wwh_session=", "");
+
+  const edited = await patchProfile(env, "oauth-profile-refresh", firstCookie, {
+    displayName: "Reader Edited",
+    avatarUrl: "https://cdn.example/edited.png"
+  });
+  assert.equal(edited.status, 200);
+
+  env.fetch = mockOAuthFetch({
+    sub: "google-user-1",
+    name: "Provider Changed",
+    picture: "https://cdn.example/changed.png",
+    email: "reader@example.com"
+  });
+  addOAuthState(env, {
+    id: "oauth_state_second",
+    wikiSlug: "oauth-profile-refresh"
+  });
+  const secondLogin = await handleRequest(
+    new Request("https://oauth-profile-refresh.wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-2&state=oauth_state_second"),
+    env
+  );
+  assert.equal(secondLogin.status, 302);
+
+  const profile = await handleRequest(new Request("https://oauth-profile-refresh.wiki.flybullet.net/_wikiwise/me", {
+    headers: { Cookie: sessionCookieFrom(secondLogin) }
+  }), env);
+  assert.deepEqual((await profile.json()).user, {
+    id: [...env.DB.users.keys()][0],
+    displayName: "Reader Edited",
+    avatarUrl: "https://cdn.example/edited.png"
+  });
 });
 
 test("OIDC provider boundaries expose configured providers without leaking secrets", async () => {
@@ -2272,6 +2627,7 @@ test("migrations create Hub wiki, auth, membership, invitation, comment, and rev
     "sessions",
     "wiki_members",
     "wiki_invitations",
+    "user_profile_overrides",
     "comments",
     "page_revisions"
   ]) {
@@ -2279,4 +2635,6 @@ test("migrations create Hub wiki, auth, membership, invitation, comment, and rev
   }
   assert.match(migration, /idx_wiki_invitations_wiki_slug/);
   assert.match(migration, /idx_wiki_invitations_token_hash/);
+  assert.match(migration, /idx_user_profile_overrides_user_id/);
+  assert.match(migration, /idx_user_profile_overrides_wiki_slug/);
 });
