@@ -21,6 +21,13 @@ export async function handleRequest(request, env) {
     return publishWiki(request, env);
   }
 
+  if (url.pathname === "/_wikiwise/publish/check") {
+    if (request.method !== "GET") {
+      return textResponse("Method not allowed", 405);
+    }
+    return checkPublishSlug(request, env);
+  }
+
   if (url.pathname === "/_wikiwise/client.js") {
     if (request.method !== "GET" && request.method !== "HEAD") {
       return textResponse("Method not allowed", 405);
@@ -217,6 +224,27 @@ async function publishWiki(request, env) {
     url: publicWikiUrl(env, slug),
     fileCount: payload.files.length
   });
+}
+
+async function checkPublishSlug(request, env) {
+  const url = new URL(request.url);
+  const slug = url.searchParams.get("slug") ?? "";
+  if (!isValidWikiSlug(slug)) {
+    return jsonResponse({ reason: "invalid" });
+  }
+
+  const wiki = await findWiki(env, slug);
+  if (!wiki) {
+    return jsonResponse({ reason: "free" });
+  }
+
+  const auth = request.headers.get("Authorization") ?? "";
+  const expectedToken = env?.WIKIWISE_PUBLISH_TOKEN;
+  if (expectedToken && auth === `Bearer ${expectedToken}`) {
+    return jsonResponse({ reason: "owned" });
+  }
+
+  return jsonResponse({ reason: "taken" });
 }
 
 async function serveWikiFile(request, env) {
@@ -1009,7 +1037,7 @@ async function deleteWikiMember(env, slug, userId) {
 }
 
 function validatePublishPayload(payload) {
-  if (!/^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(payload?.slug ?? "")) {
+  if (!isValidWikiSlug(payload?.slug ?? "")) {
     return { ok: false, error: "invalid_slug" };
   }
   if (
@@ -1030,6 +1058,13 @@ function validatePublishPayload(payload) {
   }
 
   return { ok: true };
+}
+
+function isValidWikiSlug(slug) {
+  return (
+    /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/.test(slug) &&
+    !reservedWikiSlugs.has(slug)
+  );
 }
 
 function listOidcProviders(env) {

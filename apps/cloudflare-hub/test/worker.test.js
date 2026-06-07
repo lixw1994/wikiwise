@@ -596,6 +596,12 @@ async function publish(env, body, headers = { Authorization: "Bearer secret" }) 
   );
 }
 
+async function checkPublishSlug(env, slug, headers = {}) {
+  const url = new URL("https://hub-wiki.flybullet.net/_wikiwise/publish/check");
+  url.searchParams.set("slug", slug);
+  return handleRequest(new Request(url, { headers }), env);
+}
+
 test("publish endpoint stores valid publish and serves public wiki root", async () => {
   const env = createEnv();
   const response = await publish(env, {
@@ -637,6 +643,38 @@ test("publish endpoint stores valid publish and serves public wiki root", async 
   const servedHtml = await served.text();
   assert.match(servedHtml, /<h1>Home<\/h1>/);
   assert.match(servedHtml, /\/_wikiwise\/client\.js/);
+});
+
+test("publish check endpoint reports invalid free taken and owned WikiHub slugs", async () => {
+  const env = createEnv();
+
+  const invalid = await checkPublishSlug(env, "hub");
+  assert.equal(invalid.status, 200);
+  assert.deepEqual(await invalid.json(), { reason: "invalid" });
+
+  const free = await checkPublishSlug(env, "notes");
+  assert.equal(free.status, 200);
+  assert.deepEqual(await free.json(), { reason: "free" });
+
+  await publish(env, {
+    slug: "notes",
+    settings: {
+      visibility: "public",
+      authRealm: "shared",
+      comments: {
+        policy: "login-required"
+      }
+    },
+    files: [{ path: "index.html", data: base64("<h1>Home</h1>") }]
+  });
+
+  const taken = await checkPublishSlug(env, "notes");
+  assert.equal(taken.status, 200);
+  assert.deepEqual(await taken.json(), { reason: "taken" });
+
+  const owned = await checkPublishSlug(env, "notes", { Authorization: "Bearer secret" });
+  assert.equal(owned.status, 200);
+  assert.deepEqual(await owned.json(), { reason: "owned" });
 });
 
 test("Hub control hostname is not treated as a published wiki slug", async () => {

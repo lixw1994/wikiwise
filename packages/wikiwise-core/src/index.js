@@ -199,6 +199,48 @@ function cloudflareHubPublishEndpoint(endpoint) {
   return new URL("_wikiwise/publish", `${normalizeCloudflareHubEndpoint(endpoint)}/`).toString();
 }
 
+function cloudflareHubPublishCheckEndpoint(endpoint, slug) {
+  const url = new URL("_wikiwise/publish/check", `${normalizeCloudflareHubEndpoint(endpoint)}/`);
+  url.searchParams.set("slug", String(slug));
+  return url.toString();
+}
+
+function cloudflareHubNetworkError(endpoint, error) {
+  const cause = error?.cause ?? error;
+  const code = typeof cause?.code === "string" ? cause.code : "";
+  const hostname = typeof cause?.hostname === "string" ? cause.hostname : new URL(endpoint).hostname;
+  let detail;
+
+  switch (code) {
+  case "ENOTFOUND":
+  case "EAI_AGAIN":
+    detail = `DNS lookup failed for ${hostname}`;
+    break;
+  case "ECONNREFUSED":
+    detail = `connection refused by ${hostname}`;
+    break;
+  case "ETIMEDOUT":
+  case "UND_ERR_CONNECT_TIMEOUT":
+    detail = `connection timed out for ${hostname}`;
+    break;
+  case "CERT_HAS_EXPIRED":
+  case "DEPTH_ZERO_SELF_SIGNED_CERT":
+  case "UNABLE_TO_VERIFY_LEAF_SIGNATURE":
+    detail = `TLS certificate verification failed for ${hostname}`;
+    break;
+  default:
+    detail = cause?.message || error?.message || "network request failed";
+    break;
+  }
+
+  return publishError(
+    "network_error",
+    `Cannot reach Cloudflare Hub endpoint ${endpoint}: ${detail}. Check the Hub endpoint, Cloudflare DNS, or local network.`,
+    undefined,
+    cause
+  );
+}
+
 function cloudflareHubWikiUrl(endpoint, slug) {
   const url = new URL(endpoint);
   const port = url.port ? `:${url.port}` : "";
@@ -235,6 +277,39 @@ export async function checkPublishAvailability(subdomain, options = {}) {
 
   try {
     const response = await requestFetch(url, { headers });
+    if (response.status !== 200) return "unknown";
+
+    const json = await response.json();
+    switch (json?.reason) {
+    case "free":
+      return "available";
+    case "owned":
+      return "owned";
+    case "taken":
+      return "taken";
+    case "invalid":
+      return "invalid";
+    default:
+      return "unknown";
+    }
+  } catch {
+    return "unknown";
+  }
+}
+
+export async function checkCloudflareHubPublishAvailability(slug, options = {}) {
+  if (!options.hubEndpoint) {
+    throw new Error("checkCloudflareHubPublishAvailability requires a Hub endpoint");
+  }
+
+  const requestFetch = resolveFetch(options.fetch);
+  const headers = {};
+  if (options.publishToken) {
+    headers.Authorization = `Bearer ${options.publishToken}`;
+  }
+
+  try {
+    const response = await requestFetch(cloudflareHubPublishCheckEndpoint(options.hubEndpoint, slug), { headers });
     if (response.status !== 200) return "unknown";
 
     const json = await response.json();
@@ -324,6 +399,28 @@ export function prepareCloudflareHubPublishPayload(options = {}) {
   };
 }
 
+export function saveCloudflareHubPublishDraft(options = {}) {
+  if (!options.projectRoot || !options.hubEndpoint || !options.slug || !options.settings) {
+    throw new Error("saveCloudflareHubPublishDraft requires projectRoot, hubEndpoint, slug, and settings");
+  }
+
+  const hubEndpoint = normalizeCloudflareHubEndpoint(options.hubEndpoint);
+  const slug = String(options.slug);
+  const config = {
+    target: "cloudflare-hub",
+    hub: {
+      endpoint: hubEndpoint,
+      publishToken: String(options.publishToken ?? ""),
+      slug,
+      url: cloudflareHubWikiUrl(hubEndpoint, slug),
+      ...normalizeCloudflareHubSettings(options.settings)
+    }
+  };
+  const sorted = sortPublishConfig(config);
+  writeTextFile(path.join(path.resolve(options.projectRoot), "publish.json"), `${JSON.stringify(sorted, null, 2)}\n`);
+  return sorted;
+}
+
 export async function publishCloudflareHubSite(options = {}) {
   if (
     !options.projectRoot ||
@@ -350,14 +447,21 @@ export async function publishCloudflareHubSite(options = {}) {
     settings: options.settings
   });
 
-  const response = await requestFetch(cloudflareHubPublishEndpoint(hubEndpoint), {
-    method: "PUT",
-    headers: {
-      Authorization: `Bearer ${publishToken}`,
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(payload)
-  });
+  const publishEndpoint = cloudflareHubPublishEndpoint(hubEndpoint);
+  let response;
+
+  try {
+    response = await requestFetch(publishEndpoint, {
+      method: "PUT",
+      headers: {
+        Authorization: `Bearer ${publishToken}`,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(payload)
+    });
+  } catch (error) {
+    throw cloudflareHubNetworkError(publishEndpoint, error);
+  }
 
   switch (response.status) {
   case 200: {
@@ -970,8 +1074,8 @@ function resolveFetch(fetchOption) {
   return requestFetch;
 }
 
-function publishError(code, message, status) {
-  const error = new Error(message);
+function publishError(code, message, status, cause) {
+  const error = cause ? new Error(message, { cause }) : new Error(message);
   error.code = code;
   if (status) error.status = status;
   return error;
@@ -1103,9 +1207,8 @@ async function responseJson(response) {
 
 function sortPublishConfig(config) {
   if (config.target === "cloudflare-hub") {
-    return {
+    const sorted = {
       target: "cloudflare-hub",
-      lastPublishedAt: config.lastPublishedAt,
       hub: {
         endpoint: config.hub.endpoint,
         publishToken: config.hub.publishToken,
@@ -1118,6 +1221,10 @@ function sortPublishConfig(config) {
         }
       }
     };
+    if (config.lastPublishedAt) {
+      sorted.lastPublishedAt = config.lastPublishedAt;
+    }
+    return sorted;
   }
 
   const sorted = {

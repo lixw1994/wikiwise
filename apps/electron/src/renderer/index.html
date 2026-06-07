@@ -90,70 +90,69 @@
 
       <section id="publish-dialog" class="modal-backdrop" hidden>
         <div class="modal-panel publish-dialog" role="dialog" aria-modal="true" aria-labelledby="publish-title">
-          <h2 id="publish-title">Publish your wiki</h2>
-          <div class="publish-target-switch" role="group" aria-label="Publish target">
-            <button id="publish-target-official" class="publish-target-option" type="button">Wikiwise</button>
-            <button id="publish-target-cloudflare-hub" class="publish-target-option" type="button">Cloudflare Hub</button>
-          </div>
-          <div id="publish-official-fields" class="publish-target-fields">
-            <p class="summary compact-summary publish-url-intro">Your wiki will be available at:</p>
-            <div class="publish-url-row">
-              <span class="publish-url-affix">https://</span>
-              <input
-                id="publish-subdomain"
-                class="text-input publish-subdomain"
-                type="text"
-                autocomplete="off"
-                spellcheck="false"
-              />
-              <span class="publish-url-affix">.wiki-wise.com</span>
-              <span
-                id="publish-availability-indicator"
-                class="publish-availability-indicator"
-                data-state="unknown"
-                aria-hidden="true"
-              ></span>
-            </div>
-            <p id="publish-availability" class="publish-availability" data-state="unknown"></p>
-          </div>
-          <div id="publish-hub-fields" class="publish-target-fields publish-hub-fields" hidden>
-            <label class="publish-field">
-              <span>Hub endpoint</span>
-              <input id="publish-hub-endpoint" class="text-input" type="url" autocomplete="off" spellcheck="false" />
-            </label>
-            <label class="publish-field">
-              <span>Publish token</span>
-              <input id="publish-hub-token" class="text-input" type="password" autocomplete="off" spellcheck="false" />
-            </label>
-            <label class="publish-field">
-              <span>Wiki slug</span>
-              <input id="publish-hub-slug" class="text-input" type="text" autocomplete="off" spellcheck="false" />
-            </label>
-            <p id="publish-hub-url-preview" class="publish-hub-url-preview"></p>
-            <div class="publish-hub-grid">
+          <h2 id="publish-title">Publish to WikiHub</h2>
+          <div id="publish-hub-fields" class="publish-hub-fields">
+            <section class="publish-section">
+              <h3 class="publish-section-title">Connection</h3>
               <label class="publish-field">
-                <span>Visibility</span>
-                <select id="publish-hub-visibility" class="text-input">
-                  <option value="public">Public</option>
-                  <option value="private">Private</option>
-                </select>
+                <span>WikiHub endpoint</span>
+                <input id="publish-hub-endpoint" class="text-input" type="url" autocomplete="off" spellcheck="false" />
               </label>
               <label class="publish-field">
-                <span>Auth realm</span>
-                <select id="publish-hub-auth-realm" class="text-input">
-                  <option value="shared">Shared</option>
-                  <option value="per-wiki">Per-wiki</option>
+                <span>Publish token</span>
+                <input id="publish-hub-token" class="text-input" type="password" autocomplete="off" spellcheck="false" />
+              </label>
+            </section>
+            <section class="publish-section">
+              <h3 class="publish-section-title">Site</h3>
+              <label class="publish-field">
+                <span>Wiki slug</span>
+                <span class="publish-hub-slug-row">
+                  <input
+                    id="publish-hub-slug"
+                    class="text-input publish-hub-slug"
+                    type="text"
+                    autocomplete="off"
+                    spellcheck="false"
+                  />
+                  <span
+                    id="publish-availability-indicator"
+                    class="publish-availability-indicator"
+                    data-state="unknown"
+                    aria-hidden="true"
+                  ></span>
+                </span>
+              </label>
+              <p id="publish-availability" class="publish-availability" data-state="unknown"></p>
+              <p id="publish-hub-url-preview" class="publish-hub-url-preview"></p>
+            </section>
+            <section class="publish-section">
+              <h3 class="publish-section-title">Access</h3>
+              <div class="publish-hub-grid">
+                <label class="publish-field">
+                  <span>Visibility</span>
+                  <select id="publish-hub-visibility" class="text-input">
+                    <option value="public">Public</option>
+                    <option value="private">Private</option>
+                  </select>
+                </label>
+                <label class="publish-field">
+                  <span>Auth realm</span>
+                  <select id="publish-hub-auth-realm" class="text-input">
+                    <option value="shared">Shared</option>
+                    <option value="per-wiki">Per-wiki</option>
+                  </select>
+                </label>
+              </div>
+              <label class="publish-field">
+                <span>Comments</span>
+                <select id="publish-hub-comment-policy" class="text-input">
+                  <option value="disabled">Disabled</option>
+                  <option value="login-required">Login required</option>
+                  <option value="members-only">Members only</option>
                 </select>
               </label>
-            </div>
-            <label class="publish-field">
-              <span>Comments</span>
-              <select id="publish-hub-comment-policy" class="text-input">
-                <option value="disabled">Disabled</option>
-                <option value="login-required">Login required</option>
-                <option value="members-only">Members only</option>
-              </select>
-            </label>
+            </section>
           </div>
           <p class="summary compact-summary publish-token-warning">
             A publish.json file will be saved in your project — it contains your publish token.

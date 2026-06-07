@@ -213,6 +213,58 @@ test("checkPublishAvailability maps service reasons and sends bearer token", asy
   assert.equal(calls[0].init.headers.Authorization, "Bearer ww_token");
 });
 
+test("checkCloudflareHubPublishAvailability maps WikiHub reasons and sends bearer token", async () => {
+  const calls = [];
+  const fetch = async (url, init) => {
+    calls.push({ url: String(url), init });
+    return response(200, { reason: "owned" });
+  };
+
+  const result = await core.checkCloudflareHubPublishAvailability("notes", {
+    hubEndpoint: "https://hub-wiki.flybullet.net/",
+    publishToken: "wwh_token",
+    fetch
+  });
+
+  assert.equal(result, "owned");
+  assert.equal(calls[0].url, "https://hub-wiki.flybullet.net/_wikiwise/publish/check?slug=notes");
+  assert.equal(calls[0].init.headers.Authorization, "Bearer wwh_token");
+});
+
+test("saveCloudflareHubPublishDraft caches WikiHub token and draft settings", () => {
+  const projectRoot = tempRoot("wikiwise-cloudflare-draft-");
+
+  const draft = core.saveCloudflareHubPublishDraft({
+    projectRoot,
+    hubEndpoint: "https://hub-wiki.flybullet.net/",
+    publishToken: "wwh_cached",
+    slug: "notes",
+    settings: {
+      visibility: "private",
+      authRealm: "shared",
+      comments: {
+        policy: "members-only"
+      }
+    }
+  });
+
+  assert.deepEqual(draft, {
+    target: "cloudflare-hub",
+    hub: {
+      endpoint: "https://hub-wiki.flybullet.net",
+      publishToken: "wwh_cached",
+      slug: "notes",
+      url: "https://notes-wiki.flybullet.net",
+      visibility: "private",
+      authRealm: "shared",
+      comments: {
+        policy: "members-only"
+      }
+    }
+  });
+  assert.deepEqual(loadPublishConfig(projectRoot), draft);
+});
+
 test("publishSite uploads native payload, rewrites root home, and saves publish config", async () => {
   const projectRoot = tempRoot("wikiwise-publish-project-");
   const siteFolder = path.join(projectRoot, "site", "out");
@@ -414,6 +466,48 @@ test("publishCloudflareHubSite maps Hub publish error status codes", async () =>
 
     assert.equal(fs.existsSync(path.join(projectRoot, "publish.json")), false);
   }
+});
+
+test("publishCloudflareHubSite reports DNS failures with endpoint context", async () => {
+  const projectRoot = tempRoot("wikiwise-cloudflare-publish-dns-");
+  const siteFolder = path.join(projectRoot, "site", "out");
+  writeFile(path.join(siteFolder, "home.html"), "<h1>Home</h1>");
+
+  await assert.rejects(
+    () =>
+      core.publishCloudflareHubSite({
+        projectRoot,
+        siteFolder,
+        hubEndpoint: "https://hub-wiki.flybullet.net",
+        publishToken: "wwh_token",
+        slug: "notes",
+        settings: {
+          visibility: "private",
+          authRealm: "per-wiki",
+          comments: {
+            policy: "members-only"
+          }
+        },
+        fetch: async () => {
+          const cause = new Error("getaddrinfo ENOTFOUND hub-wiki.flybullet.net");
+          cause.code = "ENOTFOUND";
+          cause.hostname = "hub-wiki.flybullet.net";
+          const error = new TypeError("fetch failed");
+          error.cause = cause;
+          throw error;
+        }
+      }),
+    (error) => {
+      assert.equal(error.code, "network_error");
+      assert.match(error.message, /Cannot reach Cloudflare Hub endpoint/);
+      assert.match(error.message, /DNS lookup failed for hub-wiki\.flybullet\.net/);
+      assert.match(error.message, /https:\/\/hub-wiki\.flybullet\.net\/_wikiwise\/publish/);
+      assert.equal(error.cause.code, "ENOTFOUND");
+      return true;
+    }
+  );
+
+  assert.equal(fs.existsSync(path.join(projectRoot, "publish.json")), false);
 });
 
 test("publishSite retries first-publish subdomain conflicts with native suffix-only candidate", async () => {

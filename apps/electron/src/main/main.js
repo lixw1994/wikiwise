@@ -6,6 +6,7 @@ import path from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
   WikiCompiler,
+  checkCloudflareHubPublishAvailability,
   checkPublishAvailability,
   createWikiScaffold,
   expandTreeDirectory,
@@ -15,6 +16,7 @@ import {
   randomPublishSubdomain,
   readDisplayTextFile,
   readTextFile,
+  saveCloudflareHubPublishDraft,
   scanOneLevel,
   slugForPath,
   summarizeDocumentInfo,
@@ -826,7 +828,7 @@ function getPublishConfig(payload) {
     if (config.target === "cloudflare-hub") {
       return {
         target: "cloudflare-hub",
-        published: true,
+        published: Boolean(config.lastPublishedAt),
         url: config.hub.url,
         lastPublishedAt: config.lastPublishedAt ?? null,
         hub: {
@@ -866,17 +868,67 @@ function defaultCloudflareHubDraft(suggestedSlug) {
 }
 
 async function checkProjectPublishAvailability(payload) {
-  if (!payload?.projectRoot || !payload?.subdomain) {
-    throw new Error("checkPublishAvailability requires projectRoot and subdomain");
+  if (!payload?.projectRoot) {
+    throw new Error("checkPublishAvailability requires projectRoot");
   }
 
   const projectRoot = assertProjectRoot(payload.projectRoot);
   const config = loadPublishConfig(projectRoot);
+  if (payload.target === "cloudflare-hub") {
+    if (!payload.hubEndpoint || !payload.slug) {
+      throw new Error("checkPublishAvailability requires Hub endpoint and slug");
+    }
+    return {
+      availability: await checkCloudflareHubPublishAvailability(payload.slug, {
+        hubEndpoint: payload.hubEndpoint,
+        publishToken: payload.publishToken,
+        fetch: payload.fetch
+      })
+    };
+  }
+
+  if (!payload.subdomain) {
+    throw new Error("checkPublishAvailability requires subdomain");
+  }
+
   return {
     availability: await checkPublishAvailability(payload.subdomain, {
       token: config?.target === "official" ? config.token : undefined
     })
   };
+}
+
+function cloudflareHubDraftPayload(payload) {
+  if (
+    !payload?.projectRoot ||
+    !payload?.hubEndpoint ||
+    !payload?.slug ||
+    !payload?.visibility ||
+    !payload?.authRealm ||
+    !payload?.commentPolicy
+  ) {
+    throw new Error("saveCloudflareHubPublishDraft requires projectRoot, Hub endpoint, slug, and settings");
+  }
+
+  return {
+    projectRoot: assertProjectRoot(payload.projectRoot),
+    hubEndpoint: payload.hubEndpoint,
+    publishToken: payload.publishToken ?? "",
+    slug: payload.slug,
+    settings: {
+      visibility: payload.visibility,
+      authRealm: payload.authRealm,
+      comments: {
+        policy: payload.commentPolicy
+      }
+    }
+  };
+}
+
+function saveCloudflareHubPublishDraftProject(payload) {
+  const draft = cloudflareHubDraftPayload(payload);
+  saveCloudflareHubPublishDraft(draft);
+  return getPublishConfig({ projectRoot: draft.projectRoot });
 }
 
 async function publishProject(payload) {
@@ -913,6 +965,10 @@ async function publishCloudflareHubProject(payload) {
   }
 
   const projectRoot = assertProjectRoot(payload.projectRoot);
+  saveCloudflareHubPublishDraft(cloudflareHubDraftPayload({
+    ...payload,
+    projectRoot
+  }));
   const compiler = getCompiler(projectRoot);
   compiler.compileAll();
 
@@ -1594,6 +1650,9 @@ ipcMain.handle("wikiwise:getPublishConfig", (_event, payload) => {
 });
 ipcMain.handle("wikiwise:checkPublishAvailability", (_event, payload) => {
   return checkProjectPublishAvailability(payload);
+});
+ipcMain.handle("wikiwise:saveCloudflareHubPublishDraft", (_event, payload) => {
+  return saveCloudflareHubPublishDraftProject(payload);
 });
 ipcMain.handle("wikiwise:publishSite", (_event, payload) => {
   return publishProject(payload);

@@ -1138,36 +1138,35 @@ body.resizing-left-sidebar * {
   margin-bottom: 0;
 }
 
-.publish-target-switch {
+.publish-hub-fields {
   display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 4px;
-  border-radius: 4px;
-  padding: 3px;
-  background: var(--color-sidebar-bg);
+  gap: 12px;
 }
 
-.publish-target-option {
-  border: 0;
-  border-radius: 3px;
-  padding: 6px 8px;
-  background: transparent;
-  color: var(--color-muted-text);
-  font: inherit;
-}
-
-.publish-target-option[data-selected="true"] {
-  background: var(--color-field-bg);
-  color: var(--color-tab-active);
-}
-
-.publish-target-fields {
+.publish-section {
   display: grid;
   gap: 8px;
 }
 
-.publish-hub-fields {
-  gap: 10px;
+.publish-section-title {
+  margin: 0;
+  color: var(--color-toolbar-text);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.publish-hub-slug-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 16px;
+  align-items: center;
+  gap: 8px;
+}
+
+.publish-hub-slug {
+  color: var(--color-tab-active);
+  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
+  font-size: 13px;
+  padding: 9px 10px;
 }
 
 .publish-field {
@@ -1232,47 +1231,13 @@ body.resizing-left-sidebar * {
   font-size: 12px;
 }
 
-.publish-url-intro {
-  font-size: 13px;
-}
-
 .publish-token-warning {
   line-height: calc(1.2em + 2px);
 }
 
-.publish-url-row {
-  display: grid;
-  grid-template-columns: auto minmax(80px, 200px) auto minmax(0, 1fr) 16px;
-  align-items: center;
-  gap: 0;
-  border: 0;
-  border-radius: 4px;
-  padding: 8px;
-  background: var(--color-sidebar-bg);
-  font-family: ui-monospace, "SFMono-Regular", Menlo, monospace;
-  font-size: 13px;
-}
-
-.publish-url-affix {
-  color: var(--color-muted-text);
-}
-
-.publish-subdomain {
-  width: 100%;
-  max-width: 200px;
-  min-width: 0;
-  border: 0;
-  border-radius: 0;
-  padding: 0;
-  background: transparent;
-  color: var(--color-tab-active);
-  font-family: inherit;
-  font-size: inherit;
-}
-
 .publish-availability-indicator {
   display: inline-flex;
-  grid-column: 5;
+  grid-column: 2;
   width: 16px;
   height: 16px;
   align-items: center;

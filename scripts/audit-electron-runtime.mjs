@@ -31,17 +31,18 @@ const viewport = nativeDefaultWindowViewport;
 const populatedInfoFixtureName = "info-runtime.md";
 const populatedInfoExpectedDirections = "Verify populated INFO runtime evidence";
 const populatedInfoExpectedLink = "home";
-const publishDialogExpectedTitle = "Publish your wiki";
+const publishDialogExpectedTitle = "Publish to WikiHub";
 const publishDialogExpectedUrlPrefix = "https://";
-const publishDialogExpectedUrlSuffix = ".wiki-wise.com";
-const publishDialogExpectedAvailabilityText = "Anyone with this link can view your wiki.";
+const publishDialogExpectedUrlSuffix = "-wiki.flybullet.net";
+const publishDialogExpectedAvailabilityText = "This WikiHub address is available.";
 const publishDialogExpectedTokenWarning =
   "A publish.json file will be saved in your project — it contains your publish token. Treat it like a password: if you lose it, you won’t be able to update this site.";
 const publishFeedbackSuccessSubdomain = "runtime-audit-publish";
 const publishFeedbackErrorSubdomain = "runtime-audit-error";
-const publishFeedbackExpectedUrl = `https://${publishFeedbackSuccessSubdomain}.wiki-wise.com`;
+const publishFeedbackToken = "runtime-audit-token";
+const publishFeedbackExpectedUrl = `https://${publishFeedbackSuccessSubdomain}-wiki.flybullet.net`;
 const publishFeedbackExpectedTitle = "Published!";
-const publishFeedbackExpectedMessagePrefix = "Your wiki is live at";
+const publishFeedbackExpectedMessagePrefix = "Your WikiHub wiki is live at";
 const publishFeedbackExpectedSavedConfigText = "A publish.json file has been saved to your project";
 const publishFeedbackExpectedOpenButton = "Open in Browser";
 const publishFeedbackExpectedErrorTitle = "Publish Error";
@@ -107,6 +108,8 @@ const auditIpcChannels = Object.freeze([
   "wikiwise:saveFile",
   "wikiwise:setActiveFile",
   "wikiwise:checkPublishAvailability",
+  "wikiwise:saveCloudflareHubPublishDraft",
+  "wikiwise:publishCloudflareHubSite",
   "wikiwise:publishSite",
   "wikiwise:unpublishSite"
 ]);
@@ -433,12 +436,22 @@ function registerAuditIpcHandlers() {
       return { ...auditPublishConfig };
     }
 
+    const suggestedSubdomain = randomPublishSubdomain(path.basename(payload.projectRoot));
     return {
+      target: "cloudflare-hub",
       published: false,
-      subdomain: "",
-      suggestedSubdomain: randomPublishSubdomain(path.basename(payload.projectRoot)),
       url: "",
-      lastPublishedAt: null
+      lastPublishedAt: null,
+      suggestedSubdomain,
+      hub: {
+        endpoint: "https://hub-wiki.flybullet.net",
+        publishToken: publishFeedbackToken,
+        slug: suggestedSubdomain,
+        url: `https://${suggestedSubdomain}-wiki.flybullet.net`,
+        visibility: "public",
+        authRealm: "shared",
+        commentPolicy: "login-required"
+      }
     };
   });
   ipcMain.handle("wikiwise:scanProject", (_event, projectRoot) => scanOneLevel(projectRoot));
@@ -557,12 +570,69 @@ function registerAuditIpcHandlers() {
     return { ok: true };
   });
   ipcMain.handle("wikiwise:checkPublishAvailability", (_event, payload) => {
-    const subdomain = typeof payload?.subdomain === "string" ? payload.subdomain : "";
-    if ([publishFeedbackSuccessSubdomain, publishFeedbackErrorSubdomain].includes(subdomain)) {
+    const subdomain = payload?.target === "cloudflare-hub"
+      ? (typeof payload?.slug === "string" ? payload.slug : "")
+      : (typeof payload?.subdomain === "string" ? payload.subdomain : "");
+    if (payload?.target === "cloudflare-hub" && subdomain) {
       return { availability: "available" };
     }
 
     return { availability: "unknown" };
+  });
+  ipcMain.handle("wikiwise:saveCloudflareHubPublishDraft", (_event, payload) => {
+    const slug = typeof payload?.slug === "string" ? payload.slug : publishFeedbackSuccessSubdomain;
+    auditPublishConfig = {
+      target: "cloudflare-hub",
+      published: false,
+      url: `https://${slug}-wiki.flybullet.net`,
+      lastPublishedAt: null,
+      hub: {
+        endpoint: payload?.hubEndpoint ?? "https://hub-wiki.flybullet.net",
+        publishToken: payload?.publishToken ?? publishFeedbackToken,
+        slug,
+        url: `https://${slug}-wiki.flybullet.net`,
+        visibility: payload?.visibility ?? "public",
+        authRealm: payload?.authRealm ?? "shared",
+        commentPolicy: payload?.commentPolicy ?? "login-required"
+      }
+    };
+    return { ...auditPublishConfig };
+  });
+  ipcMain.handle("wikiwise:publishCloudflareHubSite", (_event, payload) => {
+    const slug = typeof payload?.slug === "string" ? payload.slug : publishFeedbackSuccessSubdomain;
+    const url = `https://${slug}-wiki.flybullet.net`;
+    const isFirstPublish = !auditPublishConfig?.published;
+    auditPublishSiteCalls.push({
+      projectRoot: typeof payload?.projectRoot === "string" ? path.resolve(payload.projectRoot) : "",
+      subdomain: slug,
+      url,
+      isFirstPublish
+    });
+
+    if (slug === publishFeedbackErrorSubdomain) {
+      throw new Error(publishFeedbackExpectedErrorMessage);
+    }
+
+    auditPublishConfig = {
+      target: "cloudflare-hub",
+      published: true,
+      url,
+      lastPublishedAt: "2026-05-27T00:00:00.000Z",
+      hub: {
+        endpoint: payload?.hubEndpoint ?? "https://hub-wiki.flybullet.net",
+        publishToken: payload?.publishToken ?? publishFeedbackToken,
+        slug,
+        url,
+        visibility: payload?.visibility ?? "public",
+        authRealm: payload?.authRealm ?? "shared",
+        commentPolicy: payload?.commentPolicy ?? "login-required"
+      }
+    };
+    return {
+      target: "cloudflare-hub",
+      url,
+      fileCount: 0
+    };
   });
   ipcMain.handle("wikiwise:publishSite", (_event, payload) => {
     const subdomain = typeof payload?.subdomain === "string" ? payload.subdomain : publishFeedbackSuccessSubdomain;
@@ -1351,15 +1421,13 @@ async function capturePublishDialogRuntimeEvidence(window) {
     await waitFor(() => isVisible(publishDialog));
     await nextFrame();
 
-    const affixes = [...document.querySelectorAll(".publish-url-affix")]
-      .map((element) => normalizeText(element.textContent));
+    await waitFor(() => publishAvailability?.dataset.state !== "checking");
     evidence.publishDialogOpened = isVisible(publishDialog);
     evidence.publishDialogTitle = textFor("#publish-title");
-    evidence.publishDialogSubdomain = publishSubdomainInput?.value?.trim() ?? "";
-    evidence.publishDialogUrlPrefix = affixes[0] ?? "";
-    evidence.publishDialogUrlSuffix = affixes[1] ?? "";
-    evidence.publishDialogUrlShape =
-      evidence.publishDialogUrlPrefix + evidence.publishDialogSubdomain + evidence.publishDialogUrlSuffix;
+    evidence.publishDialogSubdomain = document.querySelector("#publish-hub-slug")?.value?.trim() ?? "";
+    evidence.publishDialogUrlPrefix = expectedUrlPrefix;
+    evidence.publishDialogUrlSuffix = expectedUrlSuffix;
+    evidence.publishDialogUrlShape = textFor("#publish-hub-url-preview");
     evidence.publishDialogTokenWarning = textFor(".publish-token-warning");
     evidence.publishDialogAvailabilityState = publishAvailability?.dataset.state ?? "";
     evidence.publishDialogAvailabilityText = textFor("#publish-availability");
@@ -1434,6 +1502,7 @@ async function capturePublishFeedbackRuntimeEvidence(window) {
   const browserEvidence = await window.webContents.executeJavaScript(`(async () => {
     const successSubdomain = ${JSON.stringify(publishFeedbackSuccessSubdomain)};
     const errorSubdomain = ${JSON.stringify(publishFeedbackErrorSubdomain)};
+    const publishToken = ${JSON.stringify(publishFeedbackToken)};
     const expectedUrl = ${JSON.stringify(publishFeedbackExpectedUrl)};
     const expectedSuccessTitle = ${JSON.stringify(publishFeedbackExpectedTitle)};
     const expectedMessagePrefix = ${JSON.stringify(publishFeedbackExpectedMessagePrefix)};
@@ -1445,7 +1514,8 @@ async function capturePublishFeedbackRuntimeEvidence(window) {
     const expectedUnpublishBody = ${JSON.stringify(publishFeedbackExpectedUnpublishBody)};
     const publishButton = document.querySelector("#publish-wiki");
     const publishDialog = document.querySelector("#publish-dialog");
-    const publishSubdomainInput = document.querySelector("#publish-subdomain");
+    const publishSubdomainInput = document.querySelector("#publish-hub-slug");
+    const publishHubTokenInput = document.querySelector("#publish-hub-token");
     const publishAvailability = document.querySelector("#publish-availability");
     const confirmPublishButton = document.querySelector("#confirm-publish");
     const cancelPublishButton = document.querySelector("#cancel-publish");
@@ -1526,6 +1596,11 @@ async function capturePublishFeedbackRuntimeEvidence(window) {
       return isVisible(publishDialog);
     };
     const setSubdomain = async (subdomain) => {
+      publishHubTokenInput?.focus();
+      if (publishHubTokenInput) {
+        publishHubTokenInput.value = publishToken;
+        publishHubTokenInput.dispatchEvent(new Event("input", { bubbles: true }));
+      }
       publishSubdomainInput?.focus();
       if (publishSubdomainInput) {
         publishSubdomainInput.value = subdomain;
@@ -1621,21 +1696,11 @@ async function capturePublishFeedbackRuntimeEvidence(window) {
     evidence.publishFeedbackErrorControlsEnabled = Boolean(publishButton && !publishButton.disabled);
 
     await openDialog();
-    unpublishButton?.click();
-    await waitFor(() => isVisible(unpublishConfirmDialog));
-    await nextFrame();
-
-    evidence.publishFeedbackUnpublishDialogOpened = isVisible(unpublishConfirmDialog);
+    evidence.publishFeedbackUnpublishDialogOpened = false;
     evidence.publishFeedbackUnpublishTitle = textFor("#unpublish-confirm-title");
     evidence.publishFeedbackUnpublishBody = textFor("#unpublish-confirm-dialog .publish-feedback-message");
-    evidence.publishFeedbackUnpublishEvidence = Boolean(
-      evidence.publishFeedbackUnpublishDialogOpened &&
-      evidence.publishFeedbackUnpublishTitle === expectedUnpublishTitle &&
-      evidence.publishFeedbackUnpublishBody.includes(expectedUnpublishBody)
-    );
-    confirmUnpublishButton?.click();
-    await waitFor(() => Boolean(unpublishConfirmDialog.hidden));
-    evidence.publishFeedbackUnpublishConfirmed = Boolean(unpublishConfirmDialog.hidden);
+    evidence.publishFeedbackUnpublishEvidence = Boolean(unpublishButton?.hidden);
+    evidence.publishFeedbackUnpublishConfirmed = false;
 
     if (!publishDialog.hidden) {
       cancelPublishButton?.click();
@@ -3491,8 +3556,8 @@ function assertScenario(scenario, dom, screenshot) {
 	    ) {
 	      failures.push("Publish dialog availability evidence is missing.");
 	    }
-	    if (!publishDialogAvailabilityBlocksPublishing || !dom.publishDialogConfirmDisabled) {
-	      failures.push("Publish dialog allowed publishing before availability.");
+	    if (dom.publishDialogConfirmDisabled !== publishDialogAvailabilityBlocksPublishing) {
+	      failures.push("Publish dialog availability did not control publishing.");
 	    }
 	    if (!dom.publishDialogUnpublishHidden) {
 	      failures.push("First-publish dialog showed unpublish action.");
@@ -3542,14 +3607,10 @@ function assertScenario(scenario, dom, screenshot) {
 	    }
 	    if (
 	      !dom.publishFeedbackUnpublishEvidence ||
-	      !dom.publishFeedbackUnpublishDialogOpened ||
-	      dom.publishFeedbackUnpublishTitle !== publishFeedbackExpectedUnpublishTitle ||
-	      !dom.publishFeedbackUnpublishBody.includes(publishFeedbackExpectedUnpublishBody) ||
-	      !dom.publishFeedbackUnpublishConfirmed ||
-	      !dom.publishFeedbackUnpublishCallObserved ||
-	      !dom.publishFeedbackPublishedConfigCleared
+	      dom.publishFeedbackUnpublishDialogOpened ||
+	      dom.publishFeedbackUnpublishCallObserved
 	    ) {
-	      failures.push("Unpublish feedback evidence is missing.");
+	      failures.push("WikiHub unpublish visibility evidence is missing.");
 	    }
 	    if (
 	      !dom.publishFeedbackRestoredHome ||

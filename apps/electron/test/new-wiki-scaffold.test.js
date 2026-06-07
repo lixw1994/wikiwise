@@ -289,13 +289,11 @@ test("renderer mirrors native new-wiki location label spacing", () => {
 test("renderer mirrors native new-wiki location path color", () => {
   const styleSource = read("src/renderer/styles.css");
   const locationPathBlock = cssBlock(styleSource, ".location-path");
-  const publishUrlAffixBlock = cssBlock(styleSource, ".publish-url-affix");
 
   assert.match(locationPathBlock, /color:\s*var\(--color-sidebar-text-muted\)/);
   assert.match(locationPathBlock, /font-size:\s*12px/);
   assert.match(locationPathBlock, /margin:\s*6px 0 0/);
   assert.match(locationPathBlock, /white-space:\s*nowrap/);
-  assert.match(publishUrlAffixBlock, /color:\s*var\(--color-muted-text\)/);
 });
 
 test("renderer mirrors native new-wiki action row spacing", () => {
@@ -386,7 +384,7 @@ test("renderer mirrors native new-wiki name field rounded border", () => {
   assert.match(newWikiNameInputBlock, /min-height:\s*24px/);
   assert.match(newWikiNameInputBlock, /padding:\s*3px 6px/);
   assert.match(newWikiNameInputBlock, /font-size:\s*13px/);
-  assert.match(htmlSource, /id="publish-subdomain"[\s\S]*class="text-input publish-subdomain"/);
+  assert.match(htmlSource, /id="publish-hub-slug"[\s\S]*class="text-input publish-hub-slug"/);
 });
 
 test("renderer mirrors native new-wiki and post-create guide copy", () => {
