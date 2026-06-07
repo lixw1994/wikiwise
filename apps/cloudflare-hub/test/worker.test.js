@@ -26,7 +26,7 @@ function createEnv() {
 
   return {
     WIKIWISE_PUBLISH_TOKEN: "secret",
-    WIKIWISE_PUBLIC_DOMAIN: "wiki.flybullet.net",
+    WIKIWISE_PUBLIC_DOMAIN: "flybullet.net",
     DB: {
       wikis,
       users,
@@ -342,7 +342,7 @@ function createEnv() {
 
 async function postComment(env, slug, body, sessionId = "session-1") {
   return handleRequest(
-    new Request(`https://${slug}.wiki.flybullet.net/_wikiwise/comments`, {
+    new Request(`https://${slug}-wiki.flybullet.net/_wikiwise/comments`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -356,7 +356,7 @@ async function postComment(env, slug, body, sessionId = "session-1") {
 
 async function listComments(env, slug, pagePath = "index.html", sessionId = null) {
   return handleRequest(
-    new Request(`https://${slug}.wiki.flybullet.net/_wikiwise/comments?pagePath=${encodeURIComponent(pagePath)}`, {
+    new Request(`https://${slug}-wiki.flybullet.net/_wikiwise/comments?pagePath=${encodeURIComponent(pagePath)}`, {
       headers: {
         ...(sessionId ? { Cookie: `wwh_session=${sessionId}` } : {})
       }
@@ -367,7 +367,7 @@ async function listComments(env, slug, pagePath = "index.html", sessionId = null
 
 async function listAdminComments(env, slug, sessionId, pagePath = "index.html") {
   return handleRequest(
-    new Request(`https://${slug}.wiki.flybullet.net/_wikiwise/admin/comments?pagePath=${encodeURIComponent(pagePath)}`, {
+    new Request(`https://${slug}-wiki.flybullet.net/_wikiwise/admin/comments?pagePath=${encodeURIComponent(pagePath)}`, {
       headers: {
         ...(sessionId ? { Cookie: `wwh_session=${sessionId}` } : {})
       }
@@ -378,7 +378,7 @@ async function listAdminComments(env, slug, sessionId, pagePath = "index.html") 
 
 async function moderateComment(env, slug, commentId, status, sessionId) {
   return handleRequest(
-    new Request(`https://${slug}.wiki.flybullet.net/_wikiwise/admin/comments/${encodeURIComponent(commentId)}`, {
+    new Request(`https://${slug}-wiki.flybullet.net/_wikiwise/admin/comments/${encodeURIComponent(commentId)}`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
@@ -392,7 +392,7 @@ async function moderateComment(env, slug, commentId, status, sessionId) {
 
 async function createInvitation(env, slug, sessionId, body = {}) {
   return handleRequest(
-    new Request(`https://${slug}.wiki.flybullet.net/_wikiwise/admin/invitations`, {
+    new Request(`https://${slug}-wiki.flybullet.net/_wikiwise/admin/invitations`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -406,7 +406,7 @@ async function createInvitation(env, slug, sessionId, body = {}) {
 
 async function listInvitations(env, slug, sessionId) {
   return handleRequest(
-    new Request(`https://${slug}.wiki.flybullet.net/_wikiwise/admin/invitations`, {
+    new Request(`https://${slug}-wiki.flybullet.net/_wikiwise/admin/invitations`, {
       headers: {
         ...(sessionId ? { Cookie: `wwh_session=${sessionId}` } : {})
       }
@@ -417,7 +417,7 @@ async function listInvitations(env, slug, sessionId) {
 
 async function listMembers(env, slug, sessionId) {
   return handleRequest(
-    new Request(`https://${slug}.wiki.flybullet.net/_wikiwise/admin/members`, {
+    new Request(`https://${slug}-wiki.flybullet.net/_wikiwise/admin/members`, {
       headers: {
         ...(sessionId ? { Cookie: `wwh_session=${sessionId}` } : {})
       }
@@ -428,7 +428,7 @@ async function listMembers(env, slug, sessionId) {
 
 async function removeMember(env, slug, userId, sessionId) {
   return handleRequest(
-    new Request(`https://${slug}.wiki.flybullet.net/_wikiwise/admin/members/${encodeURIComponent(userId)}`, {
+    new Request(`https://${slug}-wiki.flybullet.net/_wikiwise/admin/members/${encodeURIComponent(userId)}`, {
       method: "DELETE",
       headers: {
         ...(sessionId ? { Cookie: `wwh_session=${sessionId}` } : {})
@@ -440,7 +440,7 @@ async function removeMember(env, slug, userId, sessionId) {
 
 async function patchProfile(env, slug, sessionId, body) {
   return handleRequest(
-    new Request(`https://${slug}.wiki.flybullet.net/_wikiwise/me`, {
+    new Request(`https://${slug}-wiki.flybullet.net/_wikiwise/me`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
@@ -454,7 +454,7 @@ async function patchProfile(env, slug, sessionId, body) {
 
 async function revokeInvitation(env, slug, invitationId, sessionId) {
   return handleRequest(
-    new Request(`https://${slug}.wiki.flybullet.net/_wikiwise/admin/invitations/${invitationId}`, {
+    new Request(`https://${slug}-wiki.flybullet.net/_wikiwise/admin/invitations/${invitationId}`, {
       method: "DELETE",
       headers: {
         ...(sessionId ? { Cookie: `wwh_session=${sessionId}` } : {})
@@ -466,7 +466,7 @@ async function revokeInvitation(env, slug, invitationId, sessionId) {
 
 async function acceptInvitation(env, slug, token, sessionId) {
   return handleRequest(
-    new Request(`https://${slug}.wiki.flybullet.net/_wikiwise/invitations/${token}/accept`, {
+    new Request(`https://${slug}-wiki.flybullet.net/_wikiwise/invitations/${token}/accept`, {
       method: "POST",
       headers: {
         ...(sessionId ? { Cookie: `wwh_session=${sessionId}` } : {})
@@ -478,7 +478,7 @@ async function acceptInvitation(env, slug, token, sessionId) {
 
 async function invitationPage(env, slug, token, sessionId = null) {
   return handleRequest(
-    new Request(`https://${slug}.wiki.flybullet.net/_wikiwise/invitations/${token}`, {
+    new Request(`https://${slug}-wiki.flybullet.net/_wikiwise/invitations/${token}`, {
       headers: {
         ...(sessionId ? { Cookie: `wwh_session=${sessionId}` } : {})
       }
@@ -529,7 +529,7 @@ function addOAuthState(env, options = {}) {
     id,
     provider: options.provider ?? "google",
     wikiSlug: options.wikiSlug ?? "notes",
-    returnTo: options.returnTo ?? `https://${options.wikiSlug ?? "notes"}.wiki.flybullet.net/`,
+    returnTo: options.returnTo ?? `https://${options.wikiSlug ?? "notes"}-wiki.flybullet.net/`,
     expiresAt: options.expiresAt ?? "2999-01-01T00:00:00.000Z",
     createdAt: options.createdAt ?? "2026-01-01T00:00:00.000Z"
   });
@@ -584,7 +584,7 @@ function sessionCookieFrom(response) {
 
 async function publish(env, body, headers = { Authorization: "Bearer secret" }) {
   return handleRequest(
-    new Request("https://hub.wiki.flybullet.net/_wikiwise/publish", {
+    new Request("https://hub-wiki.flybullet.net/_wikiwise/publish", {
       method: "PUT",
       headers: {
         "Content-Type": "application/json",
@@ -617,7 +617,7 @@ test("publish endpoint stores valid publish and serves public wiki root", async 
   assert.deepEqual(await response.json(), {
     ok: true,
     slug: "notes",
-    url: "https://notes.wiki.flybullet.net",
+    url: "https://notes-wiki.flybullet.net",
     fileCount: 2
   });
   assert.deepEqual(env.DB.wikis.get("notes"), {
@@ -631,12 +631,32 @@ test("publish endpoint stores valid publish and serves public wiki root", async 
   assert.equal(env.WIKIWISE_FILES.objects.has("notes/index.html"), true);
   assert.equal(env.WIKIWISE_FILES.objects.has("notes/about.html"), true);
 
-  const served = await handleRequest(new Request("https://notes.wiki.flybullet.net/"), env);
+  const served = await handleRequest(new Request("https://notes-wiki.flybullet.net/"), env);
   assert.equal(served.status, 200);
   assert.equal(served.headers.get("Content-Type"), "text/html; charset=utf-8");
   const servedHtml = await served.text();
   assert.match(servedHtml, /<h1>Home<\/h1>/);
   assert.match(servedHtml, /\/_wikiwise\/client\.js/);
+});
+
+test("Hub control hostname is not treated as a published wiki slug", async () => {
+  const env = createEnv();
+  await publish(env, {
+    slug: "hub-wiki",
+    settings: {
+      visibility: "public",
+      authRealm: "shared",
+      comments: {
+        policy: "login-required"
+      }
+    },
+    files: [{ path: "index.html", data: base64("<h1>Control Collision</h1>") }]
+  });
+
+  const response = await handleRequest(new Request("https://hub-wiki.flybullet.net/"), env);
+
+  assert.equal(response.status, 404);
+  assert.equal(await response.text(), "Wiki not found");
 });
 
 test("Hub reader runtime assets are served without secrets or session data", async () => {
@@ -654,7 +674,7 @@ test("Hub reader runtime assets are served without secrets or session data", asy
     files: [{ path: "index.html", data: base64("<h1>Home</h1>") }]
   });
 
-  const scriptResponse = await handleRequest(new Request("https://notes.wiki.flybullet.net/_wikiwise/client.js"), env);
+  const scriptResponse = await handleRequest(new Request("https://notes-wiki.flybullet.net/_wikiwise/client.js"), env);
   assert.equal(scriptResponse.status, 200);
   assert.equal(scriptResponse.headers.get("Content-Type"), "application/javascript; charset=utf-8");
   assert.match(scriptResponse.headers.get("Cache-Control") ?? "", /public/);
@@ -665,7 +685,7 @@ test("Hub reader runtime assets are served without secrets or session data", asy
   assert.equal(script.includes("session-"), false);
   assert.equal(script.includes("provider-access-token"), false);
 
-  const styleResponse = await handleRequest(new Request("https://notes.wiki.flybullet.net/_wikiwise/client.css"), env);
+  const styleResponse = await handleRequest(new Request("https://notes-wiki.flybullet.net/_wikiwise/client.css"), env);
   assert.equal(styleResponse.status, 200);
   assert.equal(styleResponse.headers.get("Content-Type"), "text/css; charset=utf-8");
   assert.match(styleResponse.headers.get("Cache-Control") ?? "", /public/);
@@ -692,18 +712,18 @@ test("Hub injects reader runtime into HTML pages without changing assets or APIs
     ]
   });
 
-  const page = await handleRequest(new Request("https://notes.wiki.flybullet.net/"), env);
+  const page = await handleRequest(new Request("https://notes-wiki.flybullet.net/"), env);
   assert.equal(page.status, 200);
   const html = await page.text();
   assert.match(html, /<h1>Home<\/h1>/);
   assert.match(html, /<link rel="stylesheet" href="\/_wikiwise\/client\.css">/);
   assert.match(html, /<script src="\/_wikiwise\/client\.js" defer><\/script>/);
 
-  const asset = await handleRequest(new Request("https://notes.wiki.flybullet.net/style.css"), env);
+  const asset = await handleRequest(new Request("https://notes-wiki.flybullet.net/style.css"), env);
   assert.equal(asset.status, 200);
   assert.equal(await asset.text(), ".note{color:red}");
 
-  const providers = await handleRequest(new Request("https://notes.wiki.flybullet.net/_wikiwise/auth/providers"), env);
+  const providers = await handleRequest(new Request("https://notes-wiki.flybullet.net/_wikiwise/auth/providers"), env);
   assert.equal(providers.status, 200);
   assert.equal(providers.headers.get("Content-Type"), "application/json; charset=utf-8");
   assert.equal((await providers.text()).includes("/_wikiwise/client.js"), false);
@@ -724,7 +744,7 @@ test("private wiki reads return Hub sign-in pages without protected content", as
     files: [{ path: "index.html", data: base64("<h1>Private plans</h1>") }]
   });
 
-  const anonymous = await handleRequest(new Request("https://private-notes.wiki.flybullet.net/"), env);
+  const anonymous = await handleRequest(new Request("https://private-notes-wiki.flybullet.net/"), env);
   assert.equal(anonymous.status, 401);
   assert.equal(anonymous.headers.get("Content-Type"), "text/html; charset=utf-8");
   const anonymousHtml = await anonymous.text();
@@ -733,7 +753,7 @@ test("private wiki reads return Hub sign-in pages without protected content", as
   assert.equal(anonymousHtml.includes("Private plans"), false);
 
   const sessionId = addUserSession(env);
-  const forbidden = await handleRequest(new Request("https://private-notes.wiki.flybullet.net/", {
+  const forbidden = await handleRequest(new Request("https://private-notes-wiki.flybullet.net/", {
     headers: { Cookie: `wwh_session=${sessionId}` }
   }), env);
   assert.equal(forbidden.status, 403);
@@ -755,7 +775,7 @@ test("Hub reader runtime source includes account and comments behavior", async (
     files: [{ path: "index.html", data: base64("<h1>Home</h1>") }]
   });
 
-  const response = await handleRequest(new Request("https://notes.wiki.flybullet.net/_wikiwise/client.js"), env);
+  const response = await handleRequest(new Request("https://notes-wiki.flybullet.net/_wikiwise/client.js"), env);
   const source = await response.text();
   assert.match(source, /\/_wikiwise\/auth\/providers/);
   assert.match(source, /\/_wikiwise\/logout/);
@@ -807,13 +827,13 @@ test("public and private wiki reads follow session membership access checks", as
     files: [{ path: "index.html", data: base64("<h1>Private</h1>") }]
   });
 
-  const publicRead = await handleRequest(new Request("https://public-notes.wiki.flybullet.net/"), env);
+  const publicRead = await handleRequest(new Request("https://public-notes-wiki.flybullet.net/"), env);
   assert.equal(publicRead.status, 200);
   const publicHtml = await publicRead.text();
   assert.match(publicHtml, /<h1>Public<\/h1>/);
   assert.match(publicHtml, /\/_wikiwise\/client\.js/);
 
-  const anonymousPrivateRead = await handleRequest(new Request("https://private-notes.wiki.flybullet.net/"), env);
+  const anonymousPrivateRead = await handleRequest(new Request("https://private-notes-wiki.flybullet.net/"), env);
   assert.equal(anonymousPrivateRead.status, 401);
   const privateSignInHtml = await anonymousPrivateRead.text();
   assert.match(privateSignInHtml, /Sign in to private-notes/);
@@ -821,7 +841,7 @@ test("public and private wiki reads follow session membership access checks", as
 
   const sessionId = addUserSession(env, { memberOf: ["private-notes"] });
   const authorizedPrivateRead = await handleRequest(
-    new Request("https://private-notes.wiki.flybullet.net/", {
+    new Request("https://private-notes-wiki.flybullet.net/", {
       headers: {
         Cookie: `wwh_session=${sessionId}`
       }
@@ -865,17 +885,17 @@ test("shared realm profile is reused while per-wiki membership gates private acc
   const sessionId = addUserSession(env, { memberOf: ["private-a"] });
   const sessionCookie = { Cookie: `wwh_session=${sessionId}` };
 
-  const sharedA = await handleRequest(new Request("https://shared-a.wiki.flybullet.net/_wikiwise/me", {
+  const sharedA = await handleRequest(new Request("https://shared-a-wiki.flybullet.net/_wikiwise/me", {
     headers: sessionCookie
   }), env);
-  const sharedB = await handleRequest(new Request("https://shared-b.wiki.flybullet.net/_wikiwise/me", {
+  const sharedB = await handleRequest(new Request("https://shared-b-wiki.flybullet.net/_wikiwise/me", {
     headers: sessionCookie
   }), env);
   assert.equal(sharedA.status, 200);
   assert.equal(sharedB.status, 200);
   assert.deepEqual((await sharedA.json()).user, (await sharedB.json()).user);
 
-  const memberRead = await handleRequest(new Request("https://private-a.wiki.flybullet.net/", {
+  const memberRead = await handleRequest(new Request("https://private-a-wiki.flybullet.net/", {
     headers: sessionCookie
   }), env);
   assert.equal(memberRead.status, 200);
@@ -883,7 +903,7 @@ test("shared realm profile is reused while per-wiki membership gates private acc
   assert.match(memberHtml, /<h1>private-a<\/h1>/);
   assert.match(memberHtml, /\/_wikiwise\/client\.js/);
 
-  const nonMemberRead = await handleRequest(new Request("https://private-b.wiki.flybullet.net/", {
+  const nonMemberRead = await handleRequest(new Request("https://private-b-wiki.flybullet.net/", {
     headers: sessionCookie
   }), env);
   assert.equal(nonMemberRead.status, 403);
@@ -908,10 +928,10 @@ test("per-wiki realm scopes visible profile and comment identity per wiki", asyn
   const sessionId = addUserSession(env);
   const sessionCookie = { Cookie: `wwh_session=${sessionId}` };
 
-  const profileA = await handleRequest(new Request("https://realm-a.wiki.flybullet.net/_wikiwise/me", {
+  const profileA = await handleRequest(new Request("https://realm-a-wiki.flybullet.net/_wikiwise/me", {
     headers: sessionCookie
   }), env);
-  const profileB = await handleRequest(new Request("https://realm-b.wiki.flybullet.net/_wikiwise/me", {
+  const profileB = await handleRequest(new Request("https://realm-b-wiki.flybullet.net/_wikiwise/me", {
     headers: sessionCookie
   }), env);
 
@@ -966,7 +986,7 @@ test("signed-in users can update public profile and read it from the current rea
   });
   assert.equal(updatedJson.identityScope, "shared");
 
-  const profile = await handleRequest(new Request("https://profile-edit.wiki.flybullet.net/_wikiwise/me", {
+  const profile = await handleRequest(new Request("https://profile-edit-wiki.flybullet.net/_wikiwise/me", {
     headers: { Cookie: `wwh_session=${sessionId}` }
   }), env);
   assert.equal(profile.status, 200);
@@ -1039,7 +1059,7 @@ test("profile update responses do not expose private identity internals", async 
   assert.equal(updated.status, 200);
   const updatedSerialized = JSON.stringify(await updated.json());
 
-  const profile = await handleRequest(new Request("https://profile-privacy.wiki.flybullet.net/_wikiwise/me", {
+  const profile = await handleRequest(new Request("https://profile-privacy-wiki.flybullet.net/_wikiwise/me", {
     headers: { Cookie: `wwh_session=${sessionId}` }
   }), env);
   assert.equal(profile.status, 200);
@@ -1093,7 +1113,7 @@ test("shared realm profile updates apply across shared wikis comments and member
   });
   assert.equal(update.status, 200);
 
-  const sharedBProfile = await handleRequest(new Request("https://shared-profile-b.wiki.flybullet.net/_wikiwise/me", {
+  const sharedBProfile = await handleRequest(new Request("https://shared-profile-b-wiki.flybullet.net/_wikiwise/me", {
     headers: { Cookie: `wwh_session=${readerSession}` }
   }), env);
   assert.deepEqual((await sharedBProfile.json()).user, {
@@ -1151,13 +1171,13 @@ test("per-wiki profile updates are scoped away from other per-wiki and shared id
   });
   assert.equal(update.status, 200);
 
-  const profileA = await handleRequest(new Request("https://wiki-profile-a.wiki.flybullet.net/_wikiwise/me", {
+  const profileA = await handleRequest(new Request("https://wiki-profile-a-wiki.flybullet.net/_wikiwise/me", {
     headers: { Cookie: `wwh_session=${sessionId}` }
   }), env);
-  const profileB = await handleRequest(new Request("https://wiki-profile-b.wiki.flybullet.net/_wikiwise/me", {
+  const profileB = await handleRequest(new Request("https://wiki-profile-b-wiki.flybullet.net/_wikiwise/me", {
     headers: { Cookie: `wwh_session=${sessionId}` }
   }), env);
-  const sharedProfile = await handleRequest(new Request("https://shared-profile.wiki.flybullet.net/_wikiwise/me", {
+  const sharedProfile = await handleRequest(new Request("https://shared-profile-wiki.flybullet.net/_wikiwise/me", {
     headers: { Cookie: `wwh_session=${sessionId}` }
   }), env);
 
@@ -1220,7 +1240,7 @@ test("OAuth profile refresh does not overwrite user-edited public profile settin
     wikiSlug: "oauth-profile-refresh"
   });
   const firstLogin = await handleRequest(
-    new Request("https://oauth-profile-refresh.wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-1&state=oauth_state_first"),
+    new Request("https://oauth-profile-refresh-wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-1&state=oauth_state_first"),
     env
   );
   assert.equal(firstLogin.status, 302);
@@ -1243,12 +1263,12 @@ test("OAuth profile refresh does not overwrite user-edited public profile settin
     wikiSlug: "oauth-profile-refresh"
   });
   const secondLogin = await handleRequest(
-    new Request("https://oauth-profile-refresh.wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-2&state=oauth_state_second"),
+    new Request("https://oauth-profile-refresh-wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-2&state=oauth_state_second"),
     env
   );
   assert.equal(secondLogin.status, 302);
 
-  const profile = await handleRequest(new Request("https://oauth-profile-refresh.wiki.flybullet.net/_wikiwise/me", {
+  const profile = await handleRequest(new Request("https://oauth-profile-refresh-wiki.flybullet.net/_wikiwise/me", {
     headers: { Cookie: sessionCookieFrom(secondLogin) }
   }), env);
   assert.deepEqual((await profile.json()).user, {
@@ -1277,7 +1297,7 @@ test("OIDC provider boundaries expose configured providers without leaking secre
   };
 
   const providersResponse = await handleRequest(
-    new Request("https://notes.wiki.flybullet.net/_wikiwise/auth/providers"),
+    new Request("https://notes-wiki.flybullet.net/_wikiwise/auth/providers"),
     env
   );
   assert.equal(providersResponse.status, 200);
@@ -1286,7 +1306,7 @@ test("OIDC provider boundaries expose configured providers without leaking secre
   assert.equal(JSON.stringify(providers).includes("secret"), false);
 
   const startResponse = await handleRequest(
-    new Request("https://notes.wiki.flybullet.net/_wikiwise/auth/google/start?returnTo=https%3A%2F%2Fnotes.wiki.flybullet.net%2F"),
+    new Request("https://notes-wiki.flybullet.net/_wikiwise/auth/google/start?returnTo=https%3A%2F%2Fnotes-wiki.flybullet.net%2F"),
     env
   );
 
@@ -1295,7 +1315,7 @@ test("OIDC provider boundaries expose configured providers without leaking secre
   assert.equal(`${location.origin}${location.pathname}`, "https://accounts.example/google/auth");
   assert.equal(location.searchParams.get("response_type"), "code");
   assert.equal(location.searchParams.get("client_id"), "google-client");
-  assert.equal(location.searchParams.get("redirect_uri"), "https://notes.wiki.flybullet.net/_wikiwise/auth/google/callback");
+  assert.equal(location.searchParams.get("redirect_uri"), "https://notes-wiki.flybullet.net/_wikiwise/auth/google/callback");
   assert.equal(location.searchParams.get("scope"), "openid profile email");
 });
 
@@ -1314,14 +1334,14 @@ test("OIDC providers without callback endpoints are not advertised or started", 
   };
 
   const providersResponse = await handleRequest(
-    new Request("https://notes.wiki.flybullet.net/_wikiwise/auth/providers"),
+    new Request("https://notes-wiki.flybullet.net/_wikiwise/auth/providers"),
     env
   );
   assert.equal(providersResponse.status, 200);
   assert.deepEqual((await providersResponse.json()).providers.map((provider) => provider.id), ["google"]);
 
   const startFeishu = await handleRequest(
-    new Request("https://notes.wiki.flybullet.net/_wikiwise/auth/feishu/start"),
+    new Request("https://notes-wiki.flybullet.net/_wikiwise/auth/feishu/start"),
     env
   );
   assert.equal(startFeishu.status, 404);
@@ -1347,7 +1367,7 @@ test("OIDC start stores opaque state and validates return target", async () => {
   });
 
   const response = await handleRequest(
-    new Request("https://notes.wiki.flybullet.net/_wikiwise/auth/google/start?returnTo=https%3A%2F%2Fevil.example%2Fsteal"),
+    new Request("https://notes-wiki.flybullet.net/_wikiwise/auth/google/start?returnTo=https%3A%2F%2Fevil.example%2Fsteal"),
     env
   );
 
@@ -1361,7 +1381,7 @@ test("OIDC start stores opaque state and validates return target", async () => {
     id: state,
     provider: "google",
     wikiSlug: "notes",
-    returnTo: "https://notes.wiki.flybullet.net/",
+    returnTo: "https://notes-wiki.flybullet.net/",
     expiresAt: env.DB.oauthStates.get(state).expiresAt,
     createdAt: env.DB.oauthStates.get(state).createdAt
   });
@@ -1371,7 +1391,7 @@ test("OIDC start uses fixed Hub auth origin while preserving wiki state", async 
   const env = {
     ...createEnv(),
     ...oauthEnv({
-      WIKIWISE_AUTH_ORIGIN: "https://hub.wiki.flybullet.net"
+      WIKIWISE_AUTH_ORIGIN: "https://hub-wiki.flybullet.net"
     })
   };
   await publish(env, {
@@ -1387,19 +1407,19 @@ test("OIDC start uses fixed Hub auth origin while preserving wiki state", async 
   });
 
   const response = await handleRequest(
-    new Request("https://notes.wiki.flybullet.net/_wikiwise/auth/google/start?returnTo=https%3A%2F%2Fnotes.wiki.flybullet.net%2Fdeep%2Fpage.html"),
+    new Request("https://notes-wiki.flybullet.net/_wikiwise/auth/google/start?returnTo=https%3A%2F%2Fnotes-wiki.flybullet.net%2Fdeep%2Fpage.html"),
     env
   );
 
   assert.equal(response.status, 302);
   const location = new URL(response.headers.get("Location"));
-  assert.equal(location.searchParams.get("redirect_uri"), "https://hub.wiki.flybullet.net/_wikiwise/auth/google/callback");
+  assert.equal(location.searchParams.get("redirect_uri"), "https://hub-wiki.flybullet.net/_wikiwise/auth/google/callback");
   const state = location.searchParams.get("state");
   assert.deepEqual(env.DB.oauthStates.get(state), {
     id: state,
     provider: "google",
     wikiSlug: "notes",
-    returnTo: "https://notes.wiki.flybullet.net/deep/page.html",
+    returnTo: "https://notes-wiki.flybullet.net/deep/page.html",
     expiresAt: env.DB.oauthStates.get(state).expiresAt,
     createdAt: env.DB.oauthStates.get(state).createdAt
   });
@@ -1428,29 +1448,29 @@ test("OAuth callback creates user, linked provider account, session cookie, and 
   addOAuthState(env, {
     id: "oauth_state_success",
     wikiSlug: "notes",
-    returnTo: "https://notes.wiki.flybullet.net/deep/page.html"
+    returnTo: "https://notes-wiki.flybullet.net/deep/page.html"
   });
 
   const response = await handleRequest(
-    new Request("https://notes.wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123&state=oauth_state_success"),
+    new Request("https://notes-wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123&state=oauth_state_success"),
     env
   );
 
   assert.equal(response.status, 302);
-  assert.equal(response.headers.get("Location"), "https://notes.wiki.flybullet.net/deep/page.html");
+  assert.equal(response.headers.get("Location"), "https://notes-wiki.flybullet.net/deep/page.html");
   const setCookie = response.headers.get("Set-Cookie") ?? "";
   assert.match(setCookie, /^wwh_session=session_/);
   assert.match(setCookie, /HttpOnly/);
   assert.match(setCookie, /Secure/);
   assert.match(setCookie, /SameSite=Lax/);
-  assert.match(setCookie, /Domain=\.wiki\.flybullet\.net/);
+  assert.match(setCookie, /Domain=\.flybullet\.net/);
   assert.equal(setCookie.includes("provider-access-token"), false);
   assert.equal(env.DB.users.size, 1);
   assert.equal(env.DB.oauthAccounts.size, 1);
   assert.equal(env.DB.sessions.size, 1);
   assert.equal(env.DB.oauthStates.has("oauth_state_success"), false);
 
-  const profile = await handleRequest(new Request("https://notes.wiki.flybullet.net/_wikiwise/me", {
+  const profile = await handleRequest(new Request("https://notes-wiki.flybullet.net/_wikiwise/me", {
     headers: { Cookie: sessionCookieFrom(response) }
   }), env);
   assert.equal(profile.status, 200);
@@ -1466,7 +1486,7 @@ test("OAuth callback uses fixed Hub auth origin for token exchange and shared wi
   const env = {
     ...createEnv(),
     ...oauthEnv({
-      WIKIWISE_AUTH_ORIGIN: "https://hub.wiki.flybullet.net"
+      WIKIWISE_AUTH_ORIGIN: "https://hub-wiki.flybullet.net"
     })
   };
   env.fetch = mockOAuthFetch({
@@ -1491,20 +1511,20 @@ test("OAuth callback uses fixed Hub auth origin for token exchange and shared wi
   addOAuthState(env, {
     id: "oauth_state_fixed_origin",
     wikiSlug: "notes",
-    returnTo: "https://notes.wiki.flybullet.net/deep/page.html"
+    returnTo: "https://notes-wiki.flybullet.net/deep/page.html"
   });
 
   const response = await handleRequest(
-    new Request("https://hub.wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123&state=oauth_state_fixed_origin"),
+    new Request("https://hub-wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123&state=oauth_state_fixed_origin"),
     env
   );
 
   assert.equal(response.status, 302);
-  assert.equal(response.headers.get("Location"), "https://notes.wiki.flybullet.net/deep/page.html");
-  assert.equal(new URLSearchParams(tokenRequests[0]).get("redirect_uri"), "https://hub.wiki.flybullet.net/_wikiwise/auth/google/callback");
-  assert.match(response.headers.get("Set-Cookie") ?? "", /Domain=\.wiki\.flybullet\.net/);
+  assert.equal(response.headers.get("Location"), "https://notes-wiki.flybullet.net/deep/page.html");
+  assert.equal(new URLSearchParams(tokenRequests[0]).get("redirect_uri"), "https://hub-wiki.flybullet.net/_wikiwise/auth/google/callback");
+  assert.match(response.headers.get("Set-Cookie") ?? "", /Domain=\.flybullet\.net/);
 
-  const profile = await handleRequest(new Request("https://notes.wiki.flybullet.net/_wikiwise/me", {
+  const profile = await handleRequest(new Request("https://notes-wiki.flybullet.net/_wikiwise/me", {
     headers: { Cookie: sessionCookieFrom(response) }
   }), env);
   assert.equal(profile.status, 200);
@@ -1542,10 +1562,10 @@ test("OAuth callback rejects invalid, expired, mismatched, and reused state", as
   });
 
   for (const url of [
-    "https://notes.wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123",
-    "https://notes.wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123&state=unknown",
-    "https://notes.wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123&state=oauth_state_expired",
-    "https://notes.wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123&state=oauth_state_feishu"
+    "https://notes-wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123",
+    "https://notes-wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123&state=unknown",
+    "https://notes-wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123&state=oauth_state_expired",
+    "https://notes-wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123&state=oauth_state_feishu"
   ]) {
     const response = await handleRequest(new Request(url), env);
     assert.equal(response.status, 400);
@@ -1560,13 +1580,13 @@ test("OAuth callback rejects invalid, expired, mismatched, and reused state", as
     wikiSlug: "notes"
   });
   const first = await handleRequest(
-    new Request("https://notes.wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123&state=oauth_state_reused"),
+    new Request("https://notes-wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123&state=oauth_state_reused"),
     env
   );
   assert.equal(first.status, 302);
 
   const second = await handleRequest(
-    new Request("https://notes.wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123&state=oauth_state_reused"),
+    new Request("https://notes-wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123&state=oauth_state_reused"),
     env
   );
   assert.equal(second.status, 400);
@@ -1589,7 +1609,7 @@ test("OAuth provider exchange and profile failures do not expose provider intern
     });
 
     const response = await handleRequest(
-      new Request("https://notes.wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123&state=oauth_state_failure"),
+      new Request("https://notes-wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123&state=oauth_state_failure"),
       env
     );
 
@@ -1620,22 +1640,22 @@ test("session lifecycle covers profile access, expired sessions, and logout", as
     expiresAt: "2000-01-01T00:00:00.000Z"
   });
 
-  const signedIn = await handleRequest(new Request("https://notes.wiki.flybullet.net/_wikiwise/me", {
+  const signedIn = await handleRequest(new Request("https://notes-wiki.flybullet.net/_wikiwise/me", {
     headers: { Cookie: `wwh_session=${activeSession}` }
   }), env);
   assert.equal(signedIn.status, 200);
 
-  const expired = await handleRequest(new Request("https://notes.wiki.flybullet.net/_wikiwise/me", {
+  const expired = await handleRequest(new Request("https://notes-wiki.flybullet.net/_wikiwise/me", {
     headers: { Cookie: `wwh_session=${expiredSession}` }
   }), env);
   assert.equal(expired.status, 401);
 
-  const unknown = await handleRequest(new Request("https://notes.wiki.flybullet.net/_wikiwise/me", {
+  const unknown = await handleRequest(new Request("https://notes-wiki.flybullet.net/_wikiwise/me", {
     headers: { Cookie: "wwh_session=missing" }
   }), env);
   assert.equal(unknown.status, 401);
 
-  const logout = await handleRequest(new Request("https://notes.wiki.flybullet.net/_wikiwise/logout", {
+  const logout = await handleRequest(new Request("https://notes-wiki.flybullet.net/_wikiwise/logout", {
     method: "POST",
     headers: { Cookie: `wwh_session=${activeSession}` }
   }), env);
@@ -1643,7 +1663,7 @@ test("session lifecycle covers profile access, expired sessions, and logout", as
   assert.equal(env.DB.sessions.has(activeSession), false);
   assert.match(logout.headers.get("Set-Cookie") ?? "", /Max-Age=0/);
 
-  const afterLogout = await handleRequest(new Request("https://notes.wiki.flybullet.net/_wikiwise/me", {
+  const afterLogout = await handleRequest(new Request("https://notes-wiki.flybullet.net/_wikiwise/me", {
     headers: { Cookie: `wwh_session=${activeSession}` }
   }), env);
   assert.equal(afterLogout.status, 401);
@@ -1677,7 +1697,7 @@ test("private wiki owner bootstrap grants only callback wiki membership", async 
   });
 
   const ownerCallback = await handleRequest(
-    new Request("https://private-a.wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123&state=oauth_state_owner"),
+    new Request("https://private-a-wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123&state=oauth_state_owner"),
     env
   );
   assert.equal(ownerCallback.status, 302);
@@ -1688,12 +1708,12 @@ test("private wiki owner bootstrap grants only callback wiki membership", async 
     role: "owner"
   });
 
-  const privateA = await handleRequest(new Request("https://private-a.wiki.flybullet.net/", {
+  const privateA = await handleRequest(new Request("https://private-a-wiki.flybullet.net/", {
     headers: { Cookie: sessionCookieFrom(ownerCallback) }
   }), env);
   assert.equal(privateA.status, 200);
 
-  const privateB = await handleRequest(new Request("https://private-b.wiki.flybullet.net/", {
+  const privateB = await handleRequest(new Request("https://private-b-wiki.flybullet.net/", {
     headers: { Cookie: sessionCookieFrom(ownerCallback) }
   }), env);
   assert.equal(privateB.status, 403);
@@ -1722,12 +1742,12 @@ test("private wiki owner bootstrap grants only callback wiki membership", async 
   });
 
   const readerCallback = await handleRequest(
-    new Request("https://private-a.wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123&state=oauth_state_reader"),
+    new Request("https://private-a-wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123&state=oauth_state_reader"),
     nonOwnerEnv
   );
   assert.equal(readerCallback.status, 302);
   assert.equal(nonOwnerEnv.DB.memberships.size, 0);
-  const forbidden = await handleRequest(new Request("https://private-a.wiki.flybullet.net/", {
+  const forbidden = await handleRequest(new Request("https://private-a-wiki.flybullet.net/", {
     headers: { Cookie: sessionCookieFrom(readerCallback) }
   }), nonOwnerEnv);
   assert.equal(forbidden.status, 403);
@@ -1767,13 +1787,13 @@ test("private wiki owner bootstrap requires a verified provider email", async ()
     });
 
     const callback = await handleRequest(
-      new Request("https://private-a.wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123&state=oauth_state_owner"),
+      new Request("https://private-a-wiki.flybullet.net/_wikiwise/auth/google/callback?code=code-123&state=oauth_state_owner"),
       env
     );
     assert.equal(callback.status, 302);
     assert.equal(env.DB.memberships.size, 0);
 
-    const privateRead = await handleRequest(new Request("https://private-a.wiki.flybullet.net/", {
+    const privateRead = await handleRequest(new Request("https://private-a-wiki.flybullet.net/", {
       headers: { Cookie: sessionCookieFrom(callback) }
     }), env);
     assert.equal(privateRead.status, 403);
@@ -1798,7 +1818,7 @@ test("wiki owners can create list and revoke invitation links without exposing t
   });
   assert.equal(created.status, 201);
   const createdJson = await created.json();
-  assert.match(createdJson.inviteUrl, /^https:\/\/private-invite\.wiki\.flybullet\.net\/_wikiwise\/invitations\/invite_token_/);
+  assert.match(createdJson.inviteUrl, /^https:\/\/private-invite-wiki\.flybullet\.net\/_wikiwise\/invitations\/invite_token_/);
   assert.equal(createdJson.invitation.wikiSlug, "private-invite");
   assert.equal(createdJson.invitation.status, "pending");
   assert.equal(createdJson.invitation.role, "member");
@@ -1907,12 +1927,12 @@ test("signed-in invitees can accept valid invitations for one wiki only", async 
   });
   assert.equal(env.DB.invitations.get(acceptedJson.invitation.id).status, "accepted");
 
-  const inviteARead = await handleRequest(new Request("https://invite-a.wiki.flybullet.net/", {
+  const inviteARead = await handleRequest(new Request("https://invite-a-wiki.flybullet.net/", {
     headers: { Cookie: `wwh_session=${readerSession}` }
   }), env);
   assert.equal(inviteARead.status, 200);
 
-  const inviteBRead = await handleRequest(new Request("https://invite-b.wiki.flybullet.net/", {
+  const inviteBRead = await handleRequest(new Request("https://invite-b-wiki.flybullet.net/", {
     headers: { Cookie: `wwh_session=${readerSession}` }
   }), env);
   assert.equal(inviteBRead.status, 403);
@@ -2090,12 +2110,12 @@ test("wiki owners can remove member access for one wiki but cannot remove owners
     role: "member"
   });
 
-  const removedRead = await handleRequest(new Request("https://member-remove.wiki.flybullet.net/", {
+  const removedRead = await handleRequest(new Request("https://member-remove-wiki.flybullet.net/", {
     headers: { Cookie: `wwh_session=${readerSession}` }
   }), env);
   assert.equal(removedRead.status, 403);
 
-  const otherRead = await handleRequest(new Request("https://member-other.wiki.flybullet.net/", {
+  const otherRead = await handleRequest(new Request("https://member-other-wiki.flybullet.net/", {
     headers: { Cookie: `wwh_session=${readerSession}` }
   }), env);
   assert.equal(otherRead.status, 200);
@@ -2679,7 +2699,7 @@ test("republish removes stale R2 files for the wiki slug", async () => {
 
   assert.equal(env.WIKIWISE_FILES.objects.has("cleanup/index.html"), true);
   assert.equal(env.WIKIWISE_FILES.objects.has("cleanup/old.html"), false);
-  const response = await handleRequest(new Request("https://cleanup.wiki.flybullet.net/old.html"), env);
+  const response = await handleRequest(new Request("https://cleanup-wiki.flybullet.net/old.html"), env);
   assert.equal(response.status, 404);
 });
 
@@ -2697,7 +2717,7 @@ test("unknown wiki slug returns not found without exposing another wiki's files"
     files: [{ path: "index.html", data: base64("<h1>Notes</h1>") }]
   });
 
-  const response = await handleRequest(new Request("https://unknown.wiki.flybullet.net/"), env);
+  const response = await handleRequest(new Request("https://unknown-wiki.flybullet.net/"), env);
 
   assert.equal(response.status, 404);
   assert.equal(await response.text(), "Wiki not found");

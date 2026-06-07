@@ -239,7 +239,7 @@ The Electron app SHALL let users choose between the official Wikiwise publishing
 
 - **WHEN** the user selects the Cloudflare Hub target
 - **THEN** the publish dialog collects Cloudflare Hub settings instead of an official `wiki-wise.com` subdomain
-- **AND** the published URL is shown as `https://<slug>.wiki.flybullet.net`
+- **AND** the published URL is shown as `https://<slug>-wiki.flybullet.net`
 
 ### Requirement: Cloudflare Hub Publish Settings
 
@@ -249,6 +249,7 @@ The Electron app SHALL collect and persist the project settings needed to publis
 
 - **WHEN** the user configures Cloudflare Hub publishing
 - **THEN** the app records the Hub endpoint, publish token reference, wiki slug, visibility, auth realm, and comment policy
+- **AND** the default Hub endpoint is `https://hub-wiki.flybullet.net`
 - **AND** the app does not store OAuth client secrets inside the wiki project
 
 #### Scenario: Public/private visibility is selected

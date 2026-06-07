@@ -15,7 +15,7 @@ test("README documents Cloudflare Hub publishing and deployment overview", () =>
   const readme = readRepository("README.md");
 
   assert.match(readme, /## Self-hosted Cloudflare Hub/);
-  assert.match(readme, /https:\/\/<slug>\.wiki\.flybullet\.net/);
+  assert.match(readme, /https:\/\/<slug>-wiki\.flybullet\.net/);
   assert.match(readme, /official Wikiwise hosting service/);
   assert.match(readme, /Cloudflare Hub/);
   assert.match(readme, /public or private/);
@@ -35,7 +35,8 @@ test("README documents manual Cloudflare setup boundaries", () => {
   assert.match(readme, /R2/);
   assert.match(readme, /wildcard DNS/);
   assert.match(readme, /Cloudflare dashboard/);
-  assert.match(readme, /\*\.wiki\.flybullet\.net\/\*/);
+  assert.match(readme, /\*\.flybullet\.net/);
+  assert.match(readme, /\*-wiki\.flybullet\.net\/\*/);
   assert.match(readme, /wikiwise-cloudflare-hub/);
   assert.match(readme, /without syncing routes/);
   assert.match(readme, /wrangler secret put WIKIWISE_PUBLISH_TOKEN/);
@@ -51,10 +52,10 @@ test("README documents manual Cloudflare setup boundaries", () => {
   assert.match(readme, /FEISHU_USERINFO_URL/);
   assert.match(readme, /LARK_TOKEN_URL/);
   assert.match(readme, /LARK_USERINFO_URL/);
-  assert.match(readme, /WIKIWISE_AUTH_ORIGIN=https:\/\/hub\.wiki\.flybullet\.net/);
-  assert.match(readme, /https:\/\/hub\.wiki\.flybullet\.net\/_wikiwise\/auth\/google\/callback/);
-  assert.match(readme, /https:\/\/hub\.wiki\.flybullet\.net\/_wikiwise\/auth\/feishu\/callback/);
-  assert.match(readme, /https:\/\/hub\.wiki\.flybullet\.net\/_wikiwise\/auth\/lark\/callback/);
+  assert.match(readme, /WIKIWISE_AUTH_ORIGIN=https:\/\/hub-wiki\.flybullet\.net/);
+  assert.match(readme, /https:\/\/hub-wiki\.flybullet\.net\/_wikiwise\/auth\/google\/callback/);
+  assert.match(readme, /https:\/\/hub-wiki\.flybullet\.net\/_wikiwise\/auth\/feishu\/callback/);
+  assert.match(readme, /https:\/\/hub-wiki\.flybullet\.net\/_wikiwise\/auth\/lark\/callback/);
   assert.match(readme, /WIKIWISE_ADMIN_EMAILS/);
   assert.match(readme, /WIKIWISE_SESSION_DAYS/);
   assert.match(readme, /OAuth secrets/);
@@ -77,8 +78,8 @@ test("README maps deployed Hub settings back to the publish dialog", () => {
   const readme = readRepository("README.md");
 
   assert.match(readme, /Hub endpoint/);
-  assert.match(readme, /https:\/\/hub\.wiki\.flybullet\.net/);
-  assert.match(readme, /https:\/\/notes\.wiki\.flybullet\.net/);
+  assert.match(readme, /https:\/\/hub-wiki\.flybullet\.net/);
+  assert.match(readme, /https:\/\/notes-wiki\.flybullet\.net/);
   assert.match(readme, /publish token/);
   assert.match(readme, /wiki slug/);
   assert.match(readme, /visibility/);
@@ -95,6 +96,7 @@ test("scaffold AGENTS guidance covers Cloudflare Hub publish workflows", () => {
   assert.match(agents, /publish\.json/);
   assert.match(agents, /target/);
   assert.match(agents, /cloudflare-hub/);
+  assert.match(agents, /https:\/\/<slug>-wiki\.flybullet\.net/);
   assert.match(agents, /visibility/);
   assert.match(agents, /auth realm/);
   assert.match(agents, /comment policy/);

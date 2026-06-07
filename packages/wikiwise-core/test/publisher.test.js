@@ -73,10 +73,10 @@ test("loadPublishConfig returns Cloudflare Hub publish config and validates requ
     target: "cloudflare-hub",
     lastPublishedAt: "2026-05-31T10:30:00.000Z",
     hub: {
-      endpoint: "https://hub.wiki.flybullet.net",
+      endpoint: "https://hub-wiki.flybullet.net",
       publishToken: "wwh_token",
       slug: "notes",
-      url: "https://notes.wiki.flybullet.net",
+      url: "https://notes-wiki.flybullet.net",
       visibility: "private",
       authRealm: "shared",
       comments: {
@@ -92,10 +92,10 @@ test("loadPublishConfig returns Cloudflare Hub publish config and validates requ
   writeFile(path.join(root, "publish.json"), JSON.stringify({
     target: "cloudflare-hub",
     hub: {
-      endpoint: "https://hub.wiki.flybullet.net",
+      endpoint: "https://hub-wiki.flybullet.net",
       publishToken: "wwh_token",
       slug: "notes",
-      url: "https://notes.wiki.flybullet.net",
+      url: "https://notes-wiki.flybullet.net",
       visibility: "secret",
       authRealm: "shared",
       comments: {
@@ -317,7 +317,7 @@ test("publishCloudflareHubSite uploads Hub payload and saves target-aware config
   const result = await core.publishCloudflareHubSite({
     projectRoot,
     siteFolder,
-    hubEndpoint: "https://hub.wiki.flybullet.net/",
+    hubEndpoint: "https://hub-wiki.flybullet.net/",
     publishToken: "wwh_token",
     slug: "notes",
     settings: {
@@ -334,7 +334,7 @@ test("publishCloudflareHubSite uploads Hub payload and saves target-aware config
     now: () => now
   });
 
-  assert.equal(request.url, "https://hub.wiki.flybullet.net/_wikiwise/publish");
+  assert.equal(request.url, "https://hub-wiki.flybullet.net/_wikiwise/publish");
   assert.equal(request.init.method, "PUT");
   assert.equal(request.init.headers.Authorization, "Bearer wwh_token");
   assert.equal(request.init.headers["Content-Type"], "application/json");
@@ -359,10 +359,10 @@ test("publishCloudflareHubSite uploads Hub payload and saves target-aware config
     target: "cloudflare-hub",
     lastPublishedAt: now.toISOString(),
     hub: {
-      endpoint: "https://hub.wiki.flybullet.net",
+      endpoint: "https://hub-wiki.flybullet.net",
       publishToken: "wwh_token",
       slug: "notes",
-      url: "https://notes.wiki.flybullet.net",
+      url: "https://notes-wiki.flybullet.net",
       visibility: "public",
       authRealm: "shared",
       comments: {
@@ -373,7 +373,7 @@ test("publishCloudflareHubSite uploads Hub payload and saves target-aware config
 
   assert.deepEqual(result, {
     target: "cloudflare-hub",
-    url: "https://notes.wiki.flybullet.net",
+    url: "https://notes-wiki.flybullet.net",
     fileCount: 4
   });
 });
@@ -397,7 +397,7 @@ test("publishCloudflareHubSite maps Hub publish error status codes", async () =>
         core.publishCloudflareHubSite({
           projectRoot,
           siteFolder,
-          hubEndpoint: "https://hub.wiki.flybullet.net",
+          hubEndpoint: "https://hub-wiki.flybullet.net",
           publishToken: "wwh_token",
           slug: "notes",
           settings: {

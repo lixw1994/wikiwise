@@ -6,15 +6,15 @@ The Cloudflare Hub SHALL support an optional fixed OAuth/OIDC callback origin th
 
 #### Scenario: Fixed callback origin is configured
 
-- **WHEN** a visitor starts OAuth sign-in from `https://<slug>.wiki.flybullet.net`
+- **WHEN** a visitor starts OAuth sign-in from `https://<slug>-wiki.flybullet.net`
 - **AND** the Hub is configured with a fixed OAuth callback origin
-- **THEN** the provider authorization request uses `https://hub.wiki.flybullet.net/_wikiwise/auth/<provider>/callback` as the redirect URI
+- **THEN** the provider authorization request uses `https://hub-wiki.flybullet.net/_wikiwise/auth/<provider>/callback` as the redirect URI
 - **AND** the Hub stores the initiating wiki slug and safe return URL in OAuth state
 - **AND** the callback completes authentication using that same fixed redirect URI during token exchange
 
 #### Scenario: Fixed callback origin is not configured
 
-- **WHEN** a visitor starts OAuth sign-in from `https://<slug>.wiki.flybullet.net`
+- **WHEN** a visitor starts OAuth sign-in from `https://<slug>-wiki.flybullet.net`
 - **AND** the Hub is not configured with a fixed OAuth callback origin
 - **THEN** the provider authorization request uses the current wiki origin callback URL
 - **AND** existing per-wiki callback deployments keep working

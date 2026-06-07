@@ -165,7 +165,7 @@ const state = {
   publishTarget: "official",
   publishSubdomain: "",
   publishAvailability: "unknown",
-  publishHubEndpoint: "https://hub.wiki.flybullet.net",
+  publishHubEndpoint: "https://hub-wiki.flybullet.net",
   publishHubToken: "",
   publishHubSlug: "",
   publishHubVisibility: "public",
@@ -1746,7 +1746,7 @@ function applyPublishConfigDraft(config) {
 
 function defaultPublishHubDraft(suggestedSlug = "") {
   return {
-    endpoint: "https://hub.wiki.flybullet.net",
+    endpoint: "https://hub-wiki.flybullet.net",
     publishToken: "",
     slug: suggestedSlug,
     visibility: "public",
@@ -1757,10 +1757,10 @@ function defaultPublishHubDraft(suggestedSlug = "") {
 
 function publishHubUrlPreview() {
   if (!state.publishHubSlug) {
-    return "https://<slug>.wiki.flybullet.net";
+    return "https://<slug>-wiki.flybullet.net";
   }
 
-  return `https://${state.publishHubSlug}.wiki.flybullet.net`;
+  return `https://${state.publishHubSlug}-wiki.flybullet.net`;
 }
 
 function selectPublishTarget(target) {

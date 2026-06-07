@@ -4,7 +4,7 @@ Cloudflare Hub OAuth callbacks currently use the wiki subdomain that initiated s
 
 ## What Changes
 
-- Add a configurable fixed OAuth callback origin for the Cloudflare Hub, intended for `https://hub.wiki.flybullet.net`.
+- Add a configurable fixed OAuth callback origin for the Cloudflare Hub, intended for `https://hub-wiki.flybullet.net`.
 - Keep wiki sign-in initiation on the current wiki host so the Hub can preserve the requesting wiki slug and safe return URL.
 - Use the fixed callback origin for provider authorization and token exchange when configured.
 - Preserve the existing per-wiki callback behavior when no fixed auth origin is configured.

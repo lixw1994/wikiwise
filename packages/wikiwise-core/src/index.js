@@ -201,9 +201,15 @@ function cloudflareHubPublishEndpoint(endpoint) {
 
 function cloudflareHubWikiUrl(endpoint, slug) {
   const url = new URL(endpoint);
+  const port = url.port ? `:${url.port}` : "";
+  if (url.hostname.startsWith("hub-wiki.")) {
+    const baseHost = url.hostname.slice("hub-wiki.".length);
+    return `${url.protocol}//${slug}-wiki.${baseHost}${port}`;
+  }
+
   const baseHost = url.hostname.startsWith("hub.") ? url.hostname.slice("hub.".length) : url.hostname;
 
-  return `${url.protocol}//${slug}.${baseHost}`;
+  return `${url.protocol}//${slug}.${baseHost}${port}`;
 }
 
 export function randomPublishSubdomain(wikiName = "") {

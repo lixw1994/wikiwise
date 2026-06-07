@@ -62,9 +62,10 @@ function checkWranglerCli() {
 function checkWranglerManifest(source) {
   requireMatch(source, /^name = "wikiwise-cloudflare-hub"$/m, "wrangler.toml must keep Worker name wikiwise-cloudflare-hub.");
   requireMatch(source, /^main = "src\/worker\.js"$/m, "wrangler.toml must point main to src/worker.js.");
-  requireMatch(source, /pattern = "\*\.wiki\.flybullet\.net\/\*"/, "wrangler.toml must declare the *.wiki.flybullet.net/* route.");
-  requireMatch(source, /zone_name = "wiki\.flybullet\.net"/, "wrangler.toml must declare zone_name = wiki.flybullet.net.");
-  requireMatch(source, /^WIKIWISE_PUBLIC_DOMAIN = "wiki\.flybullet\.net"$/m, "wrangler.toml must set WIKIWISE_PUBLIC_DOMAIN = wiki.flybullet.net.");
+  requireMatch(source, /pattern = "\*-wiki\.flybullet\.net\/\*"/, "wrangler.toml must declare the *-wiki.flybullet.net/* route.");
+  requireMatch(source, /zone_name = "flybullet\.net"/, "wrangler.toml must declare zone_name = flybullet.net.");
+  requireMatch(source, /^WIKIWISE_PUBLIC_DOMAIN = "flybullet\.net"$/m, "wrangler.toml must set WIKIWISE_PUBLIC_DOMAIN = flybullet.net.");
+  requireMatch(source, /^WIKIWISE_AUTH_ORIGIN = "https:\/\/hub-wiki\.flybullet\.net"$/m, "wrangler.toml must set WIKIWISE_AUTH_ORIGIN = https://hub-wiki.flybullet.net.");
   requireMatch(source, /^binding = "DB"$/m, "wrangler.toml must declare D1 binding DB.");
   requireMatch(source, /^database_name = "wikiwise-hub"$/m, "wrangler.toml must declare D1 database_name wikiwise-hub.");
   requireMatch(source, /^migrations_dir = "migrations"$/m, "wrangler.toml must point D1 migrations_dir to migrations.");

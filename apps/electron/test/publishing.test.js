@@ -47,6 +47,8 @@ test("main process exposes Cloudflare Hub publishing IPC through core helper", (
 
   assert.match(mainSource, /publishCloudflareHubSite/);
   assert.match(mainSource, /function publishCloudflareHubProject\(payload\)/);
+  assert.match(mainSource, /endpoint:\s*"https:\/\/hub-wiki\.flybullet\.net"/);
+  assert.match(mainSource, /url:\s*`https:\/\/\$\{suggestedSlug\}-wiki\.flybullet\.net`/);
   assert.match(mainSource, /wikiwise:publishCloudflareHubSite/);
   assert.match(mainSource, /return publishCloudflareHubSite\(/);
   assert.match(mainSource, /hubEndpoint: payload\.hubEndpoint/);
@@ -124,6 +126,7 @@ test("renderer contains native publishing state and project service refresh", ()
   assert.match(rendererSource, /publishAvailability/);
   assert.match(rendererSource, /publishTarget/);
   assert.match(rendererSource, /publishHubEndpoint/);
+  assert.match(rendererSource, /publishHubEndpoint:\s*"https:\/\/hub-wiki\.flybullet\.net"/);
   assert.match(rendererSource, /publishHubToken/);
   assert.match(rendererSource, /publishHubSlug/);
   assert.match(rendererSource, /publishHubVisibility/);
@@ -182,7 +185,7 @@ test("renderer exposes Cloudflare Hub target controls and URL preview", () => {
   assert.match(normalizedHtml, /<option value="login-required">Login required<\/option>/);
   assert.match(normalizedHtml, /<option value="members-only">Members only<\/option>/);
   assert.match(rendererSource, /function publishHubUrlPreview\(\)/);
-  assert.match(rendererSource, /https:\/\/\$\{state\.publishHubSlug\}\.wiki\.flybullet\.net/);
+  assert.match(rendererSource, /https:\/\/\$\{state\.publishHubSlug\}-wiki\.flybullet\.net/);
 });
 
 test("renderer resets Cloudflare Hub draft when project config has no Hub settings", () => {

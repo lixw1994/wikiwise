@@ -79,7 +79,7 @@ secrets.
 
 **Cloudflare Hub:** self-hosted publishing uses `publish.json` with
 `target: "cloudflare-hub"`. The app sends the compiled site to the configured
-Hub endpoint, which serves it at `https://<slug>.wiki.flybullet.net`.
+Hub endpoint, which serves it at `https://<slug>-wiki.flybullet.net`.
 
 Hub settings you may help the user reason about:
 

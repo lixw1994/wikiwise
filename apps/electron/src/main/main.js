@@ -855,10 +855,10 @@ function getPublishConfig(payload) {
 
 function defaultCloudflareHubDraft(suggestedSlug) {
   return {
-    endpoint: "https://hub.wiki.flybullet.net",
+    endpoint: "https://hub-wiki.flybullet.net",
     publishToken: "",
     slug: suggestedSlug,
-    url: `https://${suggestedSlug}.wiki.flybullet.net`,
+    url: `https://${suggestedSlug}-wiki.flybullet.net`,
     visibility: "public",
     authRealm: "shared",
     commentPolicy: "login-required"

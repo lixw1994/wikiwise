@@ -51,7 +51,7 @@ own the domain, identity layer, membership rules, comments, and future account
 features, you can publish to a self-hosted Cloudflare Hub instead.
 
 A Hub deployment serves published wikis at
-`https://<slug>.wiki.flybullet.net`. Static wiki files live in R2, while wiki
+`https://<slug>-wiki.flybullet.net`. Static wiki files live in R2, while wiki
 metadata, sessions, memberships, page revisions, comments and annotations live
 in D1. Auth is owned by the Hub app, not Cloudflare Access, so Google and
 Feishu/Lark sign-in can produce the same user profile and comment identity
@@ -75,7 +75,7 @@ their access to another wiki.
 
 In the Wikiwise publish dialog, choose **Cloudflare Hub** and provide:
 
-- Hub endpoint, usually `https://hub.wiki.flybullet.net`
+- Hub endpoint, usually `https://hub-wiki.flybullet.net`
 - publish token
 - wiki slug
 - visibility: `public` or `private`
@@ -100,19 +100,23 @@ Worker route, D1 binding, R2 binding, and public domain are all explicit.
    from `apps/cloudflare-hub/migrations/`.
 3. Create an R2 bucket named `wikiwise-files`. The Worker binding remains
    `WIKIWISE_FILES`.
-4. Keep or edit the Worker route `*.wiki.flybullet.net/*`, zone
-   `wiki.flybullet.net`, `WIKIWISE_PUBLIC_DOMAIN=wiki.flybullet.net`, and
-   `WIKIWISE_AUTH_ORIGIN=https://hub.wiki.flybullet.net` in
+4. Keep or edit the Worker route `*-wiki.flybullet.net/*`, zone
+   `flybullet.net`, `WIKIWISE_PUBLIC_DOMAIN=flybullet.net`, and
+   `WIKIWISE_AUTH_ORIGIN=https://hub-wiki.flybullet.net` in
    `apps/cloudflare-hub/wrangler.toml` for your domain. The Hub endpoint is
-   the publishing API and fixed OAuth callback origin; published wikis still
-   serve from `https://<slug>.wiki.flybullet.net`.
-5. Add wildcard DNS for `*.wiki.flybullet.net` to the Worker-backed zone, then
-   add a Worker route in the Cloudflare dashboard that maps
-   `*.wiki.flybullet.net/*` in the `wiki.flybullet.net` zone to the
-   `wikiwise-cloudflare-hub` Worker. The `routes` entry remains in
-   `wrangler.toml` as the documented target, but the package deployment script
-   deploys Worker code without syncing routes because Wrangler's account-level
-   route trigger API can fail on some accounts even when zone-level routes work.
+   the publishing API and fixed OAuth callback origin; published wikis serve
+   from `https://<slug>-wiki.flybullet.net`.
+5. Add proxied wildcard DNS for `*.flybullet.net` to the Worker-backed zone,
+   then add a Worker route in the Cloudflare dashboard that maps
+   `*-wiki.flybullet.net/*` in the `flybullet.net` zone to the
+   `wikiwise-cloudflare-hub` Worker. This first-level wildcard shape is covered
+   by Cloudflare Universal SSL. If Cloudflare rejects the stricter route in your
+   dashboard, use `*.flybullet.net/*` as the route fallback; the Worker still
+   only serves Wikiwise sites for `-wiki` hostnames. The `routes` entry remains
+   in `wrangler.toml` as the documented target, but the package deployment
+   script deploys Worker code without syncing routes because Wrangler's
+   account-level route trigger API can fail on some accounts even when
+   zone-level routes work.
 6. From `apps/cloudflare-hub/`, set Cloudflare secrets for the Hub:
    `wrangler secret put WIKIWISE_PUBLISH_TOKEN`,
    `wrangler secret put WIKIWISE_SESSION_SECRET`,
@@ -123,9 +127,9 @@ Worker route, D1 binding, R2 binding, and public domain are all explicit.
    `wrangler secret put LARK_CLIENT_ID` and
    `wrangler secret put LARK_CLIENT_SECRET`.
    Register these OAuth callback URLs with the corresponding providers:
-   `https://hub.wiki.flybullet.net/_wikiwise/auth/google/callback`,
-   `https://hub.wiki.flybullet.net/_wikiwise/auth/feishu/callback`, and
-   `https://hub.wiki.flybullet.net/_wikiwise/auth/lark/callback`.
+   `https://hub-wiki.flybullet.net/_wikiwise/auth/google/callback`,
+   `https://hub-wiki.flybullet.net/_wikiwise/auth/feishu/callback`, and
+   `https://hub-wiki.flybullet.net/_wikiwise/auth/lark/callback`.
 7. If you override provider endpoints, configure `GOOGLE_TOKEN_URL`,
    `GOOGLE_USERINFO_URL`, `FEISHU_TOKEN_URL`, `FEISHU_USERINFO_URL`,
    `LARK_TOKEN_URL`, and `LARK_USERINFO_URL` as Cloudflare variables.
@@ -152,10 +156,10 @@ Worker route, D1 binding, R2 binding, and public domain are all explicit.
     ```
 
 After deployment, use the Wikiwise publish dialog with the Hub endpoint
-`https://hub.wiki.flybullet.net`, the same publish token stored in
+`https://hub-wiki.flybullet.net`, the same publish token stored in
 `WIKIWISE_PUBLISH_TOKEN`, your wiki slug, visibility, auth realm, and comment
 policy. If the slug is `notes`, the reader-facing URL is
-`https://notes.wiki.flybullet.net`.
+`https://notes-wiki.flybullet.net`.
 
 OAuth secrets, provider token responses, and session cookies stay in
 Cloudflare. They should never be written into a wiki folder, `publish.json`, or

@@ -1,4 +1,6 @@
-const defaultPublicDomain = "wiki.flybullet.net";
+const defaultPublicDomain = "flybullet.net";
+const wikiHostnameSuffix = "-wiki";
+const reservedWikiSlugs = new Set(["hub"]);
 const allowedVisibility = new Set(["public", "private"]);
 const allowedAuthRealm = new Set(["shared", "per-wiki"]);
 const allowedCommentPolicy = new Set(["disabled", "login-required", "members-only"]);
@@ -1450,7 +1452,7 @@ function buildSessionCookie(request, env, value, options) {
 }
 
 function cookieDomainForRequest(request, env) {
-  const publicDomain = env?.WIKIWISE_PUBLIC_DOMAIN ?? defaultPublicDomain;
+  const publicDomain = publicDomainForEnv(env);
   const hostname = new URL(request.url).hostname;
   return hostname === publicDomain || hostname.endsWith(`.${publicDomain}`)
     ? `.${publicDomain}`
@@ -1919,17 +1921,31 @@ function objectKey(slug, filePath) {
 }
 
 function slugFromHost(env, hostname) {
-  const publicDomain = env?.WIKIWISE_PUBLIC_DOMAIN ?? defaultPublicDomain;
-  if (!hostname.endsWith(`.${publicDomain}`)) {
+  const publicDomain = publicDomainForEnv(env);
+  const normalizedHostname = String(hostname ?? "").toLowerCase();
+  if (!normalizedHostname.endsWith(`.${publicDomain}`)) {
     return null;
   }
 
-  const slug = hostname.slice(0, -publicDomain.length - 1);
+  const hostLabel = normalizedHostname.slice(0, -publicDomain.length - 1);
+  if (!hostLabel.endsWith(wikiHostnameSuffix)) {
+    return null;
+  }
+
+  const slug = hostLabel.slice(0, -wikiHostnameSuffix.length);
+  if (!slug || reservedWikiSlugs.has(slug)) {
+    return null;
+  }
+
   return /^[a-z0-9-]+$/.test(slug) ? slug : null;
 }
 
 function publicWikiUrl(env, slug) {
-  return `https://${slug}.${env?.WIKIWISE_PUBLIC_DOMAIN ?? defaultPublicDomain}`;
+  return `https://${slug}${wikiHostnameSuffix}.${publicDomainForEnv(env)}`;
+}
+
+function publicDomainForEnv(env) {
+  return String(env?.WIKIWISE_PUBLIC_DOMAIN ?? defaultPublicDomain).trim().toLowerCase();
 }
 
 function requestPathToFilePath(pathname) {

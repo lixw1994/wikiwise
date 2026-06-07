@@ -2,7 +2,6 @@
 
 ## Purpose
 Define the self-hosted Cloudflare Hub runtime that receives Wikiwise publishes, serves multiple wiki slugs, owns application-level auth, and supports comments and annotations.
-
 ## Requirements
 ### Requirement: Cloudflare Hub Deployment Model
 
@@ -10,10 +9,16 @@ Wikiwise SHALL support a self-hosted Cloudflare Hub that is manually deployed on
 
 #### Scenario: Hub serves wildcard wiki hostnames
 
-- **WHEN** a request arrives for `https://<slug>.wiki.flybullet.net`
+- **WHEN** a request arrives for `https://<slug>-wiki.flybullet.net`
 - **THEN** the Hub resolves `<slug>` from the hostname
 - **AND** the Hub loads that wiki's metadata and access policy
 - **AND** the Hub serves the matching wiki instead of the official Wikiwise hosting service
+
+#### Scenario: Hub rejects the reserved control hostname as a wiki
+
+- **WHEN** a request arrives for `https://hub-wiki.flybullet.net` outside a Hub API or auth route
+- **THEN** the Hub does not resolve `hub` as a published wiki slug
+- **AND** no published wiki files are served from the Hub control hostname
 
 #### Scenario: Hub handles unknown wiki slugs
 
@@ -30,7 +35,7 @@ The Cloudflare Hub SHALL expose an authenticated publish API that receives compi
 - **WHEN** Wikiwise publishes a compiled site to the Hub with a valid publish token
 - **THEN** the Hub stores the static files for the requested wiki slug
 - **AND** the Hub stores the wiki access configuration
-- **AND** the Hub reports the public URL as `https://<slug>.wiki.flybullet.net`
+- **AND** the Hub reports the public URL as `https://<slug>-wiki.flybullet.net`
 
 #### Scenario: Publish token is missing or invalid
 
@@ -480,7 +485,8 @@ The Cloudflare Hub SHALL include a repository-owned Wrangler deployment configur
 - **THEN** the configuration identifies the Cloudflare Hub Worker entrypoint
 - **AND** it declares the D1 binding used by the Worker as `DB`
 - **AND** it declares the R2 binding used by the Worker as `WIKIWISE_FILES`
-- **AND** it declares the public wiki domain configuration used to build `https://<slug>.wiki.flybullet.net` URLs
+- **AND** it declares the public wiki domain configuration used to build `https://<slug>-wiki.flybullet.net` URLs
+- **AND** it declares the recommended Hub OAuth callback origin as `https://hub-wiki.flybullet.net`
 
 #### Scenario: Deployment configuration keeps secrets out of source control
 
@@ -522,13 +528,15 @@ Wikiwise SHALL document the self-hosted Cloudflare Hub deployment flow using the
 #### Scenario: Operator follows setup documentation
 
 - **WHEN** an operator reads the self-hosted Cloudflare Hub setup instructions
-- **THEN** the documentation lists the required Cloudflare resources, Worker route, wildcard DNS, D1 binding, R2 binding, public domain variable, and secrets
+- **THEN** the documentation lists the required Cloudflare resources, Worker route, wildcard DNS, D1 binding, R2 binding, public domain variable, fixed auth origin variable, and secrets
 - **AND** it shows how to apply D1 migrations and deploy the Hub through the documented Wrangler commands
+- **AND** it identifies `*.flybullet.net` wildcard DNS and `*-wiki.flybullet.net/*` Worker routing for the default free-TLS deployment shape
 
 #### Scenario: Operator connects Wikiwise publishing to the deployed Hub
 
 - **WHEN** an operator finishes deploying the Hub
 - **THEN** the documentation identifies the Hub endpoint, publish token, wiki slug, visibility, auth realm, and comment policy values needed by the Wikiwise publish dialog
+- **AND** it identifies `https://hub-wiki.flybullet.net` as the default Hub endpoint
 - **AND** it warns that publish tokens and OAuth secrets must not be committed to wiki project files
 
 ### Requirement: Hub Membership Invitations
@@ -655,3 +663,35 @@ The Cloudflare Hub reader runtime SHALL expose member management controls only t
 
 - **WHEN** the reader runtime loads for an anonymous visitor, signed-in non-member, or signed-in non-owner member
 - **THEN** it does not show member management controls
+
+### Requirement: Fixed Hub OAuth Callback Origin
+
+The Cloudflare Hub SHALL support an optional fixed OAuth/OIDC callback origin that can be shared by all published wiki slugs.
+
+#### Scenario: Fixed callback origin is configured
+
+- **WHEN** a visitor starts OAuth sign-in from `https://<slug>-wiki.flybullet.net`
+- **AND** the Hub is configured with a fixed OAuth callback origin
+- **THEN** the provider authorization request uses `https://hub-wiki.flybullet.net/_wikiwise/auth/<provider>/callback` as the redirect URI
+- **AND** the Hub stores the initiating wiki slug and safe return URL in OAuth state
+- **AND** the callback completes authentication using that same fixed redirect URI during token exchange
+
+#### Scenario: Fixed callback origin is not configured
+
+- **WHEN** a visitor starts OAuth sign-in from `https://<slug>-wiki.flybullet.net`
+- **AND** the Hub is not configured with a fixed OAuth callback origin
+- **THEN** the provider authorization request uses the current wiki origin callback URL
+- **AND** existing per-wiki callback deployments keep working
+
+#### Scenario: Session created on fixed callback host is shared with wiki hosts
+
+- **WHEN** OAuth callback succeeds through a fixed callback host under the configured public wiki domain
+- **THEN** the Hub sets a secure HTTP-only session cookie scoped to the public wiki domain
+- **AND** the user is redirected to the stored safe return URL for the initiating wiki
+- **AND** subsequent requests to that wiki host can use the created session
+
+#### Scenario: Operator reviews fixed callback setup documentation
+
+- **WHEN** an operator configures OAuth providers for the Cloudflare Hub
+- **THEN** the setup documentation lists the fixed Google, Feishu, and Lark callback URLs to register with providers
+- **AND** the documentation identifies the Hub endpoint under the public wiki domain as the recommended callback origin

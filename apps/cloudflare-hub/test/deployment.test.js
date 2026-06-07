@@ -33,12 +33,12 @@ test("wrangler manifest declares the Hub Worker deployment bindings", () => {
   assert.match(manifest, /^name = "wikiwise-cloudflare-hub"$/m);
   assert.match(manifest, /^main = "src\/worker\.js"$/m);
   assert.match(manifest, /^compatibility_date = "\d{4}-\d{2}-\d{2}"$/m);
-  assert.match(manifest, /pattern = "\*\.wiki\.flybullet\.net\/\*"/);
-  assert.match(manifest, /zone_name = "wiki\.flybullet\.net"/);
+  assert.match(manifest, /pattern = "\*-wiki\.flybullet\.net\/\*"/);
+  assert.match(manifest, /zone_name = "flybullet\.net"/);
 
   const vars = findTomlBlock(manifest, /^\[vars\]$/m);
-  assert.match(vars, /^WIKIWISE_PUBLIC_DOMAIN = "wiki\.flybullet\.net"$/m);
-  assert.match(vars, /^WIKIWISE_AUTH_ORIGIN = "https:\/\/hub\.wiki\.flybullet\.net"$/m);
+  assert.match(vars, /^WIKIWISE_PUBLIC_DOMAIN = "flybullet\.net"$/m);
+  assert.match(vars, /^WIKIWISE_AUTH_ORIGIN = "https:\/\/hub-wiki\.flybullet\.net"$/m);
 
   const d1 = findTomlBlock(manifest, /^\[\[d1_databases\]\]$/m);
   assert.match(d1, /^binding = "DB"$/m);
@@ -119,11 +119,11 @@ main = "src/worker.js"
 compatibility_date = "2026-06-06"
 
 routes = [
-  { pattern = "*.wiki.flybullet.net/*", zone_name = "wiki.flybullet.net" }
+  { pattern = "*-wiki.flybullet.net/*", zone_name = "flybullet.net" }
 ]
 
 [vars]
-WIKIWISE_PUBLIC_DOMAIN = "wiki.flybullet.net"
+WIKIWISE_PUBLIC_DOMAIN = "flybullet.net"
 `;
 
   const routeBlockConfig = `name = "wikiwise-cloudflare-hub"
@@ -131,8 +131,8 @@ main = "src/worker.js"
 compatibility_date = "2026-06-06"
 
 [[routes]]
-pattern = "*.wiki.flybullet.net/*"
-zone_name = "wiki.flybullet.net"
+pattern = "*-wiki.flybullet.net/*"
+zone_name = "flybullet.net"
 
 [[d1_databases]]
 binding = "DB"

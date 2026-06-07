@@ -3,12 +3,12 @@ main = "src/worker.js"
 compatibility_date = "2026-06-06"
 
 routes = [
-  { pattern = "*.wiki.flybullet.net/*", zone_name = "wiki.flybullet.net" }
+  { pattern = "*-wiki.flybullet.net/*", zone_name = "flybullet.net" }
 ]
 
 [vars]
-WIKIWISE_PUBLIC_DOMAIN = "wiki.flybullet.net"
-WIKIWISE_AUTH_ORIGIN = "https://hub.wiki.flybullet.net"
+WIKIWISE_PUBLIC_DOMAIN = "flybullet.net"
+WIKIWISE_AUTH_ORIGIN = "https://hub-wiki.flybullet.net"
 WIKIWISE_SESSION_DAYS = "30"
 
 [[d1_databases]]
